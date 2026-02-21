@@ -26,11 +26,23 @@ CREATE POLICY "anyone_read_user_roles"
   USING (true);
 
 DROP POLICY IF EXISTS "admin_manage_user_roles" ON public.user_roles;
-CREATE POLICY "admin_manage_user_roles"
+DROP POLICY IF EXISTS "admin_insert_user_roles" ON public.user_roles;
+CREATE POLICY "admin_insert_user_roles"
   ON public.user_roles
-  FOR ALL
-  USING ( public.is_admin() )
+  FOR INSERT
   WITH CHECK ( public.is_admin() );
+
+DROP POLICY IF EXISTS "admin_update_user_roles" ON public.user_roles;
+CREATE POLICY "admin_update_user_roles"
+  ON public.user_roles
+  FOR UPDATE
+  USING ( public.is_admin() );
+
+DROP POLICY IF EXISTS "admin_delete_user_roles" ON public.user_roles;
+CREATE POLICY "admin_delete_user_roles"
+  ON public.user_roles
+  FOR DELETE
+  USING ( public.is_admin() );
 
 -- ----------------------------------------------------------
 -- 0B. HELPER: Check if the current user is an AJK admin

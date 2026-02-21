@@ -67,21 +67,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     const bootstrap = async () => {
-      const userSignedOut = localStorage.getItem(SIGNED_OUT_KEY) === "true";
-      if (!userSignedOut) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user && !session.user.is_anonymous) {
-          setUser(session.user);
-          await checkAdminRole(session.user.id);
-          setIsLoading(false);
-          return;
+      try {
+        const userSignedOut = localStorage.getItem(SIGNED_OUT_KEY) === "true";
+        if (!userSignedOut) {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) console.error("Auth - getSession error:", error.message);
+          
+          if (session?.user && !session.user.is_anonymous) {
+            setUser(session.user);
+            await checkAdminRole(session.user.id);
+            return;
+          }
         }
+        localStorage.removeItem(SIGNED_OUT_KEY);
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) console.error("Silent Guest sign-in failed:", error.message);
+        else setUser(data.user);
+      } catch (err) {
+        console.error("AuthContext bootstrap encountered a fatal error:", err);
+      } finally {
+        setIsLoading(false);
       }
-      localStorage.removeItem(SIGNED_OUT_KEY);
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) console.error("Silent Guest sign-in failed:", error.message);
-      else setUser(data.user);
-      setIsLoading(false);
     };
 
     bootstrap();

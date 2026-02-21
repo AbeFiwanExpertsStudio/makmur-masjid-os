@@ -29,8 +29,10 @@ export function useLiveFoodEvents() {
     let mounted = true;
 
     // Safety timeout — never show spinner for more than 4s
+    // Use a mutable ref or check mounted flag to ensure it doesn't override real data
     const timeout = setTimeout(() => {
-      if (mounted && isLoading) {
+      // If we reach here, it hasn't been cleared by fetchEvents
+      if (mounted) {
         console.warn("useLiveFoodEvents: timed out, using fallback data");
         setEvents(FALLBACK_EVENTS);
         setIsLoading(false);
@@ -96,6 +98,7 @@ export function useLiveFoodEvents() {
         console.error("useLiveFoodEvents error:", err);
         if (mounted) setEvents(FALLBACK_EVENTS);
       }
+      clearTimeout(timeout);
       if (mounted) setIsLoading(false);
     };
 
