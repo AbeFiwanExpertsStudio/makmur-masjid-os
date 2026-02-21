@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+
+  /* ═══════════════════════════════════════════════════
+     Project Makmur — Premium Islamic Design System
+     Inspired by modern mosque & Islamic SaaS websites
+     ═══════════════════════════════════════════════════ */
+
+  /* Primary Greens */
+  --color-primary: #1B6B4A;
+  --color-primary-light: #2D8F65;
+  --color-primary-dark: #0F4A33;
+  --color-primary-50: #EEFBF4;
+  --color-primary-100: #D5F5E3;
+
+  /* Warm Gold Accents */
+  --color-gold: #D4A843;
+  --color-gold-light: #F0DBA8;
+  --color-gold-dark: #B8922F;
+
+  /* Neutrals */
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F8FAF9;
+  --color-surface-muted: #F1F5F3;
+  --color-border: #E2E8E5;
+  --color-text: #1A2E2A;
+  --color-text-secondary: #5A7068;
+  --color-text-muted: #8FA39B;
+}
+
+@layer base {
+  :root {
+    --background: #F8FAF9;
+    --foreground: #1A2E2A;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ═══════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════ */
+
+/* Section container */
+.section {
+  @apply py-12 md:py-16;
+}
+
+/* Rich gradient hero */
+.hero-gradient {
+  background: linear-gradient(135deg, #0F4A33 0%, #1B6B4A 40%, #2D8F65 100%);
+}
+
+/* Subtle warm gradient for cards */
+.card-gradient {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F8FAF9 100%);
+}
+
+/* Gold accent gradient */
+.gold-gradient {
+  background: linear-gradient(135deg, #D4A843 0%, #B8922F 100%);
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Premium card styling */
+.card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #E2E8E5;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+  border-color: #D5F5E3;
+  box-shadow: 0 10px 40px -12px rgba(27, 107, 74, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Icon container (circular) */
+.icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-box-primary {
+  background: #EEFBF4;
+  color: #1B6B4A;
+}
+
+.icon-box-gold {
+  background: #FDF6E3;
+  color: #D4A843;
+}
+
+/* Stat chip */
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Button styles */
+.btn-primary {
+  background: #1B6B4A;
+  color: white;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  background: #0F4A33;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(27, 107, 74, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-outline {
+  border: 2px solid #E2E8E5;
+  color: #1B6B4A;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  border-color: #1B6B4A;
+  background: #EEFBF4;
+}
+
+/* Progress bar gradient */
+.progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #F1F5F3;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2D8F65, #1B6B4A);
+  transition: width 0.5s ease;
+}
+
+/* Pulse animation */
+@keyframes pulse-live {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-live {
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* Subtle Islamic geometric pattern */
+.pattern-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231B6B4A' fill-opacity='0.03'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40zm0-40h2l-2 2V0zm0 4l4-4h2l-6 6V4zm0 4l8-8h2L40 10V8zm0 4L52 0h2L40 14v-2zm0 4L56 0h2L40 18v-2zm0 4L60 0h2L40 22v-2zm0 4L64 0h2L40 26v-2zm0 4L68 0h2L40 30v-2zm0 4L72 0h2L40 34v-2zm0 4L76 0h2L40 38v-2zm0 4L80 0v2L42 40h-2z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Divider with diamond */
+.divider-diamond {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8FA39B;
+}
+
+.divider-diamond::before,
+.divider-diamond::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E2E8E5;
+}
