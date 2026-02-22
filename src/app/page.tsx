@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Shield } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { useLiveStats } from "@/hooks/useLiveStats";
+import { useSystemSettings } from "@/hooks/useSystemSettings";
 
 const publicFeatures = [
   { href: "/e-kupon", icon: QrCode, title: "E-Kupon", desc: "Digital food coupons with live counters and QR codes.", color: "icon-box-primary" },
@@ -25,6 +26,7 @@ function formatStat(value: number, prefix = "", suffix = ""): string {
 export default function HomePage() {
   const { isAdmin } = useAuth();
   const stats = useLiveStats();
+  const settings = useSystemSettings();
   const features = isAdmin ? [...adminFeatures, ...publicFeatures] : publicFeatures;
 
   const statDisplay = [
@@ -53,18 +55,18 @@ export default function HomePage() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mt-48 -mr-48 blur-3xl" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full -mb-32 -ml-32 blur-2xl" />
         <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-[#D4A843] rounded-full animate-live" />
-        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-[#D4A843]/60 rounded-full animate-live" style={{animationDelay: '0.5s'}} />
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-[#D4A843]/60 rounded-full animate-live" style={{ animationDelay: '0.5s' }} />
 
         <div className="container mx-auto px-4 py-20 md:py-28 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-6">
               <Star size={14} className="text-[#D4A843]" />
-              <span className="text-xs font-semibold text-white/90">Ramadan 1447H — Centralized Mosque OS</span>
+              <span className="text-xs font-semibold text-white/90">Ramadan 1447H — {settings.system_desc}</span>
             </div>
 
             <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
-              Empowering Mosques<br />
-              <span className="text-[#D4A843]">This Ramadan</span>
+              {settings.system_name}<br />
+              <span className="text-[#D4A843]">Platform</span>
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
@@ -110,7 +112,7 @@ export default function HomePage() {
         {/* Wave divider */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M0 60V20C240 0 480 40 720 30C960 20 1200 0 1440 20V60H0Z" fill="#F8FAF9"/>
+            <path d="M0 60V20C240 0 480 40 720 30C960 20 1200 0 1440 20V60H0Z" fill="#F8FAF9" />
           </svg>
         </div>
       </section>

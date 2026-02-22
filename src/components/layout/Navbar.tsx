@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Bell, Menu, X, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthContext';
 import { useState, useRef, useEffect } from 'react';
+import { useSystemSettings } from "@/hooks/useSystemSettings";
 
 const mockNotifications = [
   { id: "1", text: "Tarawih tonight at 8:45 PM — led by Sheikh Al-Afasy", time: "5 min ago", read: false },
@@ -21,6 +22,7 @@ export function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const settings = useSystemSettings();
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -63,32 +65,30 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 hero-gradient rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🌙</div>
           <div>
-            <span className="font-bold text-lg text-[#1A2E2A] block leading-tight">Makmur</span>
-            <span className="text-[10px] text-[#8FA39B] font-medium -mt-0.5 block">Mosque OS</span>
+            <span className="font-bold text-lg text-[#1A2E2A] block leading-tight">{settings.system_name}</span>
+            <span className="text-[10px] text-[#8FA39B] font-medium -mt-0.5 block">{settings.system_desc}</span>
           </div>
         </Link>
-        
+
         <nav className="hidden lg:flex gap-1 items-center">
           {isLoading ? (
-             <div className="w-16 h-8 bg-gray-100 animate-pulse rounded-lg" />
+            <div className="w-16 h-8 bg-gray-100 animate-pulse rounded-lg" />
           ) : isAdmin && (
             <Link href="/admin"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                pathname.startsWith('/admin')
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${pathname.startsWith('/admin')
                   ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
                   : 'text-[#D4A843] hover:text-[#B8922F] hover:bg-[#FFF9EE]'
-              }`}
+                }`}
             >
               <Shield size={14} /> Admin
             </Link>
           )}
           {links.map((link) => (
             <Link key={link.href} href={link.href}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                pathname.startsWith(link.href)
+              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${pathname.startsWith(link.href)
                   ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
                   : 'text-[#5A7068] hover:text-[#1B6B4A] hover:bg-[#F8FAF9]'
-              }`}
+                }`}
             >
               {link.label}
             </Link>
@@ -132,7 +132,7 @@ export function Navbar() {
               </div>
             )}
           </div>
-          
+
           {isLoading ? (
             <div className="hidden md:block w-20 h-9 bg-gray-100 animate-pulse rounded-xl ml-1" />
           ) : isAnonymous ? (
@@ -178,9 +178,8 @@ export function Navbar() {
         <div className="lg:hidden bg-white border-t border-[#E2E8E5] px-4 pb-4 pt-2 space-y-1 shadow-lg">
           {links.map((link) => (
             <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
-              className={`block px-4 py-3 rounded-xl text-sm font-medium transition ${
-                pathname.startsWith(link.href) ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold' : 'text-[#5A7068] hover:bg-[#F8FAF9]'
-              }`}
+              className={`block px-4 py-3 rounded-xl text-sm font-medium transition ${pathname.startsWith(link.href) ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold' : 'text-[#5A7068] hover:bg-[#F8FAF9]'
+                }`}
             >{link.label}</Link>
           ))}
           {isLoading ? (

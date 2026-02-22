@@ -5,17 +5,35 @@ import { AuthProvider } from "@/components/providers/AuthContext";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Navbar } from "@/components/layout/Navbar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { createClient } from "@supabase/supabase-js";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Project Makmur - Mosque OS",
-  description: "Centralized Mosque Operating System for Ramadan",
-  manifest: "/manifest.json",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  let title = "Project Makmur";
+  let description = "Centralized Mosque Operating System";
+
+  try {
+    const { data } = await supabase.from("system_settings").select("system_name, system_desc").eq("id", 1).single();
+    if (data) {
+      title = `${data.system_name} - ${data.system_desc}`;
+      description = `Welcome to ${data.system_name} Platform`;
+    }
+  } catch (e) { }
+
+  return {
+    title,
+    description,
+    manifest: "/manifest.json",
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#3D6D63",
