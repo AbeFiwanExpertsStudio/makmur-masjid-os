@@ -49,6 +49,7 @@ export function Navbar() {
     { href: '/crowdfunding', label: 'Crowdfunding' },
     { href: '/e-kupon', label: 'E-Kupon' },
     { href: '/zakat', label: 'Zakat Locator' },
+    { href: '/waktu-solat', label: 'Waktu Solat' },
   ];
 
   const handleSignOut = async () => {
@@ -76,8 +77,8 @@ export function Navbar() {
           ) : isAdmin && (
             <Link href="/admin"
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${pathname.startsWith('/admin')
-                  ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
-                  : 'text-[#D4A843] hover:text-[#B8922F] hover:bg-[#FFF9EE]'
+                ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
+                : 'text-[#D4A843] hover:text-[#B8922F] hover:bg-[#FFF9EE]'
                 }`}
             >
               <Shield size={14} /> Admin
@@ -86,8 +87,8 @@ export function Navbar() {
           {links.map((link) => (
             <Link key={link.href} href={link.href}
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${pathname.startsWith(link.href)
-                  ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
-                  : 'text-[#5A7068] hover:text-[#1B6B4A] hover:bg-[#F8FAF9]'
+                ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
+                : 'text-[#5A7068] hover:text-[#1B6B4A] hover:bg-[#F8FAF9]'
                 }`}
             >
               {link.label}
