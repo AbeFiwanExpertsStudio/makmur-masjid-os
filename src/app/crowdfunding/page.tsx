@@ -11,6 +11,7 @@ type Campaign = {
   description: string;
   target_amount: number;
   current_amount: number;
+  images: string[];
 };
 
 // timeout helper
@@ -115,6 +116,20 @@ export default function CrowdfundingPage() {
                 </div>
                 <p className="text-sm text-[#5A7068] mb-4">{c.description}</p>
 
+                {c.images && c.images.length > 0 && (
+                  <div className="flex gap-2 mb-4 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                    {c.images.map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt="Campaign"
+                        className="h-20 w-auto max-w-[120px] rounded-lg object-cover snap-start border border-[#E2E8E5]"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex justify-between text-sm mb-2 font-medium">
                   <span className="text-[#1B6B4A] font-bold text-lg">RM{c.current_amount.toLocaleString()}</span>
                   <span className="text-[#8FA39B]">of RM{c.target_amount.toLocaleString()}</span>
@@ -198,6 +213,8 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
   const [description, setDescription] = useState(campaign?.description || "");
   const [target, setTarget] = useState(String(campaign?.target_amount || "10000"));
   const [current, setCurrent] = useState(String(campaign?.current_amount || "0"));
+  const [images, setImages] = useState(campaign?.images || []);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -206,11 +223,37 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
     const supabase = createClient();
 
     try {
+      let uploadedUrls: string[] = [];
+
+      // Upload selected files if any
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
+          const { data: uploadData, error: uploadError } = await supabase
+            .storage
+            .from('campaigns')
+            .upload(fileName, file);
+
+          if (!uploadError && uploadData) {
+            const { data: { publicUrl } } = supabase
+              .storage
+              .from('campaigns')
+              .getPublicUrl(fileName);
+            uploadedUrls.push(publicUrl);
+          }
+        }
+      }
+
+      // Keep existing images plus newly uploaded ones, limited to 4
+      const finalImages = [...(Array.isArray(images) ? images : []), ...uploadedUrls].slice(0, 4);
+
       const payload = {
         title: title.trim(),
         description: description.trim(),
         target_amount: parseFloat(target) || 0,
         current_amount: parseFloat(current) || 0,
+        images: finalImages
       };
 
       if (isEdit && campaign) {
@@ -261,6 +304,37 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
               <label className="text-xs font-semibold text-[#5A7068] uppercase mb-1.5 block">Current raised (RM)</label>
               <input type="number" value={current} onChange={e => setCurrent(e.target.value)} className="w-full px-3 py-2 border border-[#E2E8E5] rounded-xl text-sm outline-none focus:border-[#1B6B4A] bg-[#F8FAF9]" />
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[#5A7068] uppercase mb-1.5 block">Upload Images (Max 4)</label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                const currentSlots = Array.isArray(images) ? images.length : 0;
+                const allowedNew = 4 - currentSlots;
+                setSelectedFiles(files.slice(0, allowedNew));
+              }}
+              disabled={Array.isArray(images) && images.length >= 4}
+              className="w-full text-sm text-[#5A7068] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-[#EEFBF4] file:text-[#1B6B4A] hover:file:bg-[#D5F5E3] cursor-pointer"
+            />
+            {selectedFiles.length > 0 && (
+              <p className="text-xs text-[#8FA39B] mt-1">{selectedFiles.length} file(s) selected</p>
+            )}
+            {Array.isArray(images) && images.length > 0 && (
+              <div className="flex gap-2 mt-2">
+                {images.map((img, i) => (
+                  <div key={i} className="relative">
+                    <img src={img} className="h-10 w-10 object-cover rounded shadow-sm border border-[#E2E8E5]" />
+                    <button title="Remove image" onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5">
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <button onClick={handleSave} disabled={saving || !title.trim()} className="w-full py-3.5 btn-primary text-sm mt-2 flex justify-center gap-2">
             {saving && <Loader2 size={16} className="animate-spin" />} {saving ? "Saving..." : "Save Campaign"}

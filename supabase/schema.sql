@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS public.crowdfund_campaigns (
   description    text,
   target_amount  numeric(12,2) NOT NULL DEFAULT 0,
   current_amount numeric(12,2) NOT NULL DEFAULT 0,
+  images         text[] DEFAULT '{}',
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 
@@ -201,6 +202,7 @@ CREATE TABLE IF NOT EXISTS public.food_events (
   event_date         date NOT NULL DEFAULT CURRENT_DATE,
   start_time         time NOT NULL DEFAULT '17:00:00',
   end_time           time NOT NULL DEFAULT '19:00:00',
+  location           text,
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 

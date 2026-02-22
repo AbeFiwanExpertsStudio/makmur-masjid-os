@@ -297,7 +297,7 @@ function KuponCard({
 
         <div className="space-y-2 relative z-10 text-white/80">
           <div className="flex items-center gap-2 text-sm"><Clock size={14} /> {event.event_date} ({event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)})</div>
-          <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> Main Courtyard, Masjid Al-Makmur</div>
+          <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> {event.location || "Primary Distribution Center"}</div>
         </div>
       </div>
 
@@ -387,6 +387,7 @@ function EKuponFormModal({
   const isEdit = mode === "edit";
   const [name, setName] = useState(event?.name ?? "");
   const [capacity, setCapacity] = useState(String(event?.total_capacity ?? 500));
+  const [location, setLocation] = useState(event?.location ?? "Primary Distribution Center");
   const [date, setDate] = useState(event?.event_date ?? new Date().toISOString().split("T")[0]);
   const [startTime, setStartTime] = useState(event?.start_time?.slice(0, 5) ?? "17:00");
   const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) ?? "19:00");
@@ -408,6 +409,7 @@ function EKuponFormModal({
             .from("food_events")
             .update({
               name: name.trim(),
+              location: location.trim(),
               total_capacity: parseInt(capacity) || 500,
               event_date: date,
               start_time: startTime + ":00",
@@ -419,7 +421,7 @@ function EKuponFormModal({
         if (result && "error" in result && result.error) {
           console.warn("Update error:", result.error.message);
         }
-        onSave({ ...event, name: name.trim(), total_capacity: parseInt(capacity) || 500, event_date: date, start_time: startTime + ":00", end_time: endTime + ":00" });
+        onSave({ ...event, name: name.trim(), location: location.trim(), total_capacity: parseInt(capacity) || 500, event_date: date, start_time: startTime + ":00", end_time: endTime + ":00" });
 
       } else {
         // ── INSERT ──
@@ -428,6 +430,7 @@ function EKuponFormModal({
             .from("food_events")
             .insert({
               name: name.trim(),
+              location: location.trim(),
               total_capacity: parseInt(capacity) || 500,
               remaining_capacity: parseInt(capacity) || 500,
               event_date: date,
@@ -494,6 +497,14 @@ function EKuponFormModal({
                 <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Food Name *</label>
                 <input
                   type="text" placeholder="e.g., Nasi Briyani Kambing" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Location *</label>
+                <input
+                  type="text" placeholder="e.g., Primary Distribution Center" value={location} onChange={(e) => setLocation(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
                 />
               </div>

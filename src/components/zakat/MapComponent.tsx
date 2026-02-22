@@ -102,7 +102,13 @@ function MapSearchControl() {
   };
 
   const handleSelect = (lat: string, lon: string) => {
-    map.flyTo([parseFloat(lat), parseFloat(lon)], 16, { duration: 1.5 });
+    try {
+      if (map) {
+        map.flyTo([parseFloat(lat), parseFloat(lon)], 16, { duration: 1.5 });
+      }
+    } catch (e) {
+      console.warn("Map not ready for flyTo", e);
+    }
     setShowResults(false);
     setQuery("");
   };
@@ -168,7 +174,13 @@ function LocateControl({ onLocationFound }: { onLocationFound?: (lat: number, ln
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setLocating(false);
-          map.flyTo([position.coords.latitude, position.coords.longitude], 16, { duration: 1.5 });
+          try {
+            if (map) {
+              map.flyTo([position.coords.latitude, position.coords.longitude], 16, { duration: 1.5 });
+            }
+          } catch (e) {
+            console.warn("Map not ready for flyTo", e);
+          }
           onLocationFound?.(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
