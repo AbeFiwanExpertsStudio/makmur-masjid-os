@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Search, MapPin, Clock, Pencil, Trash2, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Search, MapPin, Clock, Pencil, Trash2, X, AlertTriangle, Loader2, User, Calendar } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,7 +15,7 @@ interface ZakatCounter {
   name: string;
   lat: number;
   lng: number;
-  address: string;
+  pic_name: string;
   hours: string;
   status: CounterStatus;
   start_date?: string;
@@ -56,7 +56,7 @@ export default function ZakatLocatorPage() {
 
   const filteredLocations = locations.filter((loc) => {
     const q = searchQuery.toLowerCase();
-    const matchSearch = loc.name.toLowerCase().includes(q) || loc.address.toLowerCase().includes(q);
+    const matchSearch = loc.name.toLowerCase().includes(q) || loc.pic_name.toLowerCase().includes(q);
     if (!matchSearch) return false;
 
     if (radiusKm !== "All") {
@@ -119,7 +119,7 @@ export default function ZakatLocatorPage() {
           name: zc.name,
           lat: zc.latitude,
           lng: zc.longitude,
-          address: zc.address || "",
+          pic_name: zc.pic_name || zc.address || "Masjid Al-Makmur Admin",
           hours: timeStr,
           status: computedStatus,
           start_date: zc.start_date,
@@ -142,6 +142,13 @@ export default function ZakatLocatorPage() {
 
   useEffect(() => {
     fetchCounters();
+
+    // Automatically poll every 30 seconds to update 'active', 'scheduled' and 'expired' map items organically over time.
+    const pollInterval = setInterval(() => {
+      fetchCounters();
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
   }, [fetchCounters]);
 
   const handleLocationClick = (id: string) => {
@@ -160,7 +167,7 @@ export default function ZakatLocatorPage() {
         name: newLoc.name,
         latitude: newLoc.lat,
         longitude: newLoc.lng,
-        address: newLoc.address,
+        pic_name: newLoc.pic_name || newLoc.address || "Masjid Al-Makmur Admin",
         start_date: newLoc.start_date,
         end_date: newLoc.end_date,
         start_time: newLoc.start_time,
@@ -177,7 +184,7 @@ export default function ZakatLocatorPage() {
         lat: newLoc.lat,
         lng: newLoc.lng,
         status: newLoc.status,
-        address: newLoc.address,
+        pic_name: newLoc.pic_name || newLoc.address || "Masjid Al-Makmur Admin",
         hours: timeStr,
         start_date: newLoc.start_date,
         end_date: newLoc.end_date,
@@ -254,11 +261,17 @@ export default function ZakatLocatorPage() {
               </div>
 
               <div className="space-y-1.5 mt-2">
-                <div className="flex items-start gap-2 text-[#5A7068] text-xs">
-                  <MapPin size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2">{loc.address}</span>
-                </div>
+                {(loc.start_date || loc.end_date) && (
+                  <div className="flex items-start gap-2 text-[#5A7068] text-xs">
+                    <Calendar size={13} className="mt-0.5 shrink-0" />
+                    <span>{loc.start_date === loc.end_date ? loc.start_date : `${loc.start_date || 'Unspecified'} to ${loc.end_date || 'Unspecified'}`}</span>
+                  </div>
+                )}
                 <div className="flex items-start gap-2 text-[#5A7068] text-xs">
                   <Clock size={13} className="mt-0.5 shrink-0" /> {loc.hours}
+                </div>
+                <div className="flex items-start gap-2 text-[#1A2E2A] text-xs font-semibold">
+                  <User size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2 text-[#5A7068]">{loc.pic_name}</span>
                 </div>
               </div>
 
@@ -335,7 +348,7 @@ export default function ZakatLocatorPage() {
 
 function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter, onClose: () => void, onSave: (c: ZakatCounter) => void }) {
   const [name, setName] = useState(counter.name);
-  const [address, setAddress] = useState(counter.address);
+  const [picName, setPicName] = useState(counter.pic_name);
   const [startDate, setStartDate] = useState(counter.start_date || "");
   const [endDate, setEndDate] = useState(counter.end_date || "");
   const [startTime, setStartTime] = useState(counter.start_time?.slice(0, 5) || "");
@@ -348,7 +361,7 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
     try {
       await Promise.race([
         supabase.from("zakat_counters").update({
-          name, address, start_date: startDate, end_date: endDate,
+          name, pic_name: picName, start_date: startDate, end_date: endDate,
           start_time: startTime ? `${startTime}:00` : null,
           end_time: endTime ? `${endTime}:00` : null
         }).eq("id", counter.id),
@@ -359,7 +372,7 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
 
       onSave({
         ...counter,
-        name, address, hours: timeStr,
+        name, pic_name: picName, hours: timeStr,
         start_date: startDate, end_date: endDate,
         start_time: startTime ? `${startTime}:00` : undefined,
         end_time: endTime ? `${endTime}:00` : undefined
@@ -388,8 +401,8 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
             <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm bg-[#F8FAF9] outline-none focus:border-[#1B6B4A]" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#5A7068] uppercase block mb-1">Address</label>
-            <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm bg-[#F8FAF9] outline-none focus:border-[#1B6B4A]" />
+            <label className="text-xs font-semibold text-[#5A7068] uppercase block mb-1">Ustaz / User Name</label>
+            <input type="text" value={picName} onChange={e => setPicName(e.target.value)} className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm bg-[#F8FAF9] outline-none focus:border-[#1B6B4A]" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

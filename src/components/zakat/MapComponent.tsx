@@ -43,9 +43,14 @@ interface Location {
 
 function MapUpdater({ center, trigger }: { center: [number, number], trigger: number }) {
   const map = useMap();
+  const [prevTrigger, setPrevTrigger] = useState(0);
+
   useEffect(() => {
-    map.setView(center, 15, { animate: true, duration: 1.5 });
-  }, [center, map, trigger]);
+    if (trigger > prevTrigger) {
+      map.flyTo(center, 15, { animate: true, duration: 1.5 });
+      setPrevTrigger(trigger);
+    }
+  }, [center, map, trigger, prevTrigger]);
   return null;
 }
 
@@ -66,6 +71,7 @@ function MapSearchControl() {
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [searchedPin, setSearchedPin] = useState<{ lat: number, lng: number, name: string } | null>(null);
 
   // Debounced search effect
   useEffect(() => {
@@ -101,10 +107,11 @@ function MapSearchControl() {
     // The useEffect handles the fetching, this just stops page reload on Enter
   };
 
-  const handleSelect = (lat: string, lon: string) => {
+  const handleSelect = (lat: string, lon: string, name: string) => {
     try {
       if (map) {
         map.flyTo([parseFloat(lat), parseFloat(lon)], 16, { duration: 1.5 });
+        setSearchedPin({ lat: parseFloat(lat), lng: parseFloat(lon), name });
       }
     } catch (e) {
       console.warn("Map not ready for flyTo", e);
@@ -114,46 +121,48 @@ function MapSearchControl() {
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-sm">
-      <form onSubmit={handleSearch} className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search world map (e.g. Kuala Lumpur)..."
-          className="w-full bg-white text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-[#E2E8E5] focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] transition"
-        />
-        <button type="submit" className="absolute left-3 top-3 text-[#5A7068] hover:text-[#1B6B4A]">
-          {isSearching ? <Loader2 size={18} className="animate-spin text-[#1B6B4A]" /> : <Search size={18} />}
-        </button>
-        {query && (
-          <button type="button" onClick={() => { setQuery(""); setShowResults(false); }} className="absolute right-3 top-3.5 text-[#8FA39B] hover:text-red-500">
-            <X size={14} />
+    <>
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-sm">
+        <form onSubmit={handleSearch} className="relative">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search world map (e.g. Kuala Lumpur)..."
+            className="w-full bg-white text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-[#E2E8E5] focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] transition"
+          />
+          <button type="submit" className="absolute left-3 top-3 text-[#5A7068] hover:text-[#1B6B4A]">
+            {isSearching ? <Loader2 size={18} className="animate-spin text-[#1B6B4A]" /> : <Search size={18} />}
           </button>
-        )}
-      </form>
-
-      {showResults && results.length > 0 && (
-        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] overflow-hidden">
-          {results.map((r, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleSelect(r.lat, r.lon)}
-              className="w-full text-left px-4 py-3 border-b last:border-0 border-[#E2E8E5] hover:bg-[#F8FAF9] flex items-start gap-2 transition"
-            >
-              <Navigation size={14} className="mt-0.5 text-[#1B6B4A] shrink-0" />
-              <span className="text-xs text-[#5A7068] line-clamp-2">{r.display_name}</span>
+          {query && (
+            <button type="button" onClick={() => { setQuery(""); setShowResults(false); }} className="absolute right-3 top-3.5 text-[#8FA39B] hover:text-red-500">
+              <X size={14} />
             </button>
-          ))}
-        </div>
+          )}
+        </form>
+
+        {showResults && results.length > 0 && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] overflow-hidden">
+            {results.map((r, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSelect(r.lat, r.lon, r.display_name)}
+                className="w-full text-left px-4 py-3 border-b last:border-0 border-[#E2E8E5] hover:bg-[#F8FAF9] flex items-start gap-2 transition"
+              >
+                <Navigation size={14} className="mt-0.5 text-[#1B6B4A] shrink-0" />
+                <span className="text-xs text-[#5A7068] line-clamp-2">{r.display_name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {searchedPin && (
+        <Marker position={[searchedPin.lat, searchedPin.lng]} icon={goldIcon}>
+          <Popup className="text-xs font-bold text-[#1A2E2A]">{searchedPin.name}</Popup>
+        </Marker>
       )}
-      {showResults && !isSearching && results.length === 0 && query && (
-        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] p-3 text-center text-xs text-[#8FA39B]">
-          No places found for "{query}".
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -240,6 +249,7 @@ export default function Map({
   const [addMode, setAddMode] = useState(false);
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [formName, setFormName] = useState("");
+  const [formPicName, setFormPicName] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
@@ -252,13 +262,17 @@ export default function Map({
 
   const handleSubmit = () => {
     if (!pinCoords || !formName.trim() || !formStartDate || !formEndDate || !formStartTime || !formEndTime) return;
+    const now = new Date();
+    const isFuture = formStartDate > now.toISOString().split('T')[0] || (formStartDate === now.toISOString().split('T')[0] && formStartTime > `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+
     const newLoc: Location = {
       id: `new-${Date.now()}`,
       name: formName,
       lat: pinCoords.lat,
       lng: pinCoords.lng,
-      status: "active",
-      address: "TBD",
+      status: isFuture ? "scheduled" : "active",
+      address: "Removed",
+      pic_name: formPicName || "Masjid Al-Makmur Admin",
       start_date: formStartDate,
       end_date: formEndDate,
       start_time: formStartTime,
@@ -269,6 +283,7 @@ export default function Map({
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
+    setFormPicName("");
     setFormStartDate("");
     setFormEndDate("");
     setFormStartTime("");
@@ -279,6 +294,7 @@ export default function Map({
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
+    setFormPicName("");
     setFormStartDate("");
     setFormEndDate("");
     setFormStartTime("");
