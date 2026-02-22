@@ -22,6 +22,43 @@ export default function EKuponPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<any | null>(null);
+  const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
+  const [scannedIds, setScannedIds] = useState<Set<string>>(new Set());
+  const [claimMap, setClaimMap] = useState<Map<string, string>>(new Map());
+
+  // Fetch user's existing kupon claims
+  const fetchMyClaims = async (userId: string) => {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("kupon_claims")
+        .select("id, event_id, is_scanned")
+        .eq("guest_uuid", userId);
+      if (data && data.length > 0) {
+        setClaimedIds(new Set(data.map((r: any) => r.event_id)));
+        setScannedIds(new Set(data.filter((r: any) => r.is_scanned).map((r: any) => r.event_id)));
+        const newMap = new Map<string, string>();
+        data.forEach((r: any) => newMap.set(r.event_id, r.id));
+        setClaimMap(newMap);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (user && !user.is_anonymous) {
+      fetchMyClaims(user.id);
+
+      // Setup a background poll to check for scan status changes
+      const scanPollInterval = setInterval(() => {
+        fetchMyClaims(user.id);
+      }, 5000);
+
+      return () => clearInterval(scanPollInterval);
+    }
+  }, [user]);
+
 
   // Local copy of events so edits/deletes reflect instantly
   const [localEvents, setLocalEvents] = useState<any[]>([]);
@@ -96,6 +133,25 @@ export default function EKuponPage() {
               event={event}
               user={user}
               isAdmin={isAdmin}
+              isClaimed={claimedIds.has(event.id)}
+              isScanned={scannedIds.has(event.id)}
+              claimId={claimMap.get(event.id)}
+              onClaimSuccess={(newClaimId) => {
+                setClaimedIds(prev => new Set(prev).add(event.id));
+                if (newClaimId) setClaimMap(prev => new Map(prev).set(event.id, newClaimId));
+              }}
+              onDeclaimSuccess={() => {
+                setClaimedIds(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(event.id);
+                  return newSet;
+                });
+                setClaimMap(prev => {
+                  const newMap = new Map(prev);
+                  newMap.delete(event.id);
+                  return newMap;
+                });
+              }}
               onEdit={() => setEditingEvent(event)}
               onDelete={() => setDeletingEvent(event)}
             />
@@ -128,17 +184,22 @@ export default function EKuponPage() {
 /*  Kupon Card                                     */
 /* ─────────────────────────────────────────────── */
 function KuponCard({
-  event, user, isAdmin, onEdit, onDelete,
+  event, user, isAdmin, isClaimed, isScanned, claimId, onClaimSuccess, onDeclaimSuccess, onEdit, onDelete,
 }: {
   event: any;
   user: any;
   isAdmin: boolean;
+  isClaimed: boolean;
+  isScanned: boolean;
+  claimId?: string;
+  onClaimSuccess: (id?: string) => void;
+  onDeclaimSuccess: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const [hasClaimed, setHasClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isDeclaiming, setIsDeclaiming] = useState(false);
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
 
   const eventId = event.id;
@@ -153,27 +214,47 @@ function KuponCard({
     }
   }, [event.remaining_capacity, localRemaining]);
 
-  useEffect(() => {
-    if (user?.id) {
-      if (localStorage.getItem(`makmur_kupon_${user.id}_${eventId}`) === "claimed") {
-        setHasClaimed(true);
-      }
-    }
-  }, [user?.id, eventId]);
-
   const handleClaim = async () => {
     if (!user || isScheduled) return;
     setIsClaiming(true);
     setClaimError(null);
     const result = await claimKupon(event.id, user.id);
     if (result.success) {
-      setHasClaimed(true);
+      onClaimSuccess(result.claimId);
       setLocalRemaining((prev) => Math.max(0, (prev ?? event.remaining_capacity) - 1));
-      localStorage.setItem(`makmur_kupon_${user.id}_${eventId}`, "claimed");
     } else {
-      setClaimError(result.error ?? "Failed to claim kupon.");
+      // Supabase duplicate error returns 23505 — treat as success if already claimed
+      if (result.error === "You have already claimed this kupon.") {
+        onClaimSuccess(result.claimId);
+      } else {
+        setClaimError(result.error ?? "Failed to claim kupon.");
+      }
     }
     setIsClaiming(false);
+  };
+
+  const handleDeclaim = async () => {
+    if (!claimId) {
+      setClaimError("Missing Kupon ID.");
+      return;
+    }
+    const confirmDelete = window.confirm("Are you sure you want to cancel this claim? This action cannot be undone.");
+    if (!confirmDelete) return;
+
+    setIsDeclaiming(true);
+    setClaimError(null);
+
+    // In claim.ts we have cancelKupon
+    const { cancelKupon } = await import("@/lib/mutations/claims");
+    const result = await cancelKupon(claimId);
+
+    if (result.success) {
+      onDeclaimSuccess();
+      setLocalRemaining((prev) => Math.min(totalPacks, (prev ?? event.remaining_capacity) + 1));
+    } else {
+      setClaimError(result.error ?? "Failed to cancel kupon.");
+    }
+    setIsDeclaiming(false);
   };
 
   return (
@@ -243,18 +324,28 @@ function KuponCard({
           </div>
         )}
 
-        {!hasClaimed ? (
+        {!isClaimed ? (
           <button
             onClick={handleClaim}
             disabled={isClaiming || remainingPacks <= 0 || isScheduled}
             className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${isScheduled
-                ? "bg-[#F1F5F3] text-[#8FA39B] cursor-not-allowed border border-[#E2E8E5] shadow-none"
-                : "bg-[#1B6B4A] text-white hover:bg-[#0F4A33] hover:shadow-lg"
+              ? "bg-[#F1F5F3] text-[#8FA39B] cursor-not-allowed border border-[#E2E8E5] shadow-none"
+              : "bg-[#1B6B4A] text-white hover:bg-[#0F4A33] hover:shadow-lg"
               }`}
           >
             {isScheduled ? <Clock size={20} /> : <Utensils size={20} />}
             {isScheduled ? "Opens Soon" : (isClaiming ? "Claiming…" : "Claim Now")}
           </button>
+        ) : isScanned ? (
+          <div className="border-2 border-dashed border-[#E2E8E5] rounded-2xl p-6 bg-[#F8FAF9] opacity-80">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Utensils size={24} className="text-[#8FA39B]" />
+              <span className="font-bold text-[#5A7068]">Food Redeemed</span>
+            </div>
+            <p className="text-sm text-[#8FA39B] text-center">
+              Alhamdulillah, your Iftar pack has been collected.
+            </p>
+          </div>
         ) : (
           <div className="border-2 border-dashed border-[#D5F5E3] rounded-2xl p-6 bg-[#EEFBF4]/50">
             <div className="flex items-center justify-center gap-2 mb-5">
@@ -262,10 +353,19 @@ function KuponCard({
               <span className="font-bold text-[#1B6B4A]">Kupon Claimed Successfully</span>
             </div>
             <div className="bg-white p-5 rounded-xl shadow-sm mx-auto w-fit">
-              <QRCode value={`makmur-kupon:${user?.id}`} size={180} level="H" fgColor="#1B6B4A" />
+              <QRCode value={`makmur-kupon:${claimId || user?.id}`} size={180} level="H" fgColor="#1B6B4A" />
             </div>
             <p className="text-sm text-[#5A7068] mt-5 text-center">Show this QR to the volunteer at the counter.</p>
-            <p className="font-mono text-xs text-[#8FA39B] text-center mt-1">ID: {user?.id.split("-")[0]}</p>
+            <p className="font-mono text-xs text-[#8FA39B] text-center mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
+            <div className="mt-4 border-t border-[#E2E8E5] pt-4 flex justify-center">
+              <button
+                onClick={handleDeclaim}
+                disabled={isDeclaiming}
+                className="text-xs font-semibold text-red-500 hover:text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-all"
+              >
+                {isDeclaiming ? "Canceling..." : "Cancel Claim"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -355,12 +455,14 @@ function EKuponFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
+          <X size={20} />
+        </button>
 
         {/* Header */}
-        <div className="hero-gradient p-5 text-white relative overflow-hidden">
+        <div className="hero-gradient p-5 text-white overflow-hidden rounded-t-2xl relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition"><X size={18} /></button>
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <CalendarPlus size={22} />}
             <div>
@@ -471,17 +573,16 @@ function DeleteEKuponModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-        <div className="bg-red-50 border-b border-red-100 px-6 py-5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-            <AlertTriangle size={20} className="text-red-500" />
+        <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
+          <div className="flex gap-3 items-center">
+            <AlertTriangle className="text-red-500" />
+            <div>
+              <h2 className="font-bold text-[#1A2E2A]">Delete E-Kupon?</h2>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-[#1A2E2A]">Delete E-Kupon Event?</h2>
-            <p className="text-xs text-[#8FA39B] mt-0.5">This will also delete all claims for this event.</p>
-          </div>
-          <button onClick={onClose} className="ml-auto text-[#8FA39B] hover:text-[#1A2E2A] transition"><X size={18} /></button>
+          <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">

@@ -20,7 +20,7 @@ const FALLBACK_EVENT_IDS = new Set([
 export async function claimKupon(
   eventId: string,
   guestUuid: string
-): Promise<ClaimResult> {
+): Promise<ClaimResult & { claimId?: string }> {
   try {
     // If this is a fallback/demo event (no real DB row), allow local claim only.
     if (FALLBACK_EVENT_IDS.has(eventId)) {
@@ -31,9 +31,9 @@ export async function claimKupon(
     const supabase = createClient();
 
     const result = await Promise.race([
-      supabase.from("kupon_claims").insert({ event_id: eventId, guest_uuid: guestUuid }).then(r => r),
-      new Promise<{ error: { code: string; message: string } | null }>((resolve) =>
-        setTimeout(() => resolve({ error: { code: "TIMEOUT", message: "Request timed out" } }), 5000)
+      supabase.from("kupon_claims").insert({ event_id: eventId, guest_uuid: guestUuid }).select("id").single().then(r => r),
+      new Promise<{ data: any, error: { code: string; message: string } | null }>((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { code: "TIMEOUT", message: "Request timed out" } }), 5000)
       ),
     ]);
 
@@ -52,10 +52,32 @@ export async function claimKupon(
       }
       return { success: false, error: result.error.message };
     }
-    return { success: true };
+    return { success: true, claimId: result.data?.id };
   } catch (err) {
     console.warn("Kupon claim request failed, proceeding with local claim:", err);
     return { success: true };
+  }
+}
+
+/**
+ * Cancel a food kupon claim for the given event.
+ */
+export async function cancelKupon(
+  claimId: string
+): Promise<ClaimResult> {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.rpc("cancel_kupon", {
+      p_claim_id: claimId,
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn("Kupon cancel request failed:", err);
+    return { success: false, error: err?.message || "Failed to cancel kupon" };
   }
 }
 
@@ -167,6 +189,75 @@ export async function cancelGig(
     return { success: true };
   } catch (err: any) {
     console.warn("cancelGig exception:", err?.message);
+    return { success: false, error: "Unexpected error. Please try again." };
+  }
+}
+
+/**
+ * Scan a kupon claim as an admin.
+ */
+export async function scanKupon(
+  claimInput: string
+): Promise<ClaimResult & { remaining?: number }> {
+  try {
+    const supabase = createClient();
+
+    // The admin scans a truncated ID (first 8 chars of guest_uuid or id).
+    // Let's resolve the full claim ID first.
+    let resolvedClaimId = claimInput;
+
+    // Instead of querying by UUID (which causes error if input is not a full UUID),
+    // we fetch unscanned claims and find the match.
+    // (In production with high volume, a dedicated RPC or text casting view is better).
+    const { data: claims, error: searchError } = await supabase
+      .from("kupon_claims")
+      .select("id, guest_uuid")
+      .eq("is_scanned", false);
+
+    if (searchError) {
+      console.warn("Error searching for claim:", searchError.message);
+      return { success: false, error: "Database error while searching for Kupon." };
+    }
+
+    if (claims && claims.length > 0) {
+      const inputLower = claimInput.toLowerCase();
+      const matches = claims.filter(c =>
+        c.guest_uuid.toLowerCase().startsWith(inputLower) ||
+        c.id.toLowerCase().startsWith(inputLower)
+      );
+
+      if (matches.length === 0) {
+        return { success: false, error: "Kupon not found or already scanned." };
+      }
+      if (matches.length > 1) {
+        return { success: false, error: "Multiple matching Kupons found. Please provide a more specific ID." };
+      }
+
+      resolvedClaimId = matches[0].id;
+    }
+
+    // Call the RPC with the resolved full UUID
+    const { data, error } = await supabase.rpc("scan_kupon", {
+      p_claim_id: resolvedClaimId,
+    });
+
+    if (error) {
+      // Handle the case where the provided claimId wasn't found in active claims 
+      // (e.g. if claims dataset was empty, resolvedClaimId = claimInput)
+      if (error.code === "22P02") {
+        return { success: false, error: "Invalid Kupon ID format." };
+      }
+      console.warn("scan_kupon RPC error:", error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (data && data.success === false) {
+      return { success: false, error: data.error };
+    }
+
+    return { success: true, remaining: data?.remaining };
+  } catch (err: any) {
+    console.warn("scanKupon exception:", err?.message);
     return { success: false, error: "Unexpected error. Please try again." };
   }
 }

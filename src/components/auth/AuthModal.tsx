@@ -36,13 +36,15 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={close}>
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        {/* Close Button */}
+        <button onClick={close} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
+          <X size={20} />
+        </button>
+
         {/* Header */}
-        <div className="hero-gradient p-7 text-white relative overflow-hidden">
+        <div className="hero-gradient p-7 text-white overflow-hidden rounded-t-2xl relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
-          <button onClick={close} className="absolute top-4 right-4 text-white/50 hover:text-white transition">
-            <X size={20} />
-          </button>
           <p className="text-2xl mb-1">🌙</p>
           <h2 className="text-xl font-bold relative z-10">Welcome to Makmur</h2>
           <p className="text-white/60 text-sm mt-1 relative z-10">
@@ -58,9 +60,8 @@ export function AuthModal() {
             <button
               key={m}
               onClick={() => { setMode(m); setError(null); }}
-              className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${
-                mode === m ? "text-[#1B6B4A] border-[#1B6B4A]" : "text-[#8FA39B] border-transparent hover:text-[#5A7068]"
-              }`}
+              className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${mode === m ? "text-[#1B6B4A] border-[#1B6B4A]" : "text-[#8FA39B] border-transparent hover:text-[#5A7068]"
+                }`}
             >
               {m === "login" ? "Sign In" : "Register"}
             </button>

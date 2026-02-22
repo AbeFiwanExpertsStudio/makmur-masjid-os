@@ -414,11 +414,13 @@ function GigFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
+          <X size={20} />
+        </button>
 
-        <div className="hero-gradient p-5 text-white relative overflow-hidden">
+        <div className="hero-gradient p-5 text-white overflow-hidden rounded-t-2xl relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition"><X size={18} /></button>
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <Briefcase size={22} />}
             <div>
@@ -521,17 +523,17 @@ function DeleteConfirmModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-        <div className="bg-red-50 border-b border-red-100 px-6 py-5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-            <AlertTriangle size={20} className="text-red-500" />
+        <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
+          <div className="flex gap-3 items-center">
+            <AlertTriangle className="text-red-500" />
+            <div>
+              <h2 className="font-bold text-[#1A2E2A]">Delete Gig?</h2>
+              <p className="text-xs text-[#8FA39B] mt-0.5">This action cannot be undone.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-[#1A2E2A]">Delete Gig?</h2>
-            <p className="text-xs text-[#8FA39B] mt-0.5">This action cannot be undone.</p>
-          </div>
-          <button onClick={onClose} className="ml-auto text-[#8FA39B] hover:text-[#1A2E2A] transition"><X size={18} /></button>
+          <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">

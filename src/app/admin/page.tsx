@@ -8,7 +8,7 @@ import {
   Send, ScanLine, Award, Ban, LogOut, Bell,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
-
+import { scanKupon } from "@/lib/mutations/claims";
 const sidebarLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/gigs", label: "Volunteer Gigs", icon: Users },
@@ -38,14 +38,31 @@ export default function AdminPage() {
   const { signOut } = useAuth();
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [scanInput, setScanInput] = useState("");
-  const [scanHistory, setScanHistory] = useState([{ id: "r1", status: "Pending" }]);
+  const [scanHistory, setScanHistory] = useState<{ id: string, status: string }[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
 
   const totalCollected = mockDonations.reduce((s, d) => s + d.amount, 0);
 
-  const handleScan = () => {
-    if (!scanInput.trim()) return;
-    setScanHistory((prev) => [{ id: scanInput, status: "Scanned ✓" }, ...prev]);
+  const handleScan = async () => {
+    if (!scanInput.trim() || isScanning) return;
+    const input = scanInput.trim();
+    setIsScanning(true);
     setScanInput("");
+
+    try {
+      const res = await scanKupon(input);
+      if (res.success) {
+        setScanHistory((prev) => [{ id: input, status: "Scanned ✓" }, ...prev]);
+        alert(`Successfully scanned! Remaining capacity: ${res.remaining}`);
+      } else {
+        alert(res.error || "Failed to scan kupon");
+        setScanHistory((prev) => [{ id: input, status: "Failed ❌" }, ...prev]);
+      }
+    } catch (e: any) {
+      alert("Error scanning kupon");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   return (
@@ -70,9 +87,8 @@ export default function AdminPage() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive ? "bg-[#EEFBF4] text-[#1B6B4A] font-semibold" : "text-[#5A7068] hover:bg-[#F8FAF9] hover:text-[#1A2E2A]"
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? "bg-[#EEFBF4] text-[#1B6B4A] font-semibold" : "text-[#5A7068] hover:bg-[#F8FAF9] hover:text-[#1A2E2A]"
+                  }`}
               >
                 <Icon size={18} />
                 {link.label}
@@ -145,7 +161,7 @@ export default function AdminPage() {
                 className="w-full border border-[#E2E8E5] rounded-xl p-3 text-sm resize-none h-24 focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9] mb-3"
               />
               <button
-                onClick={() => { if (broadcastMsg) { alert("Broadcast: " + broadcastMsg); setBroadcastMsg(""); }}}
+                onClick={() => { if (broadcastMsg) { alert("Broadcast: " + broadcastMsg); setBroadcastMsg(""); } }}
                 className="w-full py-3 btn-primary text-sm"
               >
                 <Send size={16} /> Blast Message

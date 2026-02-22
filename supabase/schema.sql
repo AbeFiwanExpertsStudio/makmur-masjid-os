@@ -369,11 +369,10 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Kupon not found or already scanned');
   END IF;
 
-  -- Decrement remaining capacity
-  UPDATE public.food_events
-  SET remaining_capacity = remaining_capacity - 1
-  WHERE id = v_event_id AND remaining_capacity > 0
-  RETURNING remaining_capacity INTO v_remaining;
+  -- Get remaining capacity (it was already decremented upon claim)
+  SELECT remaining_capacity INTO v_remaining
+  FROM public.food_events
+  WHERE id = v_event_id;
 
   IF v_remaining IS NULL THEN
     RETURN json_build_object('success', false, 'error', 'No remaining capacity');

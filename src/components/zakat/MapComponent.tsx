@@ -3,8 +3,8 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect, useState } from "react";
-import { Navigation, X, Plus } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Navigation, X, Plus, Search, Loader2 } from "lucide-react";
 
 const createCustomIcon = (color: string, pulse = false) => {
   const pulseRing = pulse
@@ -40,11 +40,11 @@ interface Location {
   end_time?: string;
 }
 
-function MapUpdater({ center }: { center: [number, number] }) {
+function MapUpdater({ center, trigger }: { center: [number, number], trigger: number }) {
   const map = useMap();
   useEffect(() => {
     map.setView(center, 15, { animate: true, duration: 1.5 });
-  }, [center, map]);
+  }, [center, map, trigger]);
   return null;
 }
 
@@ -58,25 +58,160 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null;
 }
 
+// Component to search map locations via OpenStreetMap Nominatim
+function MapSearchControl() {
+  const map = useMap();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+
+    setIsSearching(true);
+    setShowResults(true);
+    try {
+      // Nominatim API
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`);
+      const data = await res.json();
+      setResults(data);
+    } catch (err) {
+      console.error("Search failed", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelect = (lat: string, lon: string) => {
+    map.flyTo([parseFloat(lat), parseFloat(lon)], 16, { duration: 1.5 });
+    setShowResults(false);
+    setQuery("");
+  };
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] w-[90%] max-w-sm">
+      <form onSubmit={handleSearch} className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (e.target.value === "") setShowResults(false);
+          }}
+          placeholder="Search world map (e.g. Kuala Lumpur)..."
+          className="w-full bg-white text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-[#E2E8E5] focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] transition"
+        />
+        <button type="submit" className="absolute left-3 top-3 text-[#5A7068] hover:text-[#1B6B4A]">
+          {isSearching ? <Loader2 size={18} className="animate-spin text-[#1B6B4A]" /> : <Search size={18} />}
+        </button>
+        {query && (
+          <button type="button" onClick={() => { setQuery(""); setShowResults(false); }} className="absolute right-3 top-3.5 text-[#8FA39B] hover:text-red-500">
+            <X size={14} />
+          </button>
+        )}
+      </form>
+
+      {showResults && results.length > 0 && (
+        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] overflow-hidden">
+          {results.map((r, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSelect(r.lat, r.lon)}
+              className="w-full text-left px-4 py-3 border-b last:border-0 border-[#E2E8E5] hover:bg-[#F8FAF9] flex items-start gap-2 transition"
+            >
+              <Navigation size={14} className="mt-0.5 text-[#1B6B4A] shrink-0" />
+              <span className="text-xs text-[#5A7068] line-clamp-2">{r.display_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {showResults && !isSearching && results.length === 0 && query && (
+        <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] p-3 text-center text-xs text-[#8FA39B]">
+          No places found for "{query}".
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Component to locate user
+function LocateControl({ onLocationFound }: { onLocationFound?: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  const [locating, setLocating] = useState(false);
+
+  const handleLocate = useCallback((e?: React.MouseEvent) => {
+    // prevent default so it doesn't trigger map clicks
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
+    setLocating(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocating(false);
+          map.flyTo([position.coords.latitude, position.coords.longitude], 16, { duration: 1.5 });
+          onLocationFound?.(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          setLocating(false);
+          // Only alert if they manually clicked the button to avoid annoying popups on load if denied
+          if (e) alert("Could not access your location. Please check your browser permissions.");
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      setLocating(false);
+      if (e) alert("Geolocation is not supported by your browser.");
+    }
+  }, [map, onLocationFound]);
+
+  useEffect(() => {
+    // Attempt to locate the user immediately on mount
+    handleLocate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-2">
+      <button
+        onClick={handleLocate}
+        title="My Current Location"
+        className="bg-white text-[#1B6B4A] shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-[#E2E8E5] p-3 rounded-full hover:bg-[#F8FAF9] flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+      >
+        <Navigation size={22} className={locating ? "animate-ping opacity-50" : ""} />
+        <span className="ml-2 font-bold text-sm hidden md:inline">My Location</span>
+      </button>
+    </div>
+  );
+}
+
 export default function Map({
   locations,
   activeLocationId,
+  panTrigger,
   isAdmin,
   onAddCounter,
+  onLocationFound,
 }: {
   locations: Location[];
   activeLocationId: string | null;
+  panTrigger?: number;
   isAdmin?: boolean;
   onAddCounter?: (loc: Location) => void;
+  onLocationFound?: (lat: number, lng: number) => void;
 }) {
-  const defaultCenter: [number, number] = [3.139, 101.6869];
+  const defaultCenter = useMemo<[number, number]>(() => [3.139, 101.6869], []);
   const activeLocation = locations.find((loc) => loc.id === activeLocationId);
-  const center = activeLocation ? ([activeLocation.lat, activeLocation.lng] as [number, number]) : defaultCenter;
+  const center = useMemo(() => activeLocation ? ([activeLocation.lat, activeLocation.lng] as [number, number]) : defaultCenter, [activeLocation, defaultCenter]);
 
   const [addMode, setAddMode] = useState(false);
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [formName, setFormName] = useState("");
-  const [formAddress, setFormAddress] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
@@ -95,7 +230,7 @@ export default function Map({
       lat: pinCoords.lat,
       lng: pinCoords.lng,
       status: "active",
-      address: formAddress || "TBD",
+      address: "TBD",
       start_date: formStartDate,
       end_date: formEndDate,
       start_time: formStartTime,
@@ -106,7 +241,6 @@ export default function Map({
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
-    setFormAddress("");
     setFormStartDate("");
     setFormEndDate("");
     setFormStartTime("");
@@ -117,7 +251,6 @@ export default function Map({
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
-    setFormAddress("");
     setFormStartDate("");
     setFormEndDate("");
     setFormStartTime("");
@@ -138,9 +271,9 @@ export default function Map({
         />
 
         {locations.map((loc) => (
-          <Marker 
-            key={loc.id} 
-            position={[loc.lat, loc.lng]} 
+          <Marker
+            key={loc.id}
+            position={[loc.lat, loc.lng]}
             icon={loc.status === "active" ? redPulseIcon : yellowPulseIcon}
           >
             <Popup>
@@ -172,8 +305,10 @@ export default function Map({
           </Marker>
         )}
 
-        <MapUpdater center={center} />
+        <MapUpdater center={center} trigger={panTrigger || 0} />
         {addMode && <MapClickHandler onMapClick={handleMapClick} />}
+        <LocateControl onLocationFound={onLocationFound} />
+        <MapSearchControl />
       </MapContainer>
 
       {/* ═══ Admin: Add Counter button + form ═══ */}
@@ -203,13 +338,6 @@ export default function Map({
                   placeholder="Booth name (e.g., Masjid Al-Falah)"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                />
-                <input
-                  type="text"
-                  placeholder="Address / Location"
-                  value={formAddress}
-                  onChange={(e) => setFormAddress(e.target.value)}
                   className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
                 />
                 <div className="grid grid-cols-2 gap-2">
