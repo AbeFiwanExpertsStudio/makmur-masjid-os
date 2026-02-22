@@ -26,6 +26,7 @@ const createCustomIcon = (color: string, pulse = false) => {
 const redPulseIcon = createCustomIcon("#DC2626", true);     // Active booths
 const yellowPulseIcon = createCustomIcon("#D4A843", true);  // Scheduled booths
 const goldIcon = createCustomIcon("#D4A843");               // New counter preview
+const bluePulseIcon = createCustomIcon("#3B82F6", true);    // User's physical location
 
 interface Location {
   id: string;
@@ -66,22 +67,38 @@ function MapSearchControl() {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
-    setIsSearching(true);
-    setShowResults(true);
-    try {
-      // Nominatim API
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`);
-      const data = await res.json();
-      setResults(data);
-    } catch (err) {
-      console.error("Search failed", err);
-    } finally {
-      setIsSearching(false);
+  // Debounced search effect
+  useEffect(() => {
+    // Only search if user has typed at least 3 characters
+    if (query.trim().length < 3) {
+      setResults([]);
+      // Don't auto-hide if they are just clearing out the box, but if it's empty hide it:
+      if (query.trim() === "") setShowResults(false);
+      return;
     }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      setShowResults(true);
+      try {
+        // Nominatim API - note: we add '* ' wildcard or rely on the base behaviour. 
+        // Nominatim isn't a perfect autocomplete engine, but q=... will try partial matches of words
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`);
+        const data = await res.json();
+        setResults(data);
+      } catch (err) {
+        console.error("Search failed", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600); // 600ms debounce to respect Nominatim's strict usage policy (1 req/sec)
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [query]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // The useEffect handles the fetching, this just stops page reload on Enter
   };
 
   const handleSelect = (lat: string, lon: string) => {
@@ -96,10 +113,7 @@ function MapSearchControl() {
         <input
           type="text"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (e.target.value === "") setShowResults(false);
-          }}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Search world map (e.g. Kuala Lumpur)..."
           className="w-full bg-white text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-[#E2E8E5] focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] transition"
         />
@@ -197,6 +211,7 @@ export default function Map({
   isAdmin,
   onAddCounter,
   onLocationFound,
+  userLocationCoords,
 }: {
   locations: Location[];
   activeLocationId: string | null;
@@ -204,6 +219,7 @@ export default function Map({
   isAdmin?: boolean;
   onAddCounter?: (loc: Location) => void;
   onLocationFound?: (lat: number, lng: number) => void;
+  userLocationCoords?: { lat: number, lng: number } | null;
 }) {
   const defaultCenter = useMemo<[number, number]>(() => [3.139, 101.6869], []);
   const activeLocation = locations.find((loc) => loc.id === activeLocationId);
@@ -300,6 +316,17 @@ export default function Map({
             <Popup>
               <div className="p-1 text-xs text-center text-slate-500">
                 📍 New counter location
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Show user's actual location if known */}
+        {userLocationCoords && (
+          <Marker position={[userLocationCoords.lat, userLocationCoords.lng]} icon={bluePulseIcon}>
+            <Popup>
+              <div className="p-1 text-xs text-center font-bold text-blue-600">
+                🔵 You are here
               </div>
             </Popup>
           </Marker>

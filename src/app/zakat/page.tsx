@@ -300,6 +300,7 @@ export default function ZakatLocatorPage() {
             isAdmin={isAdmin}
             onAddCounter={handleAddCounter}
             onLocationFound={(lat, lng) => setUserLocation({ lat, lng })}
+            userLocationCoords={userLocation}
           />
         )}
       </div>
