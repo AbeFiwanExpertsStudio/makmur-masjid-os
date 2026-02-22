@@ -114,7 +114,6 @@ CREATE POLICY "guest_read_own_gig_claims"
   FOR SELECT
   USING (true); -- Allow counting for landing page stats
 
--- Also drop the old policy name in case it exists from previous run
 DROP POLICY IF EXISTS "guest_insert_gig_claims" ON public.gig_claims;
 DROP POLICY IF EXISTS "registered_insert_gig_claims" ON public.gig_claims;
 CREATE POLICY "registered_insert_gig_claims"
@@ -122,7 +121,17 @@ CREATE POLICY "registered_insert_gig_claims"
   FOR INSERT
   WITH CHECK (
     auth.uid() = guest_uuid
-    AND (auth.jwt() ->> 'is_anonymous')::text = 'false'
+    AND auth.uid() IS NOT NULL
+  );
+
+-- Allow any logged-in user to cancel (delete) their own gig claim
+DROP POLICY IF EXISTS "registered_delete_own_gig_claims" ON public.gig_claims;
+CREATE POLICY "registered_delete_own_gig_claims"
+  ON public.gig_claims
+  FOR DELETE
+  USING (
+    auth.uid() = guest_uuid
+    AND auth.uid() IS NOT NULL
   );
 
 

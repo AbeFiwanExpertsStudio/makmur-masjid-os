@@ -3,16 +3,39 @@
 import { useAuth } from "@/components/providers/AuthContext";
 import { useLiveFoodEvents } from "@/hooks/useLiveFoodEvents";
 import { claimKupon } from "@/lib/mutations/claims";
+import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import QRCode from "react-qr-code";
-import { Utensils, Clock, MapPin, CheckCircle, AlertCircle, Ticket, Plus, X, CalendarPlus } from "lucide-react";
+import {
+  Utensils, Clock, MapPin, CheckCircle, AlertCircle, Ticket,
+  Plus, X, CalendarPlus, Pencil, Trash2, AlertTriangle, Loader2,
+} from "lucide-react";
+
+// timeout helper
+function waitMs(ms: number): Promise<null> {
+  return new Promise((r) => setTimeout(() => r(null), ms));
+}
 
 export default function EKuponPage() {
-  const { user, isAdmin, isAnonymous, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   const { events, isLoading: eventsLoading } = useLiveFoodEvents();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<any | null>(null);
+
+  // Local copy of events so edits/deletes reflect instantly
+  const [localEvents, setLocalEvents] = useState<any[]>([]);
+  useEffect(() => { setLocalEvents(events); }, [events]);
 
   const isLoading = eventsLoading;
+
+  const handleEventUpdated = (updated: any) => {
+    setLocalEvents((prev) => prev.map((e) => e.id === updated.id ? { ...e, ...updated } : e));
+  };
+
+  const handleEventDeleted = (deletedId: string) => {
+    setLocalEvents((prev) => prev.filter((e) => e.id !== deletedId));
+  };
 
   if (isLoading) {
     return (
@@ -60,128 +83,59 @@ export default function EKuponPage() {
 
       {/* Main List */}
       <div className="space-y-6">
-        {events.length === 0 ? (
+        {localEvents.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-2xl border border-[#E2E8E5] shadow-sm">
             <Ticket size={48} className="mx-auto text-[#8FA39B] opacity-30 mb-4" />
             <h3 className="text-[#1A2E2A] font-bold text-lg">No Events Available</h3>
             <p className="text-[#5A7068] text-sm mt-1">There are no food distributions active right now.</p>
           </div>
         ) : (
-          events.map(event => <KuponCard key={event.id} event={event} user={user} />)
+          localEvents.map(event => (
+            <KuponCard
+              key={event.id}
+              event={event}
+              user={user}
+              isAdmin={isAdmin}
+              onEdit={() => setEditingEvent(event)}
+              onDelete={() => setDeletingEvent(event)}
+            />
+          ))
         )}
       </div>
 
-      {/* ═══ Admin: Add E-Kupon Modal ═══ */}
-      {showAddModal && <AddEKuponModal onClose={() => setShowAddModal(false)} />}
+      {/* ═══ Modals ═══ */}
+      {showAddModal && <EKuponFormModal mode="add" onClose={() => setShowAddModal(false)} onSave={() => { }} />}
+      {editingEvent && (
+        <EKuponFormModal
+          mode="edit"
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSave={handleEventUpdated}
+        />
+      )}
+      {deletingEvent && (
+        <DeleteEKuponModal
+          event={deletingEvent}
+          onClose={() => setDeletingEvent(null)}
+          onDelete={handleEventDeleted}
+        />
+      )}
     </div>
   );
 }
 
-/* ────────────────────────────────────────────── */
-/*  Admin Modal: Create a new Food Event / Kupon  */
-/* ────────────────────────────────────────────── */
-function AddEKuponModal({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [capacity, setCapacity] = useState("500");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState("17:00");
-  const [location, setLocation] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const handleSave = async () => {
-    if (!name.trim() || !capacity || !date) return;
-    setSaving(true);
-    // In production, this would call supabase.from('food_events').insert(...)
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    setSuccess(true);
-    setTimeout(() => onClose(), 1200);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="hero-gradient p-5 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition"><X size={18} /></button>
-          <div className="flex items-center gap-3 relative z-10">
-            <CalendarPlus size={22} />
-            <div>
-              <h2 className="text-lg font-bold">Add New E-Kupon</h2>
-              <p className="text-white/60 text-xs mt-0.5">Set up a new food distribution event</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Form */}
-        <div className="p-6 space-y-4">
-          {success ? (
-            <div className="text-center py-6">
-              <CheckCircle size={48} className="text-[#1B6B4A] mx-auto mb-3" />
-              <p className="font-bold text-[#1A2E2A]">E-Kupon Created!</p>
-              <p className="text-sm text-[#8FA39B] mt-1">Users can now claim this kupon.</p>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Food Name *</label>
-                <input
-                  type="text" placeholder="e.g., Nasi Briyani Kambing" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Capacity</label>
-                  <input
-                    type="number" placeholder="500" value={capacity} onChange={(e) => setCapacity(e.target.value)} min="1"
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Date</label>
-                  <input
-                    type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Start Time</label>
-                  <input
-                    type="time" value={time} onChange={(e) => setTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Location</label>
-                  <input
-                    type="text" placeholder="e.g., Gate B" value={location} onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
-                  />
-                </div>
-              </div>
-
-              <button onClick={handleSave} disabled={saving || !name.trim()} className="w-full py-3.5 btn-primary text-sm mt-2">
-                {saving ? "Creating…" : "Create E-Kupon Event"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────── */
-/*  Kupon Card Component (handles own claim state)*/
-/* ────────────────────────────────────────────── */
-function KuponCard({ event, user }: { event: any; user: any }) {
+/* ─────────────────────────────────────────────── */
+/*  Kupon Card                                     */
+/* ─────────────────────────────────────────────── */
+function KuponCard({
+  event, user, isAdmin, onEdit, onDelete,
+}: {
+  event: any;
+  user: any;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [hasClaimed, setHasClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -193,14 +147,12 @@ function KuponCard({ event, user }: { event: any; user: any }) {
   const percentageLeft = (remainingPacks / totalPacks) * 100;
   const isScheduled = event.status === "scheduled";
 
-  // Sync dynamic remaining 
   useEffect(() => {
     if (event.remaining_capacity != null && localRemaining === null) {
       setLocalRemaining(event.remaining_capacity);
     }
   }, [event.remaining_capacity, localRemaining]);
 
-  // Restore claim status from localStorage
   useEffect(() => {
     if (user?.id) {
       if (localStorage.getItem(`makmur_kupon_${user.id}_${eventId}`) === "claimed") {
@@ -227,19 +179,43 @@ function KuponCard({ event, user }: { event: any; user: any }) {
   return (
     <div className="card overflow-hidden">
       {/* Event header */}
-      <div className={`p-6 text-white relative overflow-hidden ${isScheduled ? 'bg-gradient-to-br from-[#D4A843] to-[#B08A2E]' : 'hero-gradient'}`}>
+      <div className={`p-6 text-white relative overflow-hidden ${isScheduled ? "bg-gradient-to-br from-[#D4A843] to-[#B08A2E]" : "hero-gradient"}`}>
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mt-20 -mr-20 blur-2xl" />
+
         <div className="flex items-start justify-between relative z-10 mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Utensils size={20} />
             {event.name}
           </h2>
-          <span className={`badge text-[10px] ${isScheduled ? "bg-white/20 text-white" : "bg-[#EEFBF4] text-[#1B6B4A]"}`}>
-            {isScheduled ? "SCHEDULED" : "● ACTIVE"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`badge text-[10px] ${isScheduled ? "bg-white/20 text-white" : "bg-[#EEFBF4] text-[#1B6B4A]"}`}>
+              {isScheduled ? "SCHEDULED" : "● ACTIVE"}
+            </span>
+
+            {/* ── ADMIN: Edit & Delete ── */}
+            {isAdmin && (
+              <>
+                <button
+                  onClick={onEdit}
+                  title="Edit event"
+                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-all"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={onDelete}
+                  title="Delete event"
+                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-red-400/60 flex items-center justify-center text-white transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
         <div className="space-y-2 relative z-10 text-white/80">
-          <div className="flex items-center gap-2 text-sm"><Clock size={14} /> {event.event_date} ({event.start_time?.slice(0,5)} - {event.end_time?.slice(0,5)})</div>
+          <div className="flex items-center gap-2 text-sm"><Clock size={14} /> {event.event_date} ({event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)})</div>
           <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> Main Courtyard, Masjid Al-Makmur</div>
         </div>
       </div>
@@ -250,7 +226,7 @@ function KuponCard({ event, user }: { event: any; user: any }) {
           <div className="flex justify-between text-sm mb-2">
             <span className="text-[#5A7068] font-medium">Availability</span>
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-[#1B6B4A]"} ${!isScheduled && 'animate-live'}`} />
+              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-[#1B6B4A]"} ${!isScheduled && "animate-live"}`} />
               <span className={`font-bold ${remainingPacks < 100 ? "text-amber-600" : "text-[#1B6B4A]"}`}>
                 {remainingPacks}/{totalPacks} remaining
               </span>
@@ -261,23 +237,20 @@ function KuponCard({ event, user }: { event: any; user: any }) {
           </div>
         </div>
 
-        {/* Error */}
         {claimError && (
           <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl mb-4 flex items-center gap-2 text-sm">
             <AlertCircle size={16} /> {claimError}
           </div>
         )}
 
-        {/* CLAIM BUTTON or QR CODE */}
         {!hasClaimed ? (
-          <button 
-            onClick={handleClaim} 
-            disabled={isClaiming || remainingPacks <= 0 || isScheduled} 
-            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${
-              isScheduled 
-                ? 'bg-[#F1F5F3] text-[#8FA39B] cursor-not-allowed border border-[#E2E8E5] shadow-none' 
-                : 'bg-[#1B6B4A] text-white hover:bg-[#0F4A33] hover:shadow-lg'
-            }`}
+          <button
+            onClick={handleClaim}
+            disabled={isClaiming || remainingPacks <= 0 || isScheduled}
+            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${isScheduled
+                ? "bg-[#F1F5F3] text-[#8FA39B] cursor-not-allowed border border-[#E2E8E5] shadow-none"
+                : "bg-[#1B6B4A] text-white hover:bg-[#0F4A33] hover:shadow-lg"
+              }`}
           >
             {isScheduled ? <Clock size={20} /> : <Utensils size={20} />}
             {isScheduled ? "Opens Soon" : (isClaiming ? "Claiming…" : "Claim Now")}
@@ -288,19 +261,248 @@ function KuponCard({ event, user }: { event: any; user: any }) {
               <CheckCircle size={18} className="text-[#1B6B4A]" />
               <span className="font-bold text-[#1B6B4A]">Kupon Claimed Successfully</span>
             </div>
-
             <div className="bg-white p-5 rounded-xl shadow-sm mx-auto w-fit">
               <QRCode value={`makmur-kupon:${user?.id}`} size={180} level="H" fgColor="#1B6B4A" />
             </div>
-
-            <p className="text-sm text-[#5A7068] mt-5 text-center">
-              Show this QR to the volunteer at the counter.
-            </p>
-            <p className="font-mono text-xs text-[#8FA39B] text-center mt-1">
-              ID: {user?.id.split('-')[0]}
-            </p>
+            <p className="text-sm text-[#5A7068] mt-5 text-center">Show this QR to the volunteer at the counter.</p>
+            <p className="font-mono text-xs text-[#8FA39B] text-center mt-1">ID: {user?.id.split("-")[0]}</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────── */
+/*  Add / Edit E-Kupon Modal                       */
+/* ─────────────────────────────────────────────── */
+function EKuponFormModal({
+  mode, event, onClose, onSave,
+}: {
+  mode: "add" | "edit";
+  event?: any;
+  onClose: () => void;
+  onSave: (data: any) => void;
+}) {
+  const isEdit = mode === "edit";
+  const [name, setName] = useState(event?.name ?? "");
+  const [capacity, setCapacity] = useState(String(event?.total_capacity ?? 500));
+  const [date, setDate] = useState(event?.event_date ?? new Date().toISOString().split("T")[0]);
+  const [startTime, setStartTime] = useState(event?.start_time?.slice(0, 5) ?? "17:00");
+  const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) ?? "19:00");
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    if (!name.trim() || !date) return;
+    setSaving(true);
+    setSaveError(null);
+    const supabase = createClient();
+
+    try {
+      if (isEdit && event) {
+        // ── UPDATE ──
+        const result = await Promise.race([
+          supabase
+            .from("food_events")
+            .update({
+              name: name.trim(),
+              total_capacity: parseInt(capacity) || 500,
+              event_date: date,
+              start_time: startTime + ":00",
+              end_time: endTime + ":00",
+            })
+            .eq("id", event.id),
+          waitMs(6000),
+        ]);
+        if (result && "error" in result && result.error) {
+          console.warn("Update error:", result.error.message);
+        }
+        onSave({ ...event, name: name.trim(), total_capacity: parseInt(capacity) || 500, event_date: date, start_time: startTime + ":00", end_time: endTime + ":00" });
+
+      } else {
+        // ── INSERT ──
+        const result = await Promise.race([
+          supabase
+            .from("food_events")
+            .insert({
+              name: name.trim(),
+              total_capacity: parseInt(capacity) || 500,
+              remaining_capacity: parseInt(capacity) || 500,
+              event_date: date,
+              start_time: startTime + ":00",
+              end_time: endTime + ":00",
+            })
+            .select("id")
+            .single(),
+          waitMs(6000),
+        ]);
+        if (result && "error" in result && result.error) {
+          console.warn("Insert error:", result.error.message);
+        }
+        onSave({});
+      }
+
+      setSuccess(true);
+      setTimeout(() => onClose(), 1400);
+    } catch (err: any) {
+      setSaveError(err?.message ?? "Unexpected error.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="hero-gradient p-5 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
+          <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition"><X size={18} /></button>
+          <div className="flex items-center gap-3 relative z-10">
+            {isEdit ? <Pencil size={20} /> : <CalendarPlus size={22} />}
+            <div>
+              <h2 className="text-lg font-bold">{isEdit ? "Edit E-Kupon" : "Add New E-Kupon"}</h2>
+              <p className="text-white/60 text-xs mt-0.5">
+                {isEdit ? "Update the food distribution event details" : "Set up a new food distribution event"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          {success ? (
+            <div className="text-center py-8">
+              <CheckCircle size={52} className="text-[#1B6B4A] mx-auto mb-3" />
+              <p className="font-bold text-[#1A2E2A] text-lg">{isEdit ? "Event Updated!" : "E-Kupon Created!"}</p>
+              <p className="text-sm text-[#8FA39B] mt-1">{isEdit ? "Changes saved successfully." : "Users can now claim this kupon."}</p>
+            </div>
+          ) : (
+            <>
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
+                  <AlertCircle size={15} /> {saveError}
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Food Name *</label>
+                <input
+                  type="text" placeholder="e.g., Nasi Briyani Kambing" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Capacity</label>
+                  <input
+                    type="number" placeholder="500" value={capacity} onChange={(e) => setCapacity(e.target.value)} min="1"
+                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Date *</label>
+                  <input
+                    type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Start Time</label>
+                  <input
+                    type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">End Time</label>
+                  <input
+                    type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={saving || !name.trim() || !date}
+                className="w-full py-3.5 btn-primary text-sm mt-2 flex items-center justify-center gap-2"
+              >
+                {saving && <Loader2 size={15} className="animate-spin" />}
+                {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create E-Kupon Event")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────── */
+/*  Delete Confirmation Modal                      */
+/* ─────────────────────────────────────────────── */
+function DeleteEKuponModal({
+  event, onClose, onDelete,
+}: {
+  event: any;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    const supabase = createClient();
+    await Promise.race([
+      supabase.from("food_events").delete().eq("id", event.id),
+      waitMs(5000),
+    ]);
+    onDelete(event.id);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+
+        <div className="bg-red-50 border-b border-red-100 px-6 py-5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+            <AlertTriangle size={20} className="text-red-500" />
+          </div>
+          <div>
+            <h2 className="font-bold text-[#1A2E2A]">Delete E-Kupon Event?</h2>
+            <p className="text-xs text-[#8FA39B] mt-0.5">This will also delete all claims for this event.</p>
+          </div>
+          <button onClick={onClose} className="ml-auto text-[#8FA39B] hover:text-[#1A2E2A] transition"><X size={18} /></button>
+        </div>
+
+        <div className="p-6">
+          <p className="text-sm text-[#5A7068] mb-1">You are about to permanently delete:</p>
+          <p className="font-bold text-[#1A2E2A] bg-[#F8FAF9] border border-[#E2E8E5] rounded-xl px-4 py-3 text-sm mb-5">
+            &ldquo;{event.name}&rdquo;
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-3 btn-outline text-sm font-bold rounded-xl">
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+              {deleting ? "Deleting…" : "Delete Event"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
