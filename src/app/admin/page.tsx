@@ -12,6 +12,7 @@ import { scanKupon } from "@/lib/mutations/claims";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 const mockDonations = [
   { label: "Replace 5 broken fans in Women's Section", amount: 850 },
@@ -64,6 +65,7 @@ function formatTime(t: string) {
 
 export default function AdminPage() {
   const { signOut, user } = useAuth();
+  const { t } = useLanguage();
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [scanInput, setScanInput] = useState("");
@@ -366,33 +368,33 @@ export default function AdminPage() {
       icon: Ban,
       color: 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400',
       btnColor: 'bg-red-500 hover:bg-red-600',
-      title: 'Ban User',
-      desc: (e) => `Are you sure you want to ban ${e}? They will lose access to all features.`,
-      confirm: 'Yes, Ban',
+      title: t.adminBanTitle,
+      desc: (e) => t.adminBanDesc(e),
+      confirm: t.adminBanConfirm,
     },
     unban: {
       icon: UserCheck,
       color: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-400',
       btnColor: 'bg-emerald-500 hover:bg-emerald-600',
-      title: 'Unban User',
-      desc: (e) => `Are you sure you want to unban ${e}? They will regain access to the platform.`,
-      confirm: 'Yes, Unban',
+      title: t.adminUnbanTitle,
+      desc: (e) => t.adminUnbanDesc(e),
+      confirm: t.adminUnbanConfirm,
     },
     demote: {
       icon: ShieldOff,
       color: 'bg-amber-50 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400',
       btnColor: 'bg-amber-500 hover:bg-amber-600',
-      title: 'Demote Admin',
-      desc: (e) => `Are you sure you want to demote ${e} from Admin to Volunteer? They will lose admin privileges.`,
-      confirm: 'Yes, Demote',
+      title: t.adminDemoteTitle,
+      desc: (e) => t.adminDemoteDesc(e),
+      confirm: t.adminDemoteConfirm,
     },
     promote: {
       icon: ShieldCheck,
       color: 'bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400',
       btnColor: 'bg-blue-500 hover:bg-blue-600',
-      title: 'Promote to Admin',
-      desc: (e) => `Are you sure you want to promote ${e} to Admin? They will have full access to the dashboard and management tools.`,
-      confirm: 'Yes, Promote',
+      title: t.adminPromoteTitle,
+      desc: (e) => t.adminPromoteDesc(e),
+      confirm: t.adminPromoteConfirm,
     },
   };
 
@@ -404,7 +406,7 @@ export default function AdminPage() {
           <div className="w-6 h-6 rounded-full bg-surface/15 flex items-center justify-center shrink-0">
             <Bell size={12} />
           </div>
-          <span className="text-sm"><strong>Latest Broadcast:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
+          <span className="text-sm"><strong>{t.dashboardLatestBroadcast}:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
         </div>
       )}
 
@@ -413,17 +415,17 @@ export default function AdminPage() {
           <div className="flex items-center gap-3 mb-8">
             <div className="icon-box icon-box-primary"><Shield size={22} /></div>
             <div>
-              <h1 className="text-2xl font-bold text-text">AJK Admin Panel</h1>
-              <p className="text-sm text-text-muted">Manage operations and community</p>
+              <h1 className="text-2xl font-bold text-text">{t.adminTitle}</h1>
+              <p className="text-sm text-text-muted">{t.adminSubtitle}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Financials */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-text mb-4">Financials Overview</h2>
+              <h2 className="font-bold text-lg text-text mb-4">{t.adminFinancials}</h2>
               <div className="hero-gradient rounded-xl p-5 mb-5">
-                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">Total Collected (Stripe)</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">{t.adminTotalCollected}</p>
                 <p className="text-3xl font-bold text-white">RM {totalCollected.toLocaleString()}</p>
               </div>
               <div className="space-y-3">
@@ -438,8 +440,8 @@ export default function AdminPage() {
 
             {/* Broadcast — with history + edit/delete */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-text mb-2">Community Broadcast</h2>
-              <p className="text-sm text-text-muted mb-4">Send a notification to all users.</p>
+              <h2 className="font-bold text-lg text-text mb-2">{t.adminBroadcast}</h2>
+              <p className="text-sm text-text-muted mb-4">{t.adminBroadcastDesc}</p>
               <textarea
                 value={broadcastMsg}
                 onChange={(e) => setBroadcastMsg(e.target.value)}
@@ -452,13 +454,13 @@ export default function AdminPage() {
                 className="w-full py-3 btn-primary text-sm disabled:opacity-50 flex justify-center items-center gap-2 mb-4"
               >
                 {isSendingBroadcast ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                {isSendingBroadcast ? 'Sending...' : 'Blast Message'}
+                {isSendingBroadcast ? t.adminSending : t.adminBlastMsg}
               </button>
 
               {/* Broadcast history */}
               {broadcasts.length > 0 && (
                 <>
-                  <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Recent Broadcasts</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">{t.adminRecentBroadcasts}</p>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {broadcasts.map((b) => (
                       <div key={b.id} className={`flex items-start justify-between gap-2 border rounded-xl px-3 py-2.5 group ${
@@ -468,8 +470,8 @@ export default function AdminPage() {
                       }`}>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            {b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-primary">● Active</span>}
-                            {!b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Archived</span>}
+                            {b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-primary">{t.adminBroadcastActive}</span>}
+                            {!b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted">{t.adminBroadcastArchived}</span>}
                           </div>
                           <p className="text-sm text-text truncate">{b.message}</p>
                           <p className="text-[10px] text-text-muted">{timeAgo(b.created_at)}</p>
@@ -500,7 +502,7 @@ export default function AdminPage() {
             {/* Scanner */}
             <div className="card p-6">
               <div className="flex items-center justify-between mb-1">
-                <h2 className="font-bold text-lg text-text">E-Kupon Scanner</h2>
+                <h2 className="font-bold text-lg text-text">{t.adminScanner}</h2>
                 {/* Mode toggle */}
                 <div className="flex bg-background border border-border rounded-xl overflow-hidden text-xs font-medium">
                   <button
@@ -509,7 +511,7 @@ export default function AdminPage() {
                       !cameraMode ? "bg-primary text-white" : "text-text-muted hover:bg-surface"
                     }`}
                   >
-                    <Keyboard size={13} /> Manual
+                    <Keyboard size={13} /> {t.adminManual}
                   </button>
                   <button
                     onClick={() => setCameraMode(true)}
@@ -517,11 +519,11 @@ export default function AdminPage() {
                       cameraMode ? "bg-primary text-white" : "text-text-muted hover:bg-surface"
                     }`}
                   >
-                    <Camera size={13} /> Camera
+                    <Camera size={13} /> {t.adminCamera}
                   </button>
                 </div>
               </div>
-              <p className="text-sm text-text-muted mb-4">Scan a user&apos;s QR to mark food as claimed.</p>
+              <p className="text-sm text-text-muted mb-4">{t.adminScanDesc}</p>
 
               {cameraMode ? (
                 <div className="mb-4">
@@ -536,7 +538,7 @@ export default function AdminPage() {
                 <div className="flex gap-2 mb-4">
                   <input
                     type="text"
-                    placeholder="Enter Reservation ID (e.g., r1)"
+                    placeholder={t.adminScanInput}
                     value={scanInput}
                     onChange={(e) => setScanInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleScan()}
@@ -559,18 +561,18 @@ export default function AdminPage() {
                   className="flex items-center justify-between w-full text-sm font-semibold text-text mb-2"
                 >
                   <span className="flex items-center gap-2">
-                    Unclaimed Kupons
+                    {t.adminUnclaimedKupons}
                     <span className="inline-flex items-center justify-center text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded-full px-2 py-0.5 min-w-[1.4rem]">
                       {unclaimedKupons.length}
                     </span>
                   </span>
-                  <span className="text-text-muted text-xs">{showUnclaimed ? "▲ hide" : "▼ show"}</span>
+                  <span className="text-text-muted text-xs">{showUnclaimed ? `▲ ${t.adminHide}` : `▼ ${t.adminShow}`}</span>
                 </button>
 
                 {showUnclaimed && (
                   <div className="space-y-1.5 max-h-60 overflow-y-auto">
                     {unclaimedKupons.length === 0 ? (
-                      <p className="text-xs text-text-muted text-center py-4">All kupons have been scanned 🎉</p>
+                      <p className="text-xs text-text-muted text-center py-4">{t.adminAllScanned}</p>
                     ) : (
                       unclaimedKupons.map((k) => (
                         <button
@@ -580,7 +582,7 @@ export default function AdminPage() {
                           title="Tap to fill input"
                         >
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-text truncate">{k.display_name || "Guest"}</p>
+                            <p className="text-sm font-medium text-text truncate">{k.display_name || t.adminGuest}</p>
                             <p className="text-xs text-text-muted truncate">{k.event_name}</p>
                           </div>
                           <span className="shrink-0 text-xs font-mono text-text-muted bg-surface px-2 py-0.5 rounded-lg border border-border">
@@ -596,7 +598,7 @@ export default function AdminPage() {
               {/* Scan history */}
               {scanHistory.length > 0 && (
                 <div className="mt-4 space-y-1.5">
-                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Session History</p>
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">{t.adminSessionHistory}</p>
                   {scanHistory.map((s, i) => (
                     <div key={i} className="flex justify-between items-center text-sm px-4 py-2.5 bg-background rounded-xl border border-border">
                       <span className="font-mono text-text-secondary truncate max-w-[70%]">{s.id}</span>
@@ -612,8 +614,8 @@ export default function AdminPage() {
 
             {/* Gig Completion — from DB */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-text mb-2">Gig Completion</h2>
-              <p className="text-sm text-text-muted mb-4">Award points for completed volunteer gigs (past date only).</p>
+              <h2 className="font-bold text-lg text-text mb-2">{t.adminGigCompletion}</h2>
+              <p className="text-sm text-text-muted mb-4">{t.adminGigCompletionDesc}</p>
 
               {visibleGigs.length > 0 ? (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -635,7 +637,7 @@ export default function AdminPage() {
                       {g.is_completed ? (
                         <div className="flex flex-col items-end gap-1">
                           <span className="badge bg-primary-50 text-primary border border-primary/20 text-xs">
-                            <CheckCircle size={12} /> Awarded ✓
+                            <CheckCircle size={12} /> {t.adminAwardedLabel}
                           </span>
                           {g.completed_at && (() => {
                             const remainMs = 12 * 60 * 60 * 1000 - (currentTime.getTime() - new Date(g.completed_at).getTime());
@@ -645,7 +647,7 @@ export default function AdminPage() {
                             const s = totalSec % 60;
                             return (
                               <span className="text-[10px] text-text-muted font-mono">
-                                Clears in {h}h {String(m).padStart(2,'0')}m {String(s).padStart(2,'0')}s
+                                {t.adminClearsIn(h, m, s)}
                               </span>
                             );
                           })()}
@@ -655,14 +657,14 @@ export default function AdminPage() {
                           onClick={() => handleCompleteGig(g.id)}
                           className="badge bg-primary-50 text-primary border border-[#D5F5E3] hover:bg-[#D5F5E3] hover:scale-105 active:scale-95 transition-all text-xs"
                         >
-                          <Award size={12} /> Complete & Award
+                          <Award size={12} /> {t.adminCompleteAward}
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-text-muted text-center py-6">No past gigs to complete right now.</p>
+                <p className="text-sm text-text-muted text-center py-6">{t.adminNoPastGigs}</p>
               )}
             </div>
           </div>
@@ -672,14 +674,14 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-text" />
-                <h2 className="font-bold text-lg text-text">Manage Users</h2>
+                <h2 className="font-bold text-lg text-text">{t.adminManageUsers}</h2>
                 <span className="text-xs text-text-muted bg-surface-muted px-2 py-0.5 rounded-full">{visibleUsers.length}</span>
               </div>
               <div className="relative w-full sm:w-72">
                 <Search size={14} className="absolute left-3 top-3 text-text-muted" />
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
+                  placeholder={t.adminSearchUsers}
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
@@ -712,7 +714,7 @@ export default function AdminPage() {
                           ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
                           : 'bg-primary-50 text-primary'
                     }`}>
-                      {u.is_banned ? 'Banned' : u.role}
+                      {u.is_banned ? t.adminBanned : u.role}
                     </span>
 
                     {u.is_banned ? (
@@ -720,7 +722,7 @@ export default function AdminPage() {
                         onClick={() => setActionModal({ type: 'unban', user: u })}
                         className="badge bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/50 transition text-xs"
                       >
-                        <UserCheck size={12} /> Unban
+                        <UserCheck size={12} /> {t.adminUnban}
                       </button>
                     ) : (
                       <>
@@ -729,7 +731,7 @@ export default function AdminPage() {
                             onClick={() => setActionModal({ type: 'promote', user: u })}
                             className="badge bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/50 transition text-xs"
                           >
-                            <ShieldCheck size={12} /> Promote
+                            <ShieldCheck size={12} /> {t.adminPromote}
                           </button>
                         )}
                         {u.role === 'admin' && (
@@ -737,14 +739,14 @@ export default function AdminPage() {
                             onClick={() => setActionModal({ type: 'demote', user: u })}
                             className="badge bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/50 transition text-xs"
                           >
-                            <ShieldOff size={12} /> Demote
+                            <ShieldOff size={12} /> {t.adminDemote}
                           </button>
                         )}
                         <button
                           onClick={() => setActionModal({ type: 'ban', user: u })}
                           className="badge bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 transition text-xs"
                         >
-                          <Ban size={12} /> Ban
+                          <Ban size={12} /> {t.adminBan}
                         </button>
                       </>
                     )}
@@ -755,7 +757,7 @@ export default function AdminPage() {
                 <p className="text-sm text-text-muted text-center py-8">
                   {usersError
                     ? <span className="text-red-500">Error: {usersError}</span>
-                    : userSearch ? 'No users match your search.' : 'No users found. Ensure the SQL functions are deployed.'}
+                    : userSearch ? t.adminNoUsersSearch : t.adminNoUsers}
                 </p>
               )}
             </div>
@@ -786,7 +788,7 @@ export default function AdminPage() {
                   onClick={() => setActionModal(null)}
                   className="flex-1 py-3 border border-border rounded-xl text-sm font-bold text-text hover:bg-background transition"
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   onClick={handleUserAction}
@@ -808,8 +810,8 @@ export default function AdminPage() {
             <div className="w-12 h-12 bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl flex items-center justify-center mb-4 mx-auto">
               <Pencil size={24} />
             </div>
-            <h3 className="text-lg font-bold text-text text-center mb-2">Edit Broadcast</h3>
-            <p className="text-xs text-text-muted text-center mb-4">Update the message. If this is the latest broadcast, the banner will update too.</p>
+            <h3 className="text-lg font-bold text-text text-center mb-2">{t.adminEditBroadcastTitle}</h3>
+            <p className="text-xs text-text-muted text-center mb-4">{t.adminEditBroadcastHint}</p>
             <textarea
               value={editMsg}
               onChange={(e) => setEditMsg(e.target.value)}
@@ -820,14 +822,14 @@ export default function AdminPage() {
                 onClick={() => setEditingBroadcast(null)}
                 className="flex-1 py-3 border border-border rounded-xl text-sm font-bold text-text hover:bg-background transition"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 onClick={handleEditBroadcast}
                 disabled={!editMsg.trim()}
                 className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md transition disabled:opacity-50"
               >
-                Save
+                {t.adminSaveBtn}
               </button>
             </div>
           </div>
@@ -838,6 +840,7 @@ export default function AdminPage() {
 }
 
 function SystemSettingsEditor({ initialName, initialDesc }: { initialName: string, initialDesc: string }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initialName);
   const [desc, setDesc] = useState(initialDesc);
   const [saving, setSaving] = useState(false);
@@ -859,7 +862,7 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
       }).eq("id", 1);
     } catch (err) {
       console.error(err);
-      alert("Failed to update settings");
+      toast.error("Failed to update settings");
     } finally {
       setSaving(false);
     }
@@ -871,13 +874,13 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
     <div className="card p-6">
       <div className="flex items-center gap-2 mb-4">
         <Settings size={18} className="text-text" />
-        <h2 className="font-bold text-lg text-text">System Branding</h2>
+        <h2 className="font-bold text-lg text-text">{t.adminSystemBranding}</h2>
       </div>
-      <p className="text-sm text-text-muted mb-4">Update the app&apos;s global header name and description.</p>
+      <p className="text-sm text-text-muted mb-4">{t.adminBrandingDesc}</p>
 
       <div className="space-y-3">
         <div>
-          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">System Name</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">{t.adminSystemName}</label>
           <input
             type="text"
             value={name}
@@ -886,7 +889,7 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
           />
         </div>
         <div>
-          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">Description</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">{t.adminDescriptionLabel}</label>
           <input
             type="text"
             value={desc}
@@ -900,7 +903,7 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
           className="w-full mt-2 py-2.5 btn-primary text-sm flex justify-center gap-2 disabled:opacity-50"
         >
           {saving && <Loader2 size={16} className="animate-spin" />}
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? t.saving : t.save}
         </button>
       </div>
     </div>

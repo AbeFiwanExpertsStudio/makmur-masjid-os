@@ -8,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 type Notification = {
   id: string;
@@ -15,20 +16,21 @@ type Notification = {
   created_at: string;
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: any): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t.justNow;
+  if (mins < 60) return t.minAgo(mins);
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t.hrsAgo(hrs);
   const days = Math.floor(hrs / 24);
-  return days === 1 ? 'Yesterday' : `${days}d ago`;
+  return days === 1 ? t.yesterday : t.daysAgo(days);
 }
 
 export function Navbar() {
   const pathname = usePathname();
   const { user, isAnonymous, isAdmin, isLoading, setShowLoginModal, signOut } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -103,12 +105,12 @@ export function Navbar() {
   }, [notifOpen, unreadCount, markAllRead]);
 
   const links = [
-    ...(isAdmin ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
-    { href: '/gigs', label: 'Volunteer' },
-    { href: '/crowdfunding', label: 'Crowdfunding' },
-    { href: '/e-kupon', label: 'E-Kupon' },
-    { href: '/zakat', label: 'Zakat Locator' },
-    { href: '/waktu-solat', label: 'Waktu Solat' },
+    ...(isAdmin ? [{ href: '/dashboard', label: t.navDashboard }] : []),
+    { href: '/gigs', label: t.navVolunteer },
+    { href: '/crowdfunding', label: t.navCrowdfunding },
+    { href: '/e-kupon', label: t.navEKupon },
+    { href: '/zakat', label: t.navZakat },
+    { href: '/waktu-solat', label: t.navWaktuSolat },
   ];
 
   const handleSignOut = async () => {
@@ -138,7 +140,7 @@ export function Navbar() {
                 : 'text-gold hover:text-gold-dark hover:bg-gold-light/20'
                 }`}
             >
-              <Shield size={14} /> Admin
+              <Shield size={14} /> {t.admin}
             </Link>
           )}
           {links.map((link) => (
@@ -170,6 +172,19 @@ export function Navbar() {
             </button>
           )}
 
+          {/* Language Toggle */}
+          {mounted && (
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'ms' : 'en')}
+              className="h-9 px-2.5 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary transition-all gap-1 font-bold text-xs"
+              aria-label="Toggle Language"
+            >
+              <span className={`transition-all ${language === 'en' ? 'text-primary font-extrabold' : 'opacity-50'}`}>EN</span>
+              <span className="opacity-30">|</span>
+              <span className={`transition-all ${language === 'ms' ? 'text-primary font-extrabold' : 'opacity-50'}`}>BM</span>
+            </button>
+          )}
+
           {/* Notification bell with dropdown */}
           <div className="relative" ref={notifRef}>
             <button
@@ -187,11 +202,11 @@ export function Navbar() {
             {notifOpen && (
               <div className="absolute right-0 top-12 w-80 bg-surface rounded-xl shadow-2xl border border-border overflow-hidden z-50">
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-text">Notifications</h3>
+                  <h3 className="font-bold text-sm text-text">{t.notifications}</h3>
                   {notifications.length > 0 && (
                     <span className="badge bg-primary-50 text-primary text-xs flex items-center gap-1">
-                      <Check size={10} /> All read
-                    </span>
+                          <Check size={10} /> {t.allRead}
+                        </span>
                   )}
                 </div>
                 <div className="max-h-72 overflow-y-auto">
@@ -199,13 +214,13 @@ export function Navbar() {
                     notifications.map((n) => (
                       <div key={n.id} className="px-4 py-3 border-b border-surface-muted last:border-0">
                         <p className="text-sm text-text">{n.message}</p>
-                        <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at)}</p>
+                        <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at, t)}</p>
                       </div>
                     ))
                   ) : (
                     <div className="px-4 py-8 text-center">
                       <Bell size={24} className="mx-auto text-text-muted/30 mb-2" />
-                      <p className="text-sm text-text-muted">No notifications yet</p>
+                      <p className="text-sm text-text-muted">{t.noNotifications}</p>
                     </div>
                   )}
                 </div>
@@ -216,7 +231,7 @@ export function Navbar() {
           {isLoading ? (
             <div className="hidden md:block w-20 h-9 bg-gray-100 animate-pulse rounded-xl ml-1" />
           ) : isAnonymous ? (
-            <button onClick={() => setShowLoginModal(true)} className="hidden md:block px-4 py-2 btn-primary text-sm">Sign In</button>
+            <button onClick={() => setShowLoginModal(true)} className="hidden md:block px-4 py-2 btn-primary text-sm">{t.signIn}</button>
           ) : (
             /* ═══ Profile avatar + dropdown with Logout ═══ */
             <div className="relative" ref={profileRef}>
@@ -241,7 +256,7 @@ export function Navbar() {
                     onClick={handleSignOut}
                     className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition"
                   >
-                    <LogOut size={15} /> Sign Out
+                    <LogOut size={15} /> {t.signOut}
                   </button>
                 </div>
               )}
@@ -265,18 +280,18 @@ export function Navbar() {
           {isLoading ? (
             <div className="w-full h-11 bg-gray-100 animate-pulse rounded-xl mt-2" />
           ) : isAnonymous ? (
-            <button onClick={() => { setShowLoginModal(true); setMobileOpen(false); }} className="w-full px-4 py-3 btn-primary text-sm mt-2">Sign In</button>
+            <button onClick={() => { setShowLoginModal(true); setMobileOpen(false); }} className="w-full px-4 py-3 btn-primary text-sm mt-2">{t.signIn}</button>
           ) : (
             <>
               {isAdmin && (
                 <Link href="/admin" onClick={() => setMobileOpen(false)}
                   className="block px-4 py-3 rounded-xl text-sm font-medium transition text-gold hover:bg-gold-light/20 flex items-center gap-2 mt-1"
                 >
-                  <Shield size={15} /> Admin Panel
+                  <Shield size={15} /> {t.adminPanel}
                 </Link>
               )}
               <button onClick={handleSignOut} className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 mt-1 border border-red-200">
-                <LogOut size={15} /> Sign Out
+                <LogOut size={15} /> {t.signOut}
               </button>
             </>
           )}

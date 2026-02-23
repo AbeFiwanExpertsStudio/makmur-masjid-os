@@ -3,6 +3,7 @@ import { Inter, Reem_Kufi, Amiri } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthContext";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { LanguageProvider } from "@/components/providers/LanguageContext";
 import { Toaster } from "react-hot-toast";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Navbar } from "@/components/layout/Navbar";
@@ -63,6 +64,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${reemKufi.variable} ${amiri.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <LanguageProvider>
           <AuthProvider>
             <GlobalBackground />
             <div className="flex flex-col min-h-screen pb-16 md:pb-0">
@@ -92,6 +94,7 @@ export default function RootLayout({
               }}
             />
           </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

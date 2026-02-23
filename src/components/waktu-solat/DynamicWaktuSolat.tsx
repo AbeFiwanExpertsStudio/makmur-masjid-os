@@ -282,7 +282,7 @@ export default function DynamicWaktuSolat() {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity cursor-pointer" onClick={() => setSettingsOpen(false)} />
                     <div className="relative w-full md:w-[480px] bg-[#1A1A1A] h-full flex flex-col shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
                         <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-[#1A1A1A]/95 backdrop-blur z-10">
-                            <h3 className="text-xl font-bold text-white">Settings</h3>
+                            <h3 className="text-xl font-bold text-white">{t("Settings", "Tetapan")}</h3>
                             <button onClick={() => setSettingsOpen(false)} className="p-2 bg-surface/5 rounded-full hover:bg-surface/10 transition text-white">
                                 <X size={20} />
                             </button>
@@ -292,12 +292,12 @@ export default function DynamicWaktuSolat() {
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Display Identity</h4>
-                                    <p className="text-xs text-white/50">What appears on screen</p>
+                                    <h4 className="font-bold text-white mb-1">{t("Display Identity", "Identiti Paparan")}</h4>
+                                    <p className="text-xs text-white/50">{t("What appears on screen", "Apa yang terpapar di skrin")}</p>
                                 </div>
                                 <div className="space-y-6">
                                     <div>
-                                        <label className="text-sm font-semibold text-white/90 block mb-2">Custom Title</label>
+                                        <label className="text-sm font-semibold text-white/90 block mb-2">{t("Custom Title", "Tajuk Tersuai")}</label>
                                         <input
                                             value={customTitle} onChange={e => setCustomTitle(e.target.value)}
                                             type="text" placeholder="Enter custom title"
@@ -305,7 +305,7 @@ export default function DynamicWaktuSolat() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-sm font-semibold text-white/90 block mb-3">Theme Color</label>
+                                        <label className="text-sm font-semibold text-white/90 block mb-3">{t("Theme Color", "Warna Tema")}</label>
                                         <div className="flex flex-wrap gap-2.5">
                                             {THEMES.map(tOption => (
                                                 <button key={tOption.id} onClick={() => setTheme(tOption)} className={`w-8 h-8 rounded-full transition-transform ${tOption.bgClass} ${theme.id === tOption.id ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1A1A1A] scale-110' : ''}`} />
@@ -317,8 +317,8 @@ export default function DynamicWaktuSolat() {
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Background Appearance</h4>
-                                    <p className="text-xs text-white/50">Upload or link an image and adjust transparency</p>
+                                    <h4 className="font-bold text-white mb-1">{t("Background Appearance", "Penampilan Latar")}</h4>
+                                    <p className="text-xs text-white/50">{t("Upload or link an image and adjust transparency", "Muat naik imej dan laraskan kelegapan")}</p>
                                 </div>
                                 <div className="space-y-4">
                                     <div className="w-full relative">
@@ -342,28 +342,28 @@ export default function DynamicWaktuSolat() {
                                                 onClick={() => setBgImage("")}
                                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full hover:bg-red-500/30 transition"
                                             >
-                                                Clear
+                                                {t("Clear", "Kosongkan")}
                                             </button>
                                         )}
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-xs text-white/70 mb-2">
-                                            <span>Overlay Opacity ({bgOpacity}%)</span>
-                                            <span>Darker</span>
+                                            <span>{t("Overlay Opacity", "Kelegapan Lapisan")} ({bgOpacity}%)</span>
+                                            <span>{t("Darker", "Lebih Gelap")}</span>
                                         </div>
                                         <input
                                             type="range" min="0" max="100"
                                             value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))}
                                             className="w-full accent-blue-500"
                                         />
-                                        <p className="text-[10px] text-white/40 mt-1">Set to 0% for pure photo, 100% for solid dark theme.</p>
+                                        <p className="text-[10px] text-white/40 mt-1">{t("Set to 0% for pure photo, 100% for solid dark theme.", "Tetapkan 0% untuk foto tulen, 100% untuk tema gelap penuh.")}</p>
                                     </div>
                                 </div>
                             </section>
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Language</h4>
+                                    <h4 className="font-bold text-white mb-1">{t("Language", "Bahasa")}</h4>
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => setLanguage("en")} className={`flex-1 font-medium py-3 rounded-xl transition border ${language === "en" ? 'bg-blue-500 text-white border-blue-500' : 'bg-[#2A2A2A] text-white/80 border-white/5'}`}>English</button>
@@ -373,7 +373,7 @@ export default function DynamicWaktuSolat() {
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Location & Prayer Time</h4>
+                                    <h4 className="font-bold text-white mb-1">{t("Location & Prayer Time", "Lokasi & Waktu Solat")}</h4>
                                 </div>
                                 <div className="space-y-4">
                                     <div>
@@ -392,22 +392,22 @@ export default function DynamicWaktuSolat() {
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Time Format</h4>
+                                    <h4 className="font-bold text-white mb-1">{t("Time Format", "Format Masa")}</h4>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => setUse24Hour(false)} className={`flex-1 font-medium py-3 rounded-xl transition border ${!use24Hour ? 'bg-blue-500 text-white border-blue-500' : 'bg-[#2A2A2A] text-white/80 border-white/5'}`}>12 Hour</button>
-                                    <button onClick={() => setUse24Hour(true)} className={`flex-1 font-medium py-3 rounded-xl transition border ${use24Hour ? 'bg-blue-500 text-white border-blue-500' : 'bg-[#2A2A2A] text-white/80 border-white/5'}`}>24 Hour</button>
+                                    <button onClick={() => setUse24Hour(false)} className={`flex-1 font-medium py-3 rounded-xl transition border ${!use24Hour ? 'bg-blue-500 text-white border-blue-500' : 'bg-[#2A2A2A] text-white/80 border-white/5'}`}>{t("12 Hour", "12 Jam")}</button>
+                                    <button onClick={() => setUse24Hour(true)} className={`flex-1 font-medium py-3 rounded-xl transition border ${use24Hour ? 'bg-blue-500 text-white border-blue-500' : 'bg-[#2A2A2A] text-white/80 border-white/5'}`}>{t("24 Hour", "24 Jam")}</button>
                                 </div>
                             </section>
 
                             <section>
                                 <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">Audio</h4>
-                                    <p className="text-xs text-white/50">Sound behaviour</p>
+                                    <h4 className="font-bold text-white mb-1">{t("Audio", "Audio")}</h4>
+                                    <p className="text-xs text-white/50">{t("Sound behaviour", "Kelakuan bunyi")}</p>
                                 </div>
                                 <div className="space-y-3 bg-[#2A2A2A] rounded-2xl p-2 border border-white/5 mb-3">
                                     <div className="flex justify-between items-center p-2 px-3 cursor-pointer" onClick={() => setAudioEnabled(!audioEnabled)}>
-                                        <span className="text-sm font-medium text-white/90">Azan Status</span>
+                                        <span className="text-sm font-medium text-white/90">{t("Azan Status", "Status Azan")}</span>
                                         <div className={`w-11 h-6 rounded-full flex items-center p-1 transition-colors ${audioEnabled ? 'bg-blue-500 justify-end' : 'bg-[#1A1A1A] justify-start'}`}><div className="w-4 h-4 bg-surface rounded-full shadow-sm" /></div>
                                     </div>
                                 </div>
@@ -434,7 +434,7 @@ export default function DynamicWaktuSolat() {
                                         }}
                                         className="flex-1 bg-emerald-500/20 text-emerald-400 font-medium py-3 rounded-lg hover:bg-emerald-500/30 transition flex flex-col items-center justify-center gap-1 text-xs border border-emerald-500/20"
                                     >
-                                        <Volume2 size={16} /> Test Local Azan
+                                        <Volume2 size={16} /> {t("Test Local Azan", "Uji Azan Tempatan")}
                                     </button>
                                 </div>
                             </section>
@@ -442,7 +442,7 @@ export default function DynamicWaktuSolat() {
 
                         <div className="sticky bottom-0 p-6 bg-[#1A1A1A]/95 backdrop-blur border-t border-white/10 z-10 w-full mt-auto">
                             <button onClick={() => setSettingsOpen(false)} className="w-full bg-[#2A2A2A] text-white font-medium py-4 rounded-xl hover:bg-[#333] transition border border-white/5">
-                                Save
+                                {t("Save", "Simpan")}
                             </button>
                         </div>
                     </div>

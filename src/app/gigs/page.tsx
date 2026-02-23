@@ -8,7 +8,9 @@ import {
   Users, Clock, CheckCircle, AlertCircle, LogIn,
   Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star,
 } from "lucide-react";
+import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 type Gig = {
   id: string;
@@ -34,6 +36,7 @@ function waitMs(ms: number): Promise<null> {
 /* ─────────────────────────────────── */
 export default function GigsPage() {
   const { user, isAnonymous, isAdmin, setShowLoginModal } = useAuth();
+  const { t, language } = useLanguage();
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [loadingGigs, setLoadingGigs] = useState(true);
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
@@ -45,6 +48,9 @@ export default function GigsPage() {
   const [myPoints, setMyPoints] = useState(0);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const GIGS_PER_PAGE = 5;
+  const [gigsPage, setGigsPage] = useState(1);
 
   /* ── Fetch user's existing claims (persists across refresh) ── */
   const fetchMyClaims = async (userId: string) => {
@@ -127,9 +133,9 @@ export default function GigsPage() {
     if (result.success) {
       setClaimedIds((prev) => new Set(prev).add(gigId));
       setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: g.claimed + 1 } : g));
-      toast.success("Gig claimed successfully!");
+      toast.success(t.claimGigSuccess);
     } else {
-      toast.error(result.error ?? "Failed to claim gig.");
+      toast.error(result.error ?? t.claimGigFail);
     }
   };
 
@@ -141,9 +147,9 @@ export default function GigsPage() {
     if (result.success) {
       setClaimedIds((prev) => { const s = new Set(prev); s.delete(gigId); return s; });
       setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: Math.max(0, g.claimed - 1) } : g));
-      toast.success("Claim cancelled.");
+      toast.success(t.cancelGigSuccess);
     } else {
-      toast.error(result.error ?? "Failed to cancel claim.");
+      toast.error(result.error ?? t.cancelGigFail);
     }
     setCancellingId(null);
   };
@@ -172,8 +178,8 @@ export default function GigsPage() {
         <div className="flex items-center gap-3">
           <div className="text-primary"><Briefcase size={28} strokeWidth={2.5} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-text">Volunteer Gigs</h1>
-            <p className="text-sm text-text-muted">Claim a task and contribute this Ramadan</p>
+            <h1 className="text-2xl font-bold text-text">{t.gigsTitle}</h1>
+            <p className="text-sm text-text-muted">{t.gigsSubtitle}</p>
           </div>
         </div>
         {isAdmin && (
@@ -181,7 +187,7 @@ export default function GigsPage() {
             onClick={() => setShowAddModal(true)}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            <Plus size={16} /> Add Gig
+            <Plus size={16} /> {language === 'ms' ? 'Tambah Gig' : 'Add Gig'}
           </button>
         )}
       </div>
@@ -193,7 +199,7 @@ export default function GigsPage() {
             <Star size={20} className="text-gold fill-gold" />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-text-muted">My Volunteer Points</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted">{t.gigsMyPoints}</p>
             <p className="text-2xl font-bold text-text">{myPoints.toLocaleString()} <span className="text-sm font-normal text-text-muted">pts</span></p>
           </div>
           <div className="ml-auto text-xs text-text-muted max-w-[140px] text-right">
@@ -251,9 +257,14 @@ export default function GigsPage() {
           );
         }
 
+        const pagedGigs = activeGigs.slice(
+          (gigsPage - 1) * GIGS_PER_PAGE,
+          gigsPage * GIGS_PER_PAGE
+        );
+
         return (
           <div className="space-y-4">
-            {activeGigs.map((gig) => {
+            {pagedGigs.map((gig) => {
               const isFull = gig.claimed >= gig.required_pax;
               const isClaimed = claimedIds.has(gig.id);
 
@@ -369,12 +380,18 @@ export default function GigsPage() {
                       title={isConflict ? `Overlaps with "${conflictingGig?.title}"` : undefined}
                     >
                       {isConflict ? <AlertCircle size={16} /> : isAnonymous ? <LogIn size={16} /> : <Users size={16} />}
-                      {isFull ? 'Fully Booked' : isConflict ? `Clashes with "${conflictingGig?.title}"` : isAnonymous ? 'Sign In to Claim' : 'Claim Task'}
+                      {isFull ? (language === 'ms' ? 'Penuh' : 'Fully Booked') : isConflict ? `Clashes with "${conflictingGig?.title}"` : isAnonymous ? t.signIn : t.claimGig}
                     </button>
                   )}
                 </div>
               );
             })}
+            <Pagination
+              page={gigsPage}
+              total={activeGigs.length}
+              perPage={GIGS_PER_PAGE}
+              onChange={setGigsPage}
+            />
           </div>
         );
       })()}
@@ -413,6 +430,7 @@ function GigFormModal({
   onSave: (gig: Gig) => void;
 }): React.ReactElement {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [title, setTitle] = useState(gig?.title ?? "");
   const [description, setDescription] = useState(gig?.description ?? "");
   const [requiredPax, setRequiredPax] = useState(String(gig?.required_pax ?? 10));
@@ -427,7 +445,7 @@ function GigFormModal({
 
   const handleSave = async () => {
     if (!title.trim() || !description.trim()) return;
-    if (!user) { setSaveError("You must be logged in."); return; }
+    if (!user) { setSaveError(t.gigLoginRequired); return; }
 
     setSaving(true);
     setSaveError(null);
@@ -527,9 +545,9 @@ function GigFormModal({
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <Briefcase size={22} />}
             <div>
-              <h2 className="text-lg font-bold">{isEdit ? "Edit Gig" : "Add New Gig"}</h2>
+              <h2 className="text-lg font-bold">{isEdit ? t.gigFormEditTitle : t.gigFormAddTitle}</h2>
               <p className="text-white/60 text-xs mt-0.5">
-                {isEdit ? "Update the details of this volunteer task" : "Create a volunteer task for the community"}
+                {isEdit ? t.gigFormEditDesc : t.gigFormAddDesc}
               </p>
             </div>
           </div>
@@ -539,9 +557,9 @@ function GigFormModal({
           {success ? (
             <div className="text-center py-8">
               <CheckCircle size={52} className="text-primary mx-auto mb-3" />
-              <p className="font-bold text-text text-lg">{isEdit ? "Gig Updated!" : "Gig Created!"}</p>
+              <p className="font-bold text-text text-lg">{isEdit ? t.gigUpdated : t.gigCreated}</p>
               <p className="text-sm text-text-muted mt-1">
-                {isEdit ? "Changes have been saved." : "The new gig is now listed for volunteers."}
+                {isEdit ? t.gigChangesSaved : t.gigListedForVols}
               </p>
             </div>
           ) : (
@@ -553,7 +571,7 @@ function GigFormModal({
               )}
 
               <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Task Title *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldTitle}</label>
                 <input
                   type="text" placeholder="e.g., Setup Audio System" value={title} onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -561,7 +579,7 @@ function GigFormModal({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Description *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldDesc}</label>
                 <textarea
                   placeholder="Describe what volunteers will do…" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
                   className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background resize-none"
@@ -570,14 +588,14 @@ function GigFormModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Volunteers Needed</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldVolunteers}</label>
                   <input
                     type="number" placeholder="10" value={requiredPax} onChange={(e) => setRequiredPax(e.target.value)} min="1"
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Date</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldDate}</label>
                   <input
                     type="date" value={gigDate} onChange={(e) => setGigDate(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -587,14 +605,14 @@ function GigFormModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Start Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldStart}</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">End Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldEnd}</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -608,7 +626,7 @@ function GigFormModal({
                 className="w-full py-3.5 btn-primary text-sm mt-2 flex items-center justify-center gap-2"
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}
-                {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Gig")}
+                {saving ? (isEdit ? t.gigSaving : t.gigCreating) : (isEdit ? t.gigSaveChanges : t.gigCreateGig)}
               </button>
             </>
           )}
@@ -629,6 +647,7 @@ function DeleteConfirmModal({
   onDelete: (id: string) => void;
 }): React.ReactElement {
   const [deleting, setDeleting] = useState(false);
+  const { t } = useLanguage();
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -656,21 +675,21 @@ function DeleteConfirmModal({
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
             <div>
-              <h2 className="font-bold text-red-900 dark:text-red-200">Delete Gig?</h2>
-              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">This action cannot be undone.</p>
+              <h2 className="font-bold text-red-900 dark:text-red-200">{t.gigDeleteTitle}</h2>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">{t.gigDeleteUndo}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">
-          <p className="text-sm text-text-secondary mb-1">You are about to permanently delete:</p>
+          <p className="text-sm text-text-secondary mb-1">{t.gigDeletePrefix}</p>
           <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
             &ldquo;{gig.title}&rdquo;
           </p>
           <div className="flex gap-3">
             <button onClick={onClose} className="flex-1 py-3 btn-outline text-sm font-bold rounded-xl">
-              Cancel
+              {t.cancel}
             </button>
             <button
               onClick={handleDelete}
@@ -678,7 +697,7 @@ function DeleteConfirmModal({
               className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-              {deleting ? "Deleting…" : "Delete Gig"}
+              {deleting ? t.gigDeleting : t.gigDeleteBtn}
             </button>
           </div>
         </div>
@@ -698,6 +717,7 @@ function CancelClaimModal({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -705,20 +725,20 @@ function CancelClaimModal({
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-amber-500" />
             <div>
-              <h2 className="font-bold text-amber-900 dark:text-amber-200">Cancel Claim?</h2>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">You can re-claim later if slots are available.</p>
+              <h2 className="font-bold text-amber-900 dark:text-amber-200">{t.gigCancelTitle}</h2>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">{t.gigCancelSubtitle}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-amber-500 hover:text-amber-700 bg-amber-100 dark:bg-amber-900 p-1 rounded-md"><X size={18} /></button>
         </div>
         <div className="p-6">
-          <p className="text-sm text-text-secondary mb-1">You are about to cancel your claim for:</p>
+          <p className="text-sm text-text-secondary mb-1">{t.gigCancelPrefix}</p>
           <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
             &ldquo;{gigTitle}&rdquo;
           </p>
           <div className="flex gap-3">
             <button onClick={onClose} className="flex-1 py-3 btn-outline text-sm font-bold rounded-xl">
-              Keep Claim
+              {t.gigKeepClaim}
             </button>
             <button
               onClick={onConfirm}
@@ -726,7 +746,7 @@ function CancelClaimModal({
               className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {cancelling ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
-              {cancelling ? "Cancelling…" : "Cancel Claim"}
+              {cancelling ? t.gigCancelling : t.gigCancelBtn}
             </button>
           </div>
         </div>

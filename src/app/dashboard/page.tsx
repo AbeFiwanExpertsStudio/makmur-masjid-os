@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Bell, Cloud, TrendingUp, BarChart3, Zap, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getAiCrowdPrediction, CrowdPrediction } from "@/lib/ai/getAiPrediction";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 const attendanceData = [
   { day: "Mon", value: 320 },
@@ -16,6 +17,7 @@ const attendanceData = [
 ];
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const isWeekend = ["0", "6"].includes(String(new Date(selectedDate).getDay()));
   
@@ -114,7 +116,7 @@ export default function DashboardPage() {
           <div className="w-6 h-6 rounded-full bg-surface/15 flex items-center justify-center shrink-0">
             <Bell size={12} />
           </div>
-          <span className="text-sm"><strong>Latest Broadcast:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
+          <span className="text-sm"><strong>{t.dashboardLatestBroadcast}:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
         </div>
       )}
 
@@ -122,15 +124,15 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3 mb-8">
           <div className="icon-box icon-box-primary"><BarChart3 size={22} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-text">AI Resource Dashboard</h1>
-            <p className="text-sm text-text-muted">Crowd prediction & resource planning</p>
+            <h1 className="text-2xl font-bold text-text">{t.dashboardTitle}</h1>
+            <p className="text-sm text-text-muted">{t.dashboardSubtitle}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Select Date */}
           <div className="card p-6">
-            <h2 className="font-bold text-lg text-text mb-5">Select Date</h2>
+            <h2 className="font-bold text-lg text-text mb-5">{t.dashboardSelectDate}</h2>
             <input
               type="date"
               value={selectedDate}
@@ -138,11 +140,11 @@ export default function DashboardPage() {
               className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
             />
             <div className="mt-6 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-gold mb-1">Model Inputs</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-gold mb-1">{t.dashboardModelInputs}</p>
               {[
-                ["Day of Ramadan", "Auto-calculated"],
-                ["Is Weekend", isWeekend ? "Yes" : "No"],
-                ["Weather API", weatherData ? `${weatherData.desc} (${weatherData.temp}°C)` : "Loading..."],
+                [t.dashboardDayOfRamadan, t.dashboardAutoCalc],
+                [t.dashboardIsWeekend, isWeekend ? t.yes : t.no],
+                [t.dashboardWeatherAPI, weatherData ? `${weatherData.desc} (${weatherData.temp}°C)` : t.loading],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between text-sm py-1.5 border-b border-dashed border-border last:border-0">
                   <span className="text-text-secondary">{label}</span>
@@ -159,22 +161,22 @@ export default function DashboardPage() {
                 <Loader2 className="animate-spin text-primary" size={32} />
               </div>
             )}
-            <h2 className="font-bold text-lg text-text mb-5">Prediction Results</h2>
+            <h2 className="font-bold text-lg text-text mb-5">{t.dashboardPredictionResults}</h2>
             
             {error ? (
               <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">
-                <p className="font-bold mb-1">Prediction Error</p>
+                <p className="font-bold mb-1">{t.dashboardPredictionError}</p>
                 <p>{error}</p>
-                <p className="mt-2 text-xs opacity-80">Make sure the AI Predictor microservice is running on port 8000.</p>
+                <p className="mt-2 text-xs opacity-80">{t.dashboardPredictorHint}</p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                   {[
-                    { label: "TIER", value: prediction ? String(prediction.predicted_tier) : "-" },
-                    { label: "EST. CROWD", value: prediction ? `${prediction.recommended_food_packs - 50}-${prediction.recommended_food_packs + 50}` : "-" },
-                    { label: "WEATHER", value: weatherData ? `${weatherData.temp}°C` : "-", icon: true },
-                    { label: "CONFIDENCE", value: "87%", highlight: true },
+                    { label: t.dashboardTier, value: prediction ? String(prediction.predicted_tier) : "-" },
+                    { label: t.dashboardCrowd, value: prediction ? `${prediction.recommended_food_packs - 50}-${prediction.recommended_food_packs + 50}` : "-" },
+                    { label: t.dashboardWeather, value: weatherData ? `${weatherData.temp}°C` : "-", icon: true },
+                    { label: t.dashboardConfidence, value: "87%", highlight: true },
                   ].map((item) => (
                     <div key={item.label} className="bg-background border border-border rounded-xl p-3.5 text-center">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">{item.label}</p>
@@ -189,9 +191,9 @@ export default function DashboardPage() {
                 <div className="bg-primary-50 border border-[#D5F5E3] rounded-xl p-4 flex items-start gap-3">
                   <div className="text-gold shrink-0 mt-0.5"><Zap size={22} /></div>
                   <div>
-                    <p className="font-bold text-sm text-text">AI Recommendation</p>
+                    <p className="font-bold text-sm text-text">{t.dashboardAiReco}</p>
                     <p className="text-sm text-text-secondary mt-0.5">
-                      {prediction ? prediction.recommendation : "Loading recommendation..."}
+                      {prediction ? prediction.recommendation : t.dashboardLoadingReco}
                     </p>
                   </div>
                 </div>
@@ -204,8 +206,8 @@ export default function DashboardPage() {
         <div className="card p-6">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="font-bold text-lg text-text">Historical Attendance</h2>
-              <p className="text-sm text-text-muted">Last 7 Days</p>
+              <h2 className="font-bold text-lg text-text">{t.dashboardHistorical}</h2>
+              <p className="text-sm text-text-muted">{t.dashboardLast7Days}</p>
             </div>
             <div className="icon-box icon-box-primary w-10 h-10"><TrendingUp size={18} /></div>
           </div>

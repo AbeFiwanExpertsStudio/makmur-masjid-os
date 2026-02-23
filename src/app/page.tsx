@@ -5,18 +5,7 @@ import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Sh
 import { useAuth } from "@/components/providers/AuthContext";
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
-
-const publicFeatures = [
-  { href: "/e-kupon", icon: QrCode, title: "E-Kupon", desc: "Digital food coupons with live counters and QR codes.", color: "text-primary" },
-  { href: "/zakat", icon: MapPin, title: "Zakat Locator", desc: "Find nearest zakat collection points on an interactive map.", color: "text-primary" },
-  { href: "/gigs", icon: Users, title: "Volunteer Gigs", desc: "Claim community tasks and contribute this Ramadan.", color: "text-primary" },
-  { href: "/crowdfunding", icon: HandHeart, title: "Crowdfunding", desc: "Support mosque fundraising campaigns transparently.", color: "text-primary" },
-];
-
-const adminFeatures = [
-  { href: "/dashboard", icon: LayoutDashboard, title: "AI Dashboard", desc: "Crowd predictions & resource planning powered by machine learning.", color: "text-primary" },
-  { href: "/admin", icon: Shield, title: "AJK Admin", desc: "Manage operations, scan kupons, and broadcast messages.", color: "text-primary" },
-];
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 function formatStat(value: number, prefix = "", suffix = ""): string {
   if (value >= 1000) return `${prefix}${(value / 1000).toFixed(1)}K${suffix}`;
@@ -27,24 +16,38 @@ export default function HomePage() {
   const { isAdmin } = useAuth();
   const stats = useLiveStats();
   const settings = useSystemSettings();
+  const { t } = useLanguage();
+
+  const publicFeatures = [
+    { href: "/e-kupon", icon: QrCode, title: "E-Kupon", desc: t.featureEKuponDesc, color: "text-primary" },
+    { href: "/zakat", icon: MapPin, title: t.navZakat, desc: t.featureZakatDesc, color: "text-primary" },
+    { href: "/gigs", icon: Users, title: t.gigsTitle, desc: t.featureGigsDesc, color: "text-primary" },
+    { href: "/crowdfunding", icon: HandHeart, title: t.crowdfundTitle, desc: t.featureCrowdfundDesc, color: "text-primary" },
+  ];
+
+  const adminFeatures = [
+    { href: "/dashboard", icon: LayoutDashboard, title: "AI Dashboard", desc: t.featureDashboardDesc, color: "text-primary" },
+    { href: "/admin", icon: Shield, title: "AJK Admin", desc: t.featureAdminDesc, color: "text-primary" },
+  ];
+
   const features = isAdmin ? [...adminFeatures, ...publicFeatures] : publicFeatures;
 
   const statDisplay = [
     {
       value: stats.isLoading ? "..." : `${stats.iftarPacksDistributed.toLocaleString()}+`,
-      label: "Iftar Packs Distributed",
+      label: t.statIftarPacks,
     },
     {
       value: stats.isLoading ? "..." : stats.activeVolunteers.toString(),
-      label: "Active Volunteers",
+      label: t.statVolunteers,
     },
     {
       value: stats.isLoading ? "..." : formatStat(stats.donationsCollected, "RM "),
-      label: "Donations Collected",
+      label: t.statDonations,
     },
     {
       value: stats.isLoading ? "..." : stats.zakatCountersLive.toString(),
-      label: "Zakat Counters Live",
+      label: t.statZakat,
     },
   ];
 
@@ -77,7 +80,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
-              Manage crowds, resources, volunteers, and zakat — all from one beautiful, intelligent platform.
+              {t.heroSubtitle}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -87,13 +90,13 @@ export default function HomePage() {
                     href="/dashboard"
                     className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-text font-bold rounded-xl text-sm transition-all shadow-lg shadow-[#D4A843]/20 flex items-center justify-center gap-2"
                   >
-                    Open Dashboard <ArrowRight size={16} />
+                    {t.openDashboard} <ArrowRight size={16} />
                   </Link>
                   <Link
                     href="/admin"
                     className="px-8 py-3.5 border-2 border-white/30 text-white font-bold rounded-xl text-sm hover:bg-surface/10 transition-all flex items-center justify-center gap-2"
                   >
-                    AJK Admin Panel
+                    {t.ajkAdminPanel}
                   </Link>
                 </>
               ) : (
@@ -102,13 +105,13 @@ export default function HomePage() {
                     href="/e-kupon"
                     className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-text font-bold rounded-xl text-sm transition-all shadow-lg shadow-[#D4A843]/20 flex items-center justify-center gap-2"
                   >
-                    Claim E-Kupon <ArrowRight size={16} />
+                    {t.claimEKupon} <ArrowRight size={16} />
                   </Link>
                   <Link
                     href="/gigs"
                     className="px-8 py-3.5 border-2 border-white/30 text-white font-bold rounded-xl text-sm hover:bg-surface/10 transition-all flex items-center justify-center gap-2"
                   >
-                    Volunteer Gigs
+                    {t.volunteerGigs}
                   </Link>
                 </>
               )}
@@ -141,8 +144,8 @@ export default function HomePage() {
       {/* ═══ FEATURES SECTION ═══ */}
       <section className="container mx-auto px-4 pb-16">
         <div className="text-center mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest text-gold mb-2">What We Offer</p>
-          <h2 className="text-3xl font-bold text-text">Everything Your Mosque Needs</h2>
+          <p className="text-xs font-bold uppercase tracking-widest text-gold mb-2">{t.whatWeOffer}</p>
+          <h2 className="text-3xl font-bold text-text">{t.everythingYourMosqueNeeds}</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">

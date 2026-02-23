@@ -3,17 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, HandHeart, QrCode, MapPin } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageContext';
 
 export function BottomNav() {
   const pathname = usePathname();
-  // Mobile navigation is visible globally
+  const { t } = useLanguage();
 
   const links = [
-    { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/gigs', label: 'Gigs', icon: Users },
-    { href: '/crowdfunding', label: 'Fund', icon: HandHeart },
-    { href: '/e-kupon', label: 'Kupon', icon: QrCode },
-    { href: '/zakat', label: 'Zakat', icon: MapPin },
+    { href: '/dashboard', label: t.bnHome, icon: LayoutDashboard },
+    { href: '/gigs', label: t.bnGigs, icon: Users },
+    { href: '/crowdfunding', label: t.bnFund, icon: HandHeart },
+    { href: '/e-kupon', label: t.bnKupon, icon: QrCode },
+    { href: '/zakat', label: t.bnZakat, icon: MapPin },
   ];
 
   return (

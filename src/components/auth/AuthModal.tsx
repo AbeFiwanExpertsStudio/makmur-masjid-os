@@ -4,9 +4,11 @@ import { useAuth } from "@/components/providers/AuthContext";
 import { useState } from "react";
 import { X, Mail, Lock, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 export function AuthModal() {
   const { showLoginModal, setShowLoginModal, signInWithEmail, signUp } = useAuth();
+  const { t } = useLanguage();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,11 +83,11 @@ export function AuthModal() {
         <div className="hero-gradient p-7 text-white overflow-hidden rounded-t-2xl relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-surface/5 rounded-full -mt-16 -mr-16 blur-2xl" />
           <p className="text-2xl mb-1">🌙</p>
-          <h2 className="text-xl font-bold relative z-10">Welcome to Makmur</h2>
+          <h2 className="text-xl font-bold relative z-10">{t.authWelcome}</h2>
           <p className="text-white/60 text-sm mt-1 relative z-10">
             {mode === "login"
-              ? "Sign in to claim volunteer gigs and track contributions."
-              : "Create an account to join the community."}
+              ? t.authLoginSubtitle
+              : t.authRegisterSubtitle}
           </p>
         </div>
 
@@ -98,7 +100,7 @@ export function AuthModal() {
               className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${mode === m ? "text-primary border-primary" : "text-text-muted border-transparent hover:text-text-secondary"
                 }`}
             >
-              {m === "login" ? "Sign In" : "Register"}
+              {m === "login" ? t.authLogin : t.authRegister}
             </button>
           ))}
         </div>
@@ -112,20 +114,20 @@ export function AuthModal() {
           {mode === "register" && (
             <div className="relative">
               <UserIcon size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-              <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required
+              <input type="text" placeholder={t.authFullName} value={name} onChange={(e) => setName(e.target.value)} required
                 className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
             </div>
           )}
 
           <div className="relative">
             <Mail size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-            <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required
+            <input type="email" placeholder={t.authEmail} value={email} onChange={(e) => setEmail(e.target.value)} required
               className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
           </div>
 
           <div className="relative">
             <Lock size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-            <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+            <input type={showPassword ? "text" : "password"} placeholder={t.authPassword} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
               className="w-full pl-11 pr-11 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
             <button
               type="button"
@@ -139,7 +141,7 @@ export function AuthModal() {
           </div>
 
           <button type="submit" disabled={loading} className="w-full py-3.5 btn-primary text-sm">
-            {loading ? "Please wait…" : mode === "login" ? "Sign In" : "Create Account"}
+            {loading ? (mode === "login" ? t.authSigningIn : t.authCreating) : mode === "login" ? t.authSubmitLogin : t.authSubmitRegister}
           </button>
         </form>
       </div>

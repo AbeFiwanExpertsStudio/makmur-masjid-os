@@ -5,6 +5,8 @@ import { HandHeart, X, Heart, Plus, Pencil, Trash2, AlertTriangle, Loader2 } fro
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthContext";
 import { toast } from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageContext";
+import Pagination from "@/components/ui/Pagination";
 
 type Campaign = {
   id: string;
@@ -22,6 +24,7 @@ function waitMs(ms: number): Promise<null> {
 
 export default function CrowdfundingPage() {
   const { isAdmin } = useAuth();
+  const { t, language } = useLanguage();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,6 +38,9 @@ export default function CrowdfundingPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
+
+  const CAMPAIGNS_PER_PAGE = 4;
+  const [campaignsPage, setCampaignsPage] = useState(1);
 
   const fetchCampaigns = async () => {
     try {
@@ -58,11 +64,11 @@ export default function CrowdfundingPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     if (paymentStatus === 'success') {
-      toast.success("Thank you for your donation! May Allah reward you.");
+      toast.success(t.donationSuccess);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (paymentStatus === 'failed') {
-      toast.error("Payment failed or was cancelled. Please try again.");
+      toast.error(t.donationFailed);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -115,8 +121,8 @@ export default function CrowdfundingPage() {
             <HandHeart size={28} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text">Crowdfunding</h1>
-            <p className="text-sm text-text-muted">Support mosque initiatives this Ramadan</p>
+            <h1 className="text-2xl font-bold text-text">{t.crowdfundTitle}</h1>
+            <p className="text-sm text-text-muted">{t.crowdfundSubtitle}</p>
           </div>
         </div>
         {isAdmin && (
@@ -124,22 +130,24 @@ export default function CrowdfundingPage() {
             onClick={() => setShowAddModal(true)}
             className="btn-primary py-2 px-4 shadow-md rounded-xl text-sm flex items-center gap-2"
           >
-            <Plus size={16} /> Add Campaign
+            <Plus size={16} /> {language === 'ms' ? 'Tambah Kempen' : 'Add Campaign'}
           </button>
         )}
       </div>
 
       <div className="space-y-4">
         {loading ? (
-          <div className="text-center py-10 text-text-muted">Loading campaigns...</div>
+          <div className="text-center py-10 text-text-muted">{t.loading}</div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-10 bg-surface rounded-2xl border border-border shadow-sm">
             <HandHeart size={48} className="mx-auto text-text-muted opacity-30 mb-4" />
             <h3 className="text-text font-bold text-lg">No Campaigns</h3>
-            <p className="text-text-secondary text-sm mt-1">There are currently no active crowdfunding campaigns.</p>
+            <p className="text-text-secondary text-sm mt-1">{t.noCampaigns}</p>
           </div>
         ) : (
-          campaigns.map((c) => {
+          campaigns
+            .slice((campaignsPage - 1) * CAMPAIGNS_PER_PAGE, campaignsPage * CAMPAIGNS_PER_PAGE)
+            .map((c) => {
             const pct = Math.min(100, Math.round((c.current_amount / c.target_amount) * 100));
             // Simulate donors count for visual consistency
             const donorsCount = Math.max(1, Math.floor(c.current_amount / 50));
@@ -193,15 +201,21 @@ export default function CrowdfundingPage() {
                 <div className="progress-bar mb-1">
                   <div className="progress-fill" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-xs text-text-muted mb-5 text-right">{pct}% funded</p>
+                <p className="text-xs text-text-muted mb-5 text-right">{t.progressLabel(pct)}</p>
 
                 <button onClick={() => setDonateModal(c.id)} className="w-full py-3 btn-primary text-sm flex justify-center items-center gap-2">
-                  <HandHeart size={16} /> Donate via DuitNow / Card
+                  <HandHeart size={16} /> {t.donateNow}
                 </button>
               </div>
             );
           })
         )}
+        <Pagination
+          page={campaignsPage}
+          total={campaigns.length}
+          perPage={CAMPAIGNS_PER_PAGE}
+          onChange={setCampaignsPage}
+        />
       </div>
 
       {/* Donate Modal */}
@@ -328,6 +342,7 @@ export default function CrowdfundingPage() {
 
 function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | "edit", campaign?: Campaign, onClose: () => void, onSave: (c: Campaign) => void }) {
   const isEdit = mode === "edit";
+  const { t } = useLanguage();
   const [title, setTitle] = useState(campaign?.title || "");
   const [description, setDescription] = useState(campaign?.description || "");
   const [target, setTarget] = useState(String(campaign?.target_amount || "10000"));
@@ -406,29 +421,29 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
         </button>
         <div className="hero-gradient p-5 text-white overflow-hidden rounded-t-2xl relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-surface/5 rounded-full -mt-16 -mr-16 blur-2xl" />
-          <h2 className="text-lg font-bold relative z-10">{isEdit ? "Edit Campaign" : "Add Campaign"}</h2>
+          <h2 className="text-lg font-bold relative z-10">{isEdit ? t.campaignEditTitle : t.campaignAddTitle}</h2>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Title</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">{t.campaignFieldTitle}</label>
             <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Description</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">{t.campaignFieldDesc}</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Target (RM)</label>
+              <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">{t.campaignFieldTarget}</label>
               <input type="number" value={target} onChange={e => setTarget(e.target.value)} className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Current raised (RM)</label>
+              <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">{t.campaignFieldCurrent}</label>
               <input type="number" value={current} onChange={e => setCurrent(e.target.value)} className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Upload Images (Max 4)</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">{t.campaignFieldImages}</label>
             <input
               type="file"
               accept="image/*"
@@ -443,7 +458,7 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
               className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-primary-50 file:text-primary hover:file:bg-[#D5F5E3] cursor-pointer"
             />
             {selectedFiles.length > 0 && (
-              <p className="text-xs text-text-muted mt-1">{selectedFiles.length} file(s) selected</p>
+              <p className="text-xs text-text-muted mt-1">{t.campaignFilesSelected(selectedFiles.length)}</p>
             )}
             {Array.isArray(images) && images.length > 0 && (
               <div className="flex gap-2 mt-2">
@@ -459,7 +474,7 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
             )}
           </div>
           <button onClick={handleSave} disabled={saving || !title.trim()} className="w-full py-3.5 btn-primary text-sm mt-2 flex justify-center gap-2">
-            {saving && <Loader2 size={16} className="animate-spin" />} {saving ? "Saving..." : "Save Campaign"}
+            {saving && <Loader2 size={16} className="animate-spin" />} {saving ? t.campaignSaving : t.campaignSaveBtn}
           </button>
         </div>
       </div>
@@ -469,6 +484,7 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
 
 function DeleteCampaignModal({ campaign, onClose, onDelete }: { campaign: Campaign, onClose: () => void, onDelete: (id: string) => void }) {
   const [deleting, setDeleting] = useState(false);
+  const { t } = useLanguage();
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -488,14 +504,14 @@ function DeleteCampaignModal({ campaign, onClose, onDelete }: { campaign: Campai
         <div className="bg-red-50 dark:bg-red-950 p-5 flex items-center justify-between border-b border-red-100 dark:border-red-900">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
-            <h2 className="font-bold text-red-900 dark:text-red-200">Delete Campaign?</h2>
+            <h2 className="font-bold text-red-900 dark:text-red-200">{t.campaignDeleteTitle}</h2>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
         <div className="p-6">
           <p className="text-sm text-text-secondary mb-4">Are you sure you want to delete "{campaign.title}"?</p>
           <button onClick={handleDelete} disabled={deleting} className="w-full py-3 bg-red-500 text-white rounded-xl font-bold flex justify-center gap-2">
-            {deleting && <Loader2 size={16} className="animate-spin" />} Delete Campaign
+            {deleting && <Loader2 size={16} className="animate-spin" />} {deleting ? t.campaignDeleting : t.campaignDeleteBtn}
           </button>
         </div>
       </div>

@@ -10,7 +10,9 @@ import {
   Utensils, Clock, MapPin, CheckCircle, AlertCircle, Ticket,
   Plus, X, CalendarPlus, Pencil, Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
+import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 // timeout helper
 function waitMs(ms: number): Promise<null> {
@@ -20,12 +22,16 @@ function waitMs(ms: number): Promise<null> {
 export default function EKuponPage() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const { events, isLoading: eventsLoading } = useLiveFoodEvents();
+  const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<any | null>(null);
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
   const [scannedIds, setScannedIds] = useState<Set<string>>(new Set());
   const [claimMap, setClaimMap] = useState<Map<string, string>>(new Map());
+
+  const EVENTS_PER_PAGE = 4;
+  const [eventsPage, setEventsPage] = useState(1);
 
   // Fetch user's existing kupon claims
   const fetchMyClaims = async (userId: string) => {
@@ -78,6 +84,7 @@ export default function EKuponPage() {
     // Admins can still edit/delete via the inline buttons on each card.
     const visible = events.filter(e => e.status !== "expired");
     setLocalEvents(visible);
+    setEventsPage(1); // reset to first page when events change
   }, [events, isAdmin]);
 
   const isLoading = eventsLoading;
@@ -120,16 +127,16 @@ export default function EKuponPage() {
         <div className="flex items-center gap-3">
           <div className="text-primary"><Ticket size={28} strokeWidth={2.5} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-text">E-Kupon Iftar</h1>
-            <p className="text-sm text-text-muted">Claim your digital coupon for food distribution</p>
+              <h1 className="text-2xl font-bold text-text">{t.ekuponTitle}</h1>
+              <p className="text-sm text-text-muted">{t.ekuponSubtitle}</p>
+            </div>
           </div>
-        </div>
         {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            <Plus size={16} /> Add E-Kupon
+            <Plus size={16} /> {t.addEKupon}
           </button>
         )}
       </div>
@@ -139,45 +146,55 @@ export default function EKuponPage() {
         {localEvents.length === 0 ? (
           <div className="text-center py-10 bg-surface rounded-2xl border border-border shadow-sm">
             <Ticket size={48} className="mx-auto text-text-muted opacity-30 mb-4" />
-            <h3 className="text-text font-bold text-lg">No Events Available</h3>
+            <h3 className="text-text font-bold text-lg">{t.noEventsTitle}</h3>
             {isAdmin && events.some(e => e.status === "expired") ? (
               <p className="text-amber-600 text-sm mt-1 font-medium">
-                All events have expired. Add a new E-Kupon above to activate distribution.
+                {t.noEventsExpired}
               </p>
             ) : (
-              <p className="text-text-secondary text-sm mt-1">There are no food distributions active right now.</p>
+              <p className="text-text-secondary text-sm mt-1">{t.noEventsEmpty}</p>
             )}
           </div>
         ) : (
-          localEvents.map(event => (
-            <KuponCard
-              key={event.id}
-              event={event}
-              user={user}
-              isAdmin={isAdmin}
-              isClaimed={claimedIds.has(event.id)}
-              isScanned={scannedIds.has(event.id)}
-              claimId={claimMap.get(event.id)}
-              onClaimSuccess={(newClaimId) => {
-                setClaimedIds(prev => new Set(prev).add(event.id));
-                if (newClaimId) setClaimMap(prev => new Map(prev).set(event.id, newClaimId));
-              }}
-              onDeclaimSuccess={() => {
-                setClaimedIds(prev => {
-                  const newSet = new Set(prev);
-                  newSet.delete(event.id);
-                  return newSet;
-                });
-                setClaimMap(prev => {
-                  const newMap = new Map(prev);
-                  newMap.delete(event.id);
-                  return newMap;
-                });
-              }}
-              onEdit={() => setEditingEvent(event)}
-              onDelete={() => setDeletingEvent(event)}
+          <>
+            {localEvents
+              .slice((eventsPage - 1) * EVENTS_PER_PAGE, eventsPage * EVENTS_PER_PAGE)
+              .map(event => (
+                <KuponCard
+                  key={event.id}
+                  event={event}
+                  user={user}
+                  isAdmin={isAdmin}
+                  isClaimed={claimedIds.has(event.id)}
+                  isScanned={scannedIds.has(event.id)}
+                  claimId={claimMap.get(event.id)}
+                  onClaimSuccess={(newClaimId) => {
+                    setClaimedIds(prev => new Set(prev).add(event.id));
+                    if (newClaimId) setClaimMap(prev => new Map(prev).set(event.id, newClaimId));
+                  }}
+                  onDeclaimSuccess={() => {
+                    setClaimedIds(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(event.id);
+                      return newSet;
+                    });
+                    setClaimMap(prev => {
+                      const newMap = new Map(prev);
+                      newMap.delete(event.id);
+                      return newMap;
+                    });
+                  }}
+                  onEdit={() => setEditingEvent(event)}
+                  onDelete={() => setDeletingEvent(event)}
+                />
+              ))}
+            <Pagination
+              page={eventsPage}
+              total={localEvents.length}
+              perPage={EVENTS_PER_PAGE}
+              onChange={setEventsPage}
             />
-          ))
+          </>
         )}
       </div>
 
@@ -224,6 +241,7 @@ function KuponCard({
   const [isDeclaiming, setIsDeclaiming] = useState(false);
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
   const [confirmDeclaim, setConfirmDeclaim] = useState(false);
+  const { t } = useLanguage();
 
   const eventId = event.id;
   const totalPacks = event.total_capacity;
@@ -246,7 +264,7 @@ function KuponCard({
     if (result.success) {
       onClaimSuccess(result.claimId);
       setLocalRemaining((prev) => Math.max(0, (prev ?? event.remaining_capacity) - 1));
-      toast.success("Kupon claimed!");
+      toast.success(t.claimedTitle);
     } else {
       // Supabase duplicate error returns 23505 — treat as success if already claimed
       if (result.error === "You have already claimed this kupon.") {
@@ -276,10 +294,10 @@ function KuponCard({
     if (result.success) {
       onDeclaimSuccess();
       setLocalRemaining((prev) => Math.min(totalPacks, (prev ?? event.remaining_capacity) + 1));
-      toast.success("Kupon claim cancelled.");
+      toast.success(t.cancelGigSuccess);
     } else {
-      setClaimError(result.error ?? "Failed to cancel kupon.");
-      toast.error(result.error ?? "Failed to cancel kupon.");
+      setClaimError(result.error ?? t.cancelGigFail);
+      toast.error(result.error ?? t.cancelGigFail);
     }
     setIsDeclaiming(false);
   };
@@ -305,7 +323,7 @@ function KuponCard({
               : isScheduled ? "bg-surface/20 text-white"
               : "bg-primary-50 text-primary"
             }`}>
-              {isExpired ? "EXPIRED" : isScheduled ? "SCHEDULED" : "● ACTIVE"}
+            {isExpired ? "EXPIRED" : isScheduled ? t.statusScheduled : t.statusActive}
             </span>
 
             {/* ── ADMIN: Edit & Delete ── */}
@@ -340,11 +358,11 @@ function KuponCard({
         {/* Live counter */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-text-secondary font-medium">Availability</span>
+            <span className="text-text-secondary font-medium">{t.availability}</span>
             <span className="flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-primary"} ${!isScheduled && !isExpired && "animate-live"}`} />
               <span className={`font-bold ${remainingPacks < 100 ? "text-amber-600" : "text-primary"}`}>
-                {remainingPacks}/{totalPacks} remaining
+                {remainingPacks}/{totalPacks} {t.remaining}
               </span>
             </span>
           </div>
@@ -373,10 +391,10 @@ function KuponCard({
           >
             {isExpired ? <Clock size={20} /> : isScheduled ? <CalendarPlus size={20} /> : <Utensils size={20} />}
             {isExpired
-              ? "Event Ended"
+              ? t.eventEnded
               : isScheduled
-                ? isClaiming ? "Reserving\u2026" : "Reserve My Spot"
-                : isClaiming ? "Claiming\u2026" : "Claim Now"}
+                ? isClaiming ? t.reserving : t.reserveSpot
+                : isClaiming ? t.claiming : t.claimNow}
           </button>
         ) : isScanned ? (
           /* ── REDEEMED STATE ── */
@@ -385,9 +403,9 @@ function KuponCard({
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-1">
                 <CheckCircle size={30} className="text-primary" />
               </div>
-              <p className="font-bold text-primary text-base">Food Successfully Redeemed</p>
+              <p className="font-bold text-primary text-base">{t.redeemedTitle}</p>
               <p className="text-sm text-text-secondary text-center">
-                Alhamdulillah! Your Iftar pack for <span className="font-semibold">{event.name}</span> has been collected. Enjoy your meal!
+                {t.redeemedMsg(event.name)}
               </p>
             </div>
           </div>
@@ -398,13 +416,12 @@ function KuponCard({
               <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mb-1">
                 <Clock size={24} className="text-amber-600" />
               </div>
-              <p className="font-bold text-amber-700 dark:text-amber-400">Kupon Reserved</p>
+              <p className="font-bold text-amber-700 dark:text-amber-400">{t.reservedTitle}</p>
               <p className="text-sm text-amber-700/80 dark:text-amber-400/80">
-                Your spot is secured! Come to the distribution counter on{" "}
-                <span className="font-semibold">
-                  {new Date(event.event_date).toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </span>{" "}
-                at <span className="font-semibold">{event.start_time?.slice(0, 5)}</span> to collect your Iftar pack.
+                {t.reservedMsg(
+                  new Date(event.event_date).toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' }),
+                  event.start_time?.slice(0, 5)
+                )}
               </p>
               <p className="text-xs text-amber-600/70 mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
             </div>
@@ -413,30 +430,30 @@ function KuponCard({
           <div className="border-2 border-dashed border-[#D5F5E3] rounded-2xl p-6 bg-primary-50/50">
             <div className="flex items-center justify-center gap-2 mb-5">
               <CheckCircle size={18} className="text-primary" />
-              <span className="font-bold text-primary">Kupon Claimed Successfully</span>
+              <span className="font-bold text-primary">{t.claimedTitle}</span>
             </div>
             <div className="bg-surface p-5 rounded-xl shadow-sm mx-auto w-fit">
               <QRCode value={`makmur-kupon:${claimId || user?.id}`} size={180} level="H" fgColor="#1B6B4A" />
             </div>
-            <p className="text-sm text-text-secondary mt-5 text-center">Show this QR to the volunteer at the counter.</p>
+            <p className="text-sm text-text-secondary mt-5 text-center">{t.showQrMsg}</p>
             <p className="font-mono text-xs text-text-muted text-center mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
             <div className="mt-4 border-t border-border pt-4 flex justify-center">
               {confirmDeclaim ? (
                 <div className="flex flex-col items-center gap-3 w-full">
-                  <p className="text-xs text-text-secondary text-center">Cancel this kupon claim? This cannot be undone.</p>
+                  <p className="text-xs text-text-secondary text-center">{t.cancelConfirmMsg}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmDeclaim(false)}
                       className="text-xs font-semibold text-text-secondary border border-border bg-surface hover:bg-surface-muted rounded-lg px-4 py-2 transition-all"
                     >
-                      Keep
+                      {t.keep}
                     </button>
                     <button
                       onClick={handleDeclaim}
                       disabled={isDeclaiming}
                       className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 transition-all"
                     >
-                      {isDeclaiming ? "Canceling..." : "Yes, Cancel"}
+                      {isDeclaiming ? t.canceling : t.yesCancel}
                     </button>
                   </div>
                 </div>
@@ -446,7 +463,7 @@ function KuponCard({
                   disabled={isDeclaiming}
                   className="text-xs font-semibold text-red-500 hover:text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-all"
                 >
-                  Cancel Claim
+                  {t.cancelClaim}
                 </button>
               )}
             </div>
@@ -478,6 +495,7 @@ function EKuponFormModal({
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleSave = async () => {
     if (!name.trim() || !date) return;
@@ -533,7 +551,7 @@ function EKuponFormModal({
 
       setSuccess(true);
       setTimeout(() => onClose(), 1400);
-      toast.success(isEdit ? "Event updated!" : "E-Kupon created!"); // Added toast
+      toast.success(isEdit ? t.eventUpdated : t.ekuponCreated);
     } catch (err: any) {
       setSaveError(err?.message ?? "Unexpected error.");
       toast.error(err?.message ?? "Unexpected error."); // Added toast
@@ -555,9 +573,9 @@ function EKuponFormModal({
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <CalendarPlus size={22} />}
             <div>
-              <h2 className="text-lg font-bold">{isEdit ? "Edit E-Kupon" : "Add New E-Kupon"}</h2>
+              <h2 className="text-lg font-bold">{isEdit ? t.modalEditTitle : t.modalAddTitle}</h2>
               <p className="text-white/60 text-xs mt-0.5">
-                {isEdit ? "Update the food distribution event details" : "Set up a new food distribution event"}
+                {isEdit ? t.modalEditSubtitle : t.modalAddSubtitle}
               </p>
             </div>
           </div>
@@ -568,8 +586,8 @@ function EKuponFormModal({
           {success ? (
             <div className="text-center py-8">
               <CheckCircle size={52} className="text-primary mx-auto mb-3" />
-              <p className="font-bold text-text text-lg">{isEdit ? "Event Updated!" : "E-Kupon Created!"}</p>
-              <p className="text-sm text-text-muted mt-1">{isEdit ? "Changes saved successfully." : "Users can now claim this kupon."}</p>
+              <p className="font-bold text-text text-lg">{isEdit ? t.eventUpdated : t.ekuponCreated}</p>
+              <p className="text-sm text-text-muted mt-1">{isEdit ? t.changesSaved : t.usersCanClaim}</p>
             </div>
           ) : (
             <>
@@ -580,7 +598,7 @@ function EKuponFormModal({
               )}
 
               <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Food Name *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldFoodName}</label>
                 <input
                   type="text" placeholder="e.g., Nasi Briyani Kambing" value={name} onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -588,7 +606,7 @@ function EKuponFormModal({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Location *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldLocation}</label>
                 <input
                   type="text" placeholder="e.g., Primary Distribution Center" value={location} onChange={(e) => setLocation(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -597,14 +615,14 @@ function EKuponFormModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Capacity</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldCapacity}</label>
                   <input
                     type="number" placeholder="500" value={capacity} onChange={(e) => setCapacity(e.target.value)} min="1"
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Date *</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldDate}</label>
                   <input
                     type="date" value={date} onChange={(e) => setDate(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -614,14 +632,14 @@ function EKuponFormModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Start Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldStartTime}</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">End Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.fieldEndTime}</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
@@ -656,6 +674,7 @@ function DeleteEKuponModal({
   onDelete: (id: string) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const { t } = useLanguage();
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -676,20 +695,20 @@ function DeleteEKuponModal({
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
             <div>
-              <h2 className="font-bold text-red-900 dark:text-red-200">Delete E-Kupon?</h2>
+          <h2 className="font-bold text-red-900 dark:text-red-200">{t.deleteEKuponTitle}</h2>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">
-          <p className="text-sm text-text-secondary mb-1">You are about to permanently delete:</p>
+          <p className="text-sm text-text-secondary mb-1">{t.deleteConfirmPrefix}</p>
           <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
             &ldquo;{event.name}&rdquo;
           </p>
           <div className="flex gap-3">
             <button onClick={onClose} className="flex-1 py-3 btn-outline text-sm font-bold rounded-xl">
-              Cancel
+              {t.cancel}
             </button>
             <button
               onClick={handleDelete}
@@ -697,7 +716,7 @@ function DeleteEKuponModal({
               className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-              {deleting ? "Deleting…" : "Delete Event"}
+              {deleting ? t.deleting : t.deleteEvent}
             </button>
           </div>
         </div>

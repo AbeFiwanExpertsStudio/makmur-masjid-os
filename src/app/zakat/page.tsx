@@ -6,6 +6,7 @@ import { Search, MapPin, Clock, Pencil, Trash2, X, AlertTriangle, Loader2, User,
 import { useAuth } from "@/components/providers/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
+import { useLanguage } from "@/components/providers/LanguageContext";
 
 const MapComponent = dynamic(() => import("@/components/zakat/MapComponent"), { ssr: false });
 
@@ -45,6 +46,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function ZakatLocatorPage() {
   const { isAdmin } = useAuth();
+  const { t } = useLanguage();
   const [activeLocation, setActiveLocation] = useState<string | null>(null);
   const [panTrigger, setPanTrigger] = useState(0);
   const [locations, setLocations] = useState<ZakatCounter[]>([]);
@@ -203,7 +205,7 @@ export default function ZakatLocatorPage() {
         <div className="p-4 border-b border-border bg-surface sticky top-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="icon-box icon-box-primary w-10 h-10"><MapPin size={18} /></div>
-            <h1 className="text-lg font-bold text-text">Zakat Locator</h1>
+            <h1 className="text-lg font-bold text-text">{t.zakatTitle}</h1>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-text-muted" size={18} />
@@ -211,18 +213,18 @@ export default function ZakatLocatorPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by area or mosque..."
+              placeholder={t.zakatSearch}
               className="w-full bg-background text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none border border-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
             />
           </div>
           <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs font-semibold text-text-muted uppercase">Radius Filter:</span>
+            <span className="text-xs font-semibold text-text-muted uppercase">{t.zakatRadius}:</span>
             <select
               value={radiusKm}
               onChange={(e) => setRadiusKm(e.target.value === "All" ? "All" : Number(e.target.value))}
               className="bg-background border border-border text-sm rounded-lg py-1 px-2 outline-none focus:border-primary"
             >
-              <option value="All">All Locations</option>
+              <option value="All">{t.zakatAll}</option>
               <option value="5">5 km</option>
               <option value="10">10 km</option>
               <option value="25">25 km</option>
@@ -241,7 +243,7 @@ export default function ZakatLocatorPage() {
           {filteredLocations.length === 0 ? (
             <div className="text-center py-10 bg-background rounded-2xl border border-border">
               <MapPin size={32} className="mx-auto text-text-muted opacity-30 mb-2" />
-              <p className="text-text-secondary text-sm">No locations found. Try somewhere else or adjust filters.</p>
+              <p className="text-text-secondary text-sm">{t.zakatNoResults}</p>
             </div>
           ) : filteredLocations.map((loc) => (
             <div
@@ -255,7 +257,7 @@ export default function ZakatLocatorPage() {
                   loc.status === "scheduled" ? "bg-gold-light/20 text-gold" :
                     "bg-surface-muted text-text-muted"
                   }`}>
-                  {loc.status === "active" ? "● ACTIVE" : loc.status === "scheduled" ? "SCHEDULED" : "EXPIRED"}
+                  {loc.status === "active" ? t.statusActive : loc.status === "scheduled" ? t.statusScheduled : t.statusExpired}
                 </span>
               </div>
 
