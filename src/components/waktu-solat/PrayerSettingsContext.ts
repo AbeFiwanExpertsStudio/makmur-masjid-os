@@ -29,6 +29,7 @@ export function usePrayerSettings() {
     const [language, setLanguage] = useState<"en" | "ms">("en");
     const [bgImage, setBgImage] = useState<string>("");
     const [bgOpacity, setBgOpacity] = useState<number>(75);
+    const [selectedZone, setSelectedZone] = useState<string>("");
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initial Load
@@ -43,6 +44,7 @@ export function usePrayerSettings() {
                 if (typeof parsed.audioEnabled === 'boolean') setAudioEnabled(parsed.audioEnabled);
                 if (parsed.language) setLanguage(parsed.language);
                 if (parsed.bgOpacity !== undefined) setBgOpacity(parsed.bgOpacity);
+                if (parsed.selectedZone) setSelectedZone(parsed.selectedZone);
             } catch (e) { }
         }
 
@@ -70,7 +72,8 @@ export function usePrayerSettings() {
                 customTitle,
                 audioEnabled,
                 language,
-                bgOpacity
+                bgOpacity,
+                selectedZone
             }));
 
             // For large base64 images, use extremely simple localstorage with try catch, 
@@ -97,6 +100,7 @@ export function usePrayerSettings() {
         language, setLanguage,
         bgImage, setBgImage,
         bgOpacity, setBgOpacity,
+        selectedZone, setSelectedZone,
         isLoaded
     };
 }

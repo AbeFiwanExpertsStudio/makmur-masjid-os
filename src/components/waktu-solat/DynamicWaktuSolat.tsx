@@ -13,7 +13,6 @@ export default function DynamicWaktuSolat() {
     const sysSettings = useSystemSettings();
     const [loading, setLoading] = useState(true);
     const [zones, setZones] = useState<Zone[]>([]);
-    const [selectedZone, setSelectedZone] = useState<string>("WLY01");
     const [zoneLabel, setZoneLabel] = useState<string>("Kuala Lumpur");
 
     const [prayers, setPrayers] = useState<PrayerTimes | null>(null);
@@ -28,11 +27,12 @@ export default function DynamicWaktuSolat() {
         language, setLanguage,
         bgImage, setBgImage,
         bgOpacity, setBgOpacity,
+        selectedZone, setSelectedZone,
         isLoaded
     } = usePrayerSettings();
 
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [alertMessage, setAlertMessage] = useState<string | null>(null);
+    const [dismissedAlertTime, setDismissedAlertTime] = useState<number | null>(null);
 
     const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
     const audioOtherRef = useRef<HTMLAudioElement | null>(null);
@@ -42,24 +42,33 @@ export default function DynamicWaktuSolat() {
             .then((res) => res.json())
             .then((data: Zone[]) => setZones(data))
             .catch(() => { });
-
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    try {
-                        const { latitude, longitude } = position.coords;
-                        const res = await fetch(`https://api.waktusolat.app/zones/gps?lat=${latitude}&long=${longitude}`);
-                        const gpsZones = await res.json();
-                        if (gpsZones?.length > 0) {
-                            setSelectedZone(gpsZones[0].jakimCode || "WLY01");
-                            setZoneLabel(gpsZones[0].daerah || "Locating...");
-                        }
-                    } catch (err) { }
-                },
-                () => { }, { enableHighAccuracy: true }
-            );
-        }
     }, []);
+
+    useEffect(() => {
+        if (!isLoaded) return;
+        if (!selectedZone) { // Only force auto-locate if NO zone was ever saved by user
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        try {
+                            const { latitude, longitude } = position.coords;
+                            const res = await fetch(`https://api.waktusolat.app/zones/gps?lat=${latitude}&long=${longitude}`);
+                            const gpsZones = await res.json();
+                            if (gpsZones?.length > 0) {
+                                setSelectedZone(gpsZones[0].jakimCode || "WLY01");
+                                setZoneLabel(gpsZones[0].daerah || "Locating...");
+                            } else {
+                                setSelectedZone("WLY01");
+                            }
+                        } catch (err) { setSelectedZone("WLY01"); }
+                    },
+                    () => { setSelectedZone("WLY01"); }, { enableHighAccuracy: true }
+                );
+            } else {
+                setSelectedZone("WLY01");
+            }
+        }
+    }, [isLoaded, selectedZone, setSelectedZone]);
 
     useEffect(() => {
         if (!selectedZone) return;
@@ -85,6 +94,9 @@ export default function DynamicWaktuSolat() {
             .catch(() => setLoading(false));
     }, [selectedZone, zones]);
 
+    const lastAlertFiredRef = useRef<number>(0);
+    const lastAzanFiredRef = useRef<number>(0);
+
     useEffect(() => {
         const timer = setInterval(() => {
             const now = new Date();
@@ -93,15 +105,15 @@ export default function DynamicWaktuSolat() {
             if (audioEnabled && prayers) {
                 const nowUnix = Math.floor(now.getTime() / 1000);
 
-                // 15 Minute Alerts
-                const tMinus15 = [prayers.fajr, prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha]
-                    .find(t => Math.abs(t - (nowUnix + 900)) < 2);
+                // 15 Minute Alerts window (60 seconds leeway)
+                const targetAlertTime = [prayers.fajr, prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha]
+                    .find(t => nowUnix >= (t - 900) && nowUnix < (t - 900 + 60));
 
-                if (tMinus15) {
+                if (targetAlertTime && lastAlertFiredRef.current !== targetAlertTime) {
+                    lastAlertFiredRef.current = targetAlertTime;
                     const prayerNames = [[prayers.fajr, "Subuh"], [prayers.dhuhr, "Zohor"], [prayers.asr, "Asar"], [prayers.maghrib, "Maghrib"], [prayers.isha, "Isyak"]];
-                    const matchedPType = prayerNames.find(p => p[0] === tMinus15)?.[1] || "Solat";
+                    const matchedPType = prayerNames.find(p => p[0] === targetAlertTime)?.[1] || "Solat";
                     const isM = language === "ms";
-                    setAlertMessage(isM ? `Waktu ${matchedPType} masuk dalam masa 15 minit!` : `${matchedPType} begins in 15 minutes!`);
 
                     if (Notification.permission === "granted") {
                         new Notification(isM ? "Peringatan Waktu Solat" : "Prayer Time Alert", {
@@ -112,17 +124,19 @@ export default function DynamicWaktuSolat() {
                     }
                 }
 
-                // Autoplay Azan Logic
-                const isFajr = Math.abs(prayers.fajr - nowUnix) < 2;
-                const isOther = [prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha].some(t => Math.abs(t - nowUnix) < 2);
+                // Autoplay Azan Logic (60 seconds leeway)
+                const azanList = [prayers.fajr, prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha];
+                const targetAzanTime = azanList.find(t => nowUnix >= t && nowUnix < (t + 60));
 
-                if (isFajr && audioSubuhRef.current) {
-                    audioSubuhRef.current.currentTime = 0;
-                    audioSubuhRef.current.play().catch(e => console.log(e));
-                }
-                if (isOther && audioOtherRef.current) {
-                    audioOtherRef.current.currentTime = 0;
-                    audioOtherRef.current.play().catch(e => console.log(e));
+                if (targetAzanTime && lastAzanFiredRef.current !== targetAzanTime) {
+                    lastAzanFiredRef.current = targetAzanTime;
+                    if (targetAzanTime === prayers.fajr && audioSubuhRef.current) {
+                        audioSubuhRef.current.currentTime = 0;
+                        audioSubuhRef.current.play().catch(e => console.log(e));
+                    } else if (targetAzanTime !== prayers.fajr && audioOtherRef.current) {
+                        audioOtherRef.current.currentTime = 0;
+                        audioOtherRef.current.play().catch(e => console.log(e));
+                    }
                 }
             }
         }, 1000);
@@ -142,19 +156,11 @@ export default function DynamicWaktuSolat() {
     };
 
     return (
-        <div className="flex-1 w-full flex flex-col relative overflow-hidden transition-colors duration-500 shadow-2xl">
+        <div className="flex-1 w-full flex flex-col relative overflow-hidden transition-colors duration-500 shadow-2xl max-h-[calc(100vh-64px)]">
 
-            {/* Custom Pop-up Toast Alert logic */}
-            {alertMessage && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] bg-amber-500 text-black px-6 py-3 rounded-full font-bold shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-                    <span>🔔</span> {alertMessage}
-                    <button onClick={() => setAlertMessage(null)} className="opacity-70 hover:opacity-100 ml-2">✕</button>
-                </div>
-            )}
-
-            <div className="relative z-20 w-full max-w-7xl mx-auto px-4 py-6 md:p-12 flex flex-col flex-1 h-full min-h-[500px]">
+            <div className="relative z-20 w-full max-w-7xl mx-auto px-4 py-4 md:px-8 md:py-6 flex flex-col flex-1 h-full max-h-full">
                 {/* Header Data Section */}
-                <header className="flex justify-between items-start w-full mb-10 md:mb-16">
+                <header className="flex justify-between items-start w-full mb-4 md:mb-6 shrink-0">
                     <div className="space-y-1 text-text font-bold">
                         <h1 className="text-2xl md:text-5xl font-bold tracking-tight">{format(currentTime, "EEEE, d MMM yyyy")}</h1>
                         <h2 className="text-xl md:text-3xl font-medium opacity-90">{customTitle || hijriDate}</h2>
@@ -172,66 +178,100 @@ export default function DynamicWaktuSolat() {
                     </div>
                 </header>
 
+                {/* Custom Inline Banner Alert logic (Computed Dynamically) */}
+                {(() => {
+                    if (!prayers) return null;
+                    const nowUnixLocal = Math.floor(currentTime.getTime() / 1000);
+                    const times = [prayers.fajr, prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha];
+                    const prayerNames = ["Subuh", "Zohor", "Asar", "Maghrib", "Isyak"];
+                    const prayerNamesEn = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+                    // Find any prayer within exactly 15 mins
+                    const alertIdx = times.findIndex(t => t - nowUnixLocal > 0 && t - nowUnixLocal <= 900);
+
+                    if (alertIdx !== -1 && times[alertIdx] !== dismissedAlertTime) {
+                        const actualDiff = times[alertIdx] - nowUnixLocal;
+                        const isBlinking = actualDiff <= 300; // <= 5 minutes
+
+                        const m = Math.floor(actualDiff / 60);
+                        const s = actualDiff % 60;
+                        const countdownStr = `${m}M ${s}S`;
+
+                        const pName = language === "ms" ? prayerNames[alertIdx] : prayerNamesEn[alertIdx];
+                        const msg = language === "ms" ? `Azan ${pName} dalam ${countdownStr}` : `${pName} Azan in ${countdownStr}`;
+
+                        return (
+                            <div className={`w-full max-w-5xl mx-auto mb-4 md:mb-6 shrink-0 bg-[#2A1E00] border border-yellow-600/60 text-yellow-500 px-6 py-2 md:py-3 flex justify-center items-center gap-3 font-semibold text-lg md:text-xl tracking-wide rounded ${isBlinking ? 'animate-pulse' : ''}`}>
+                                <span>⚠️</span> {msg}
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
+
                 {/* Grid Map */}
                 {loading || !prayers ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6 animate-pulse flex-1 max-h-[60vh] opacity-50">
-                        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="bg-surface/10 rounded-xl h-40 border border-white/5" />)}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 animate-pulse flex-1 min-h-0 opacity-50">
+                        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="bg-surface/10 rounded-xl h-full min-h-[100px] border border-white/5" />)}
                     </div>
                 ) : (
-                    <main className="grid grid-cols-2 md:grid-cols-3 gap-y-12 gap-x-6 w-full max-w-5xl mx-auto flex-1 content-center">
+                    <main className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-4 md:gap-y-6 md:gap-x-6 w-full max-w-5xl mx-auto flex-1 min-h-0">
 
-                        <div className={activeStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <MoonStar size={32} />
-                                <span className="text-2xl md:text-4xl font-semibold">{t("Fajr", "Subuh")}</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-bold tracking-tighter mb-4 tabular-nums">{formatTimeStr(prayers.fajr)}</div>
-                        </div>
+                        {(() => {
+                            const nowUnixLocal = Math.floor(currentTime.getTime() / 1000);
+                            const times = [prayers.fajr, prayers.syuruk, prayers.dhuhr, prayers.asr, prayers.maghrib, prayers.isha];
 
-                        <div className={inactiveStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <Sunrise size={32} />
-                                <span className="text-2xl md:text-4xl font-medium">{t("Sunrise", "Syuruk")}</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-medium tracking-tighter tabular-nums">{formatTimeStr(prayers.syuruk)}</div>
-                        </div>
+                            let activeIdx = times.findIndex(t => t > nowUnixLocal);
+                            if (activeIdx === -1) activeIdx = 0; // next is tomorrow's Fajr
 
-                        <div className={inactiveStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <SunMedium size={32} />
-                                <span className="text-2xl md:text-4xl font-medium">{t("Dhuhr", "Zohor")}</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-medium tracking-tighter tabular-nums">{formatTimeStr(prayers.dhuhr)}</div>
-                        </div>
+                            const targetTime = (activeIdx === 0 && nowUnixLocal > prayers.isha) ? prayers.fajr + 86400 : times[activeIdx];
+                            const diffSecs = targetTime - nowUnixLocal;
 
-                        <div className={inactiveStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <Sun size={32} />
-                                <span className="text-2xl md:text-4xl font-medium">{t("Asr", "Asar")}</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-medium tracking-tighter tabular-nums">{formatTimeStr(prayers.asr)}</div>
-                        </div>
+                            let countdownStr = "";
+                            if (diffSecs > 0 && diffSecs < 86400) {
+                                const h = Math.floor(diffSecs / 3600);
+                                const m = Math.floor((diffSecs % 3600) / 60);
+                                const s = diffSecs % 60;
+                                countdownStr = `Begins ${h}H ${m}M ${s}S`;
+                            }
 
-                        <div className={inactiveStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <Sunset size={32} />
-                                <span className="text-2xl md:text-4xl font-medium">Maghrib</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-medium tracking-tighter tabular-nums">{formatTimeStr(prayers.maghrib)}</div>
-                        </div>
+                            const prayerList = [
+                                { title: t("Fajr", "Subuh"), icon: MoonStar, time: prayers.fajr },
+                                { title: t("Sunrise", "Syuruk"), icon: Sunrise, time: prayers.syuruk },
+                                { title: t("Dhuhr", "Zohor"), icon: SunMedium, time: prayers.dhuhr },
+                                { title: t("Asr", "Asar"), icon: Sun, time: prayers.asr },
+                                { title: "Maghrib", icon: Sunset, time: prayers.maghrib },
+                                { title: t("Isha", "Isyak"), icon: Moon, time: prayers.isha },
+                            ];
 
-                        <div className={inactiveStyles}>
-                            <div className="flex items-center gap-3 mb-2 md:mb-4">
-                                <Moon size={32} />
-                                <span className="text-2xl md:text-4xl font-medium">{t("Isha", "Isyak")}</span>
-                            </div>
-                            <div className="text-5xl md:text-7xl font-medium tracking-tighter tabular-nums">{formatTimeStr(prayers.isha)}</div>
-                        </div>
+                            return prayerList.map((p, idx) => {
+                                const isActive = activeIdx === idx;
+                                const Icon = p.icon;
+                                // Special case for Active styles overriding local text explicitly 
+                                const finalActiveStyle = theme.bgClass + " flex flex-col justify-center rounded-xl p-3 md:p-5 transition-all scale-[1.02] shadow-xl text-white";
+                                return (
+                                    <div key={idx} className={isActive ? finalActiveStyle : inactiveStyles.replace("p-4 md:p-6", "p-3 md:p-5")}>
+                                        <div className={`flex items-center gap-2 md:gap-3 mb-1 md:mb-2 ${isActive ? 'text-white' : ''}`}>
+                                            <Icon size={24} className="md:w-8 md:h-8" />
+                                            <span className="text-xl md:text-3xl font-semibold">{p.title}</span>
+                                        </div>
+                                        <div className={`text-4xl md:text-6xl font-bold tracking-tighter tabular-nums ${isActive ? 'mb-2 text-white' : ''}`}>
+                                            {formatTimeStr(p.time)}
+                                        </div>
+                                        {isActive && countdownStr && (
+                                            <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider opacity-90 text-white mt-auto">
+                                                {countdownStr}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            });
+                        })()}
 
                     </main>
                 )}
 
-                <footer className="mt-auto min-h-16 pt-8 text-center text-sm font-semibold opacity-60 text-text">
+                <footer className="mt-4 md:mt-6 pt-2 shrink-0 text-center text-xs md:text-sm font-semibold opacity-60 text-text">
                     Zone: {zoneLabel}
                 </footer>
             </div>
@@ -397,9 +437,6 @@ export default function DynamicWaktuSolat() {
                                         <Volume2 size={16} /> Test Local Azan
                                     </button>
                                 </div>
-
-                                <audio ref={audioSubuhRef} src="/audio/adzan_subuh.mp3" preload="none" />
-                                <audio ref={audioOtherRef} src="/audio/adzan_nahawand.mp3" preload="none" />
                             </section>
                         </div>
 
@@ -411,6 +448,10 @@ export default function DynamicWaktuSolat() {
                     </div>
                 </div>
             )}
+
+            {/* Global Audio References (Must be outside Settings Modal to exist in DOM) */}
+            <audio ref={audioSubuhRef} src="/audio/adzan_subuh.mp3" preload="auto" />
+            <audio ref={audioOtherRef} src="/audio/adzan_nahawand.mp3" preload="auto" />
         </div>
     );
 }

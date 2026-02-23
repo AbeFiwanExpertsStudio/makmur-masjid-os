@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Reem_Kufi, Amiri } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthContext";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -13,6 +13,18 @@ import { createClient } from "@supabase/supabase-js";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const reemKufi = Reem_Kufi({
+  weight: ["400", "500", "700"],
+  subsets: ["arabic"],
+  variable: "--font-kufi",
+});
+
+const amiri = Amiri({
+  weight: ["400", "700"],
+  subsets: ["arabic"],
+  variable: "--font-amiri",
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,7 +61,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300`}>
+      <body className={`${inter.variable} ${reemKufi.variable} ${amiri.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <GlobalBackground />
@@ -67,13 +79,13 @@ export default function RootLayout({
                 className: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-50 border border-slate-100 dark:border-slate-800",
                 success: {
                   iconTheme: {
-                    primary: "#059669", 
+                    primary: "#059669",
                     secondary: "white",
                   },
                 },
                 error: {
                   iconTheme: {
-                    primary: "#f59e0b", 
+                    primary: "#f59e0b",
                     secondary: "white",
                   },
                 },

@@ -64,9 +64,16 @@ export default function HomePage() {
               <span className="text-xs font-semibold text-white/90">Ramadan 1447H — {settings.system_desc}</span>
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
-              {settings.system_name}<br />
-              <span className="text-gold">Platform</span>
+            <h1 className="text-4xl md:text-7xl font-bold leading-tight mb-2 mt-2 flex flex-col items-center">
+              <div className="text-white/90 mb-0 drop-shadow-sm font-medium" style={{ fontFamily: "var(--font-kufi)", fontSize: "0.45em", letterSpacing: "0px" }}>
+                بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم
+              </div>
+              <div className="text-gold mb-1 drop-shadow-lg" style={{ fontFamily: "var(--font-amiri)", fontSize: "1.8em", lineHeight: "1.2" }}>
+                معمور
+              </div>
+              <span className="text-2xl md:text-3xl font-medium tracking-wide text-white/90 mt-2">
+                Makmur System
+              </span>
             </h1>
 
             <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto mb-10 leading-relaxed">
