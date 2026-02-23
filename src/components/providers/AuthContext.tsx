@@ -221,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setShowLoginModal(false);
       return null;
     },
-    [checkAdminRole]
+    [] // no external deps needed — all refs are stable supabase client calls
   );
 
   /* ── Sign Up ── */

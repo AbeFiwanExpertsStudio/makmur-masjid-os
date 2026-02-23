@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
-  LayoutDashboard, Users, HandHeart, QrCode, MapPin, Shield,
-  Send, ScanLine, Award, Ban, LogOut, Bell, Settings, Loader2, Search, CheckCircle,
-  ShieldOff, ShieldCheck, UserX, UserCheck, ChevronUp, Pencil, Trash2, X, Clock
+  Users, Shield,
+  Send, ScanLine, Award, Ban, Bell, Settings, Loader2, Search, CheckCircle,
+  ShieldOff, ShieldCheck, UserCheck, Pencil, Trash2
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { scanKupon } from "@/lib/mutations/claims";
@@ -56,7 +54,6 @@ function formatTime(t: string) {
 }
 
 export default function AdminPage() {
-  const pathname = usePathname();
   const { signOut, user } = useAuth();
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
@@ -257,6 +254,17 @@ export default function AdminPage() {
   // User action handler
   const handleUserAction = async () => {
     if (!actionModal || isActioning) return;
+
+    // Prevent self-ban or self-demote
+    if (
+      (actionModal.type === 'ban' || actionModal.type === 'demote') &&
+      actionModal.user.email === user?.email
+    ) {
+      toast.error("You cannot ban or demote your own account.");
+      setActionModal(null);
+      return;
+    }
+
     setIsActioning(true);
     const supabase = createClient();
 
