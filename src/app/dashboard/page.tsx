@@ -64,6 +64,8 @@ export default function DashboardPage() {
         let desc = "Clear";
 
         // Open-Meteo only provides 16 days forecast for free
+        // DISABLED WEATHER API TO AVOID USAGE LIMITS
+        /*
         if (diffDays <= 16 && target >= today) {
           const weatherRes = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max&timezone=Asia%2FSingapore&start_date=${selectedDate}&end_date=${selectedDate}`
@@ -84,6 +86,7 @@ export default function DashboardPage() {
             }
           }
         }
+        */
 
         setWeatherData({ temp, code: weatherCode, desc });
 
