@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Users, Shield,
   Send, ScanLine, Award, Ban, Bell, Settings, Loader2, Search, CheckCircle,
-  ShieldOff, ShieldCheck, UserCheck, Pencil, Trash2
+  ShieldOff, ShieldCheck, UserCheck, Pencil, Trash2, Camera, Keyboard
 } from "lucide-react";
+import CameraScanner from "@/components/admin/CameraScanner";
 import { useAuth } from "@/components/providers/AuthContext";
 import { scanKupon } from "@/lib/mutations/claims";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
@@ -34,6 +35,14 @@ type BroadcastEntry = {
   is_active: boolean;
   created_at: string;
 };
+type UnclaimedKupon = {
+  id: string;
+  event_id: string;
+  event_name: string;
+  guest_uuid: string;
+  display_name: string;
+  claimed_at: string;
+};
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -58,8 +67,12 @@ export default function AdminPage() {
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [scanInput, setScanInput] = useState("");
+  const [cameraMode, setCameraMode] = useState(false);
   const [scanHistory, setScanHistory] = useState<{ id: string, status: string }[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [unclaimedKupons, setUnclaimedKupons] = useState<UnclaimedKupon[]>([]);
+  const [unclaimedRefreshKey, setUnclaimedRefreshKey] = useState(0);
+  const [showUnclaimed, setShowUnclaimed] = useState(true);
   const settings = useSystemSettings();
 
   // User Management
@@ -85,7 +98,22 @@ export default function AdminPage() {
   const [editingBroadcast, setEditingBroadcast] = useState<BroadcastEntry | null>(null);
   const [editMsg, setEditMsg] = useState("");
 
+  // Live clock — drives the 12-hour countdown on completed gigs
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const latestBroadcast = broadcasts.find(b => b.is_active)?.message ?? "";
+
+  // Fetch unclaimed kupons
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.rpc('admin_get_unclaimed_kupons').then(({ data, error }) => {
+      if (!error && data) setUnclaimedKupons(data as UnclaimedKupon[]);
+    });
+  }, [unclaimedRefreshKey]);
 
   // Fetch users
   useEffect(() => {
@@ -152,7 +180,7 @@ export default function AdminPage() {
   const totalCollected = mockDonations.reduce((s, d) => s + d.amount, 0);
 
   // Gig logic: filter to past gigs, deduplicate, sort completed to bottom
-  const now = new Date();
+  const now = currentTime;
   const pastGigs = gigs.filter(g => {
     const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
     return gigEnd < now;
@@ -168,8 +196,9 @@ export default function AdminPage() {
   const visibleGigs = uniquePastGigs
     .filter(g => {
       if (!g.is_completed) return true;
-      if (!g.completed_at) return true;
-      return (Date.now() - new Date(g.completed_at).getTime()) < 12 * 60 * 60 * 1000;
+      // If completed but no timestamp recorded, hide it (treat as already expired)
+      if (!g.completed_at) return false;
+      return (currentTime.getTime() - new Date(g.completed_at).getTime()) < 12 * 60 * 60 * 1000;
     })
     .sort((a, b) => {
       if (a.is_completed && !b.is_completed) return 1;
@@ -299,17 +328,19 @@ export default function AdminPage() {
     }
   };
 
-  const handleScan = async () => {
-    if (!scanInput.trim() || isScanning) return;
-    const input = scanInput.trim();
+  const handleScan = async (overrideValue?: string) => {
+    const raw = overrideValue ?? scanInput;
+    if (!raw.trim() || isScanning) return;
+    const input = raw.trim();
     setIsScanning(true);
-    setScanInput("");
+    if (!overrideValue) setScanInput("");
 
     try {
       const res = await scanKupon(input);
       if (res.success) {
         setScanHistory((prev) => [{ id: input, status: "Scanned ✓" }, ...prev]);
         toast.success(`Successfully scanned! Remaining capacity: ${res.remaining}`);
+        setUnclaimedRefreshKey(k => k + 1);
       } else {
         toast.error(res.error || "Failed to scan kupon");
         setScanHistory((prev) => [{ id: input, status: "Failed ❌" }, ...prev]);
@@ -320,6 +351,14 @@ export default function AdminPage() {
       setIsScanning(false);
     }
   };
+
+  const handleCameraQR = useCallback((raw: string) => {
+    // Strip the app prefix if present, then pass straight to handleScan
+    const PREFIX = "makmur-kupon:";
+    const value = raw.startsWith(PREFIX) ? raw.slice(PREFIX.length) : raw;
+    handleScan(value);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Action modal config
   const actionConfig: Record<ActionType, { icon: typeof Ban; color: string; btnColor: string; title: string; desc: (email: string) => string; confirm: string }> = {
@@ -460,27 +499,115 @@ export default function AdminPage() {
 
             {/* Scanner */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-text mb-2">E-Kupon Scanner</h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-bold text-lg text-text">E-Kupon Scanner</h2>
+                {/* Mode toggle */}
+                <div className="flex bg-background border border-border rounded-xl overflow-hidden text-xs font-medium">
+                  <button
+                    onClick={() => setCameraMode(false)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+                      !cameraMode ? "bg-primary text-white" : "text-text-muted hover:bg-surface"
+                    }`}
+                  >
+                    <Keyboard size={13} /> Manual
+                  </button>
+                  <button
+                    onClick={() => setCameraMode(true)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+                      cameraMode ? "bg-primary text-white" : "text-text-muted hover:bg-surface"
+                    }`}
+                  >
+                    <Camera size={13} /> Camera
+                  </button>
+                </div>
+              </div>
               <p className="text-sm text-text-muted mb-4">Scan a user&apos;s QR to mark food as claimed.</p>
-              <div className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  placeholder="Enter Reservation ID (e.g., r1)"
-                  value={scanInput}
-                  onChange={(e) => setScanInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleScan()}
-                  className="flex-1 border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
-                />
-                <button onClick={handleScan} className="p-2.5 btn-primary rounded-xl"><ScanLine size={20} /></button>
-              </div>
-              <div className="space-y-2">
-                {scanHistory.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm px-4 py-2.5 bg-background rounded-xl border border-border">
-                    <span className="font-mono text-text-secondary">{s.id}</span>
-                    <span className={`font-semibold ${s.status === "Pending" ? "text-gold" : "text-primary"}`}>{s.status}</span>
+
+              {cameraMode ? (
+                <div className="mb-4">
+                  <CameraScanner onScan={handleCameraQR} />
+                  {isScanning && (
+                    <p className="text-xs text-text-muted text-center mt-2 flex items-center justify-center gap-1">
+                      <Loader2 size={12} className="animate-spin" /> Processing…
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    placeholder="Enter Reservation ID (e.g., r1)"
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleScan()}
+                    className="flex-1 border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
+                  />
+                  <button
+                    onClick={() => handleScan()}
+                    disabled={isScanning}
+                    className="p-2.5 btn-primary rounded-xl disabled:opacity-50"
+                  >
+                    {isScanning ? <Loader2 size={20} className="animate-spin" /> : <ScanLine size={20} />}
+                  </button>
+                </div>
+              )}
+
+              {/* Unclaimed list */}
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowUnclaimed(v => !v)}
+                  className="flex items-center justify-between w-full text-sm font-semibold text-text mb-2"
+                >
+                  <span className="flex items-center gap-2">
+                    Unclaimed Kupons
+                    <span className="inline-flex items-center justify-center text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded-full px-2 py-0.5 min-w-[1.4rem]">
+                      {unclaimedKupons.length}
+                    </span>
+                  </span>
+                  <span className="text-text-muted text-xs">{showUnclaimed ? "▲ hide" : "▼ show"}</span>
+                </button>
+
+                {showUnclaimed && (
+                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                    {unclaimedKupons.length === 0 ? (
+                      <p className="text-xs text-text-muted text-center py-4">All kupons have been scanned 🎉</p>
+                    ) : (
+                      unclaimedKupons.map((k) => (
+                        <button
+                          key={k.id}
+                          onClick={() => { setScanInput(k.id); setCameraMode(false); }}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-background border border-border rounded-xl hover:border-primary/50 hover:bg-primary-50/30 dark:hover:bg-primary/5 transition-colors text-left"
+                          title="Tap to fill input"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-text truncate">{k.display_name || "Guest"}</p>
+                            <p className="text-xs text-text-muted truncate">{k.event_name}</p>
+                          </div>
+                          <span className="shrink-0 text-xs font-mono text-text-muted bg-surface px-2 py-0.5 rounded-lg border border-border">
+                            #{k.id.slice(0, 6)}
+                          </span>
+                        </button>
+                      ))
+                    )}
                   </div>
-                ))}
+                )}
               </div>
+
+              {/* Scan history */}
+              {scanHistory.length > 0 && (
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Session History</p>
+                  {scanHistory.map((s, i) => (
+                    <div key={i} className="flex justify-between items-center text-sm px-4 py-2.5 bg-background rounded-xl border border-border">
+                      <span className="font-mono text-text-secondary truncate max-w-[70%]">{s.id}</span>
+                      <span className={`font-semibold shrink-0 ${
+                        s.status.startsWith("Scanned") ? "text-primary" :
+                        s.status.startsWith("Failed") ? "text-red-500" : "text-gold"
+                      }`}>{s.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Gig Completion — from DB */}
@@ -506,9 +633,23 @@ export default function AdminPage() {
                         </span>
                       </div>
                       {g.is_completed ? (
-                        <span className="badge bg-primary-50 text-primary border border-primary/20 text-xs animate-pulse">
-                          <CheckCircle size={12} /> Awarded ✓
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="badge bg-primary-50 text-primary border border-primary/20 text-xs">
+                            <CheckCircle size={12} /> Awarded ✓
+                          </span>
+                          {g.completed_at && (() => {
+                            const remainMs = 12 * 60 * 60 * 1000 - (currentTime.getTime() - new Date(g.completed_at).getTime());
+                            const totalSec = Math.max(0, Math.floor(remainMs / 1000));
+                            const h = Math.floor(totalSec / 3600);
+                            const m = Math.floor((totalSec % 3600) / 60);
+                            const s = totalSec % 60;
+                            return (
+                              <span className="text-[10px] text-text-muted font-mono">
+                                Clears in {h}h {String(m).padStart(2,'0')}m {String(s).padStart(2,'0')}s
+                              </span>
+                            );
+                          })()}
+                        </div>
                       ) : (
                         <button
                           onClick={() => handleCompleteGig(g.id)}

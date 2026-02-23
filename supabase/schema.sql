@@ -421,6 +421,18 @@ DECLARE
   v_event_id uuid;
   v_remaining int;
 BEGIN
+  -- Ensure the linked event is currently active (started but not yet ended)
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.kupon_claims kc
+    JOIN public.food_events fe ON fe.id = kc.event_id
+    WHERE kc.id = p_claim_id
+      AND (fe.event_date + fe.start_time) AT TIME ZONE 'Asia/Kuala_Lumpur' <= NOW()
+      AND (fe.event_date + fe.end_time)   AT TIME ZONE 'Asia/Kuala_Lumpur' >  NOW()
+  ) THEN
+    RETURN json_build_object('success', false, 'error', 'Cannot scan — the event is not currently active.');
+  END IF;
+
   -- Mark the kupon as scanned
   UPDATE public.kupon_claims
   SET is_scanned = true

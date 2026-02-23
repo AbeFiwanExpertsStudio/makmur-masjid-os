@@ -82,7 +82,6 @@ export function useLiveFoodEvents() {
 
           // Filter out expired, and sort active on top
           const validEvents = parsedEvents
-            .filter(e => e.status !== "expired")
             .sort((a, b) => a.status === "active" && b.status !== "active" ? -1 : a.status !== "active" && b.status === "active" ? 1 : 0);
 
           setEvents(validEvents);

@@ -12,7 +12,6 @@ import { createClient } from "@/lib/supabase/client";
 type Notification = {
   id: string;
   message: string;
-  is_read: boolean;
   created_at: string;
 };
 
@@ -48,32 +47,30 @@ export function Navbar() {
   const fetchNotifications = useCallback(async () => {
     try {
       const supabase = createClient();
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
-        .from('notifications')
-        .select('id, message, is_read, created_at')
+        .from('system_broadcasts')
+        .select('id, message, created_at')
+        .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(20);
       
       if (!error && data) {
         setNotifications(data);
-        setUnreadCount(data.filter(n => !n.is_read).length);
+        // Count broadcasts newer than last-seen timestamp as unread
+        const lastSeen = localStorage.getItem('lastSeenBroadcast') ?? '1970-01-01';
+        setUnreadCount(data.filter(n => n.created_at > lastSeen).length);
       }
     } catch {
-      // Notifications table might not exist yet — fail silently
+      // Fail silently
     }
   }, []);
 
   // Mark all as read when dropdown opens
-  const markAllRead = useCallback(async () => {
+  const markAllRead = useCallback(() => {
     if (unreadCount === 0) return;
-    try {
-      const supabase = createClient();
-      await supabase.rpc('mark_notifications_read');
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
-    } catch {
-      // Fail silently
-    }
+    localStorage.setItem('lastSeenBroadcast', new Date().toISOString());
+    setUnreadCount(0);
   }, [unreadCount]);
 
   // Close dropdowns on outside click
@@ -201,12 +198,8 @@ export function Navbar() {
                   {notifications.length > 0 ? (
                     notifications.map((n) => (
                       <div key={n.id} className="px-4 py-3 border-b border-surface-muted last:border-0">
-                        <div className="flex items-start gap-2">
-                          <div>
-                            <p className="text-sm text-text">{n.message}</p>
-                            <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at)}</p>
-                          </div>
-                        </div>
+                        <p className="text-sm text-text">{n.message}</p>
+                        <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at)}</p>
                       </div>
                     ))
                   ) : (

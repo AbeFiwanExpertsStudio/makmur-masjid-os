@@ -30,8 +30,9 @@ export default function DashboardPage() {
     async function fetchBroadcast() {
       const supabase = createClient();
       const { data } = await supabase
-        .from('broadcasts')
+        .from('system_broadcasts')
         .select('message')
+        .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();

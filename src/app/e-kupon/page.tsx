@@ -63,7 +63,12 @@ export default function EKuponPage() {
 
   // Local copy of events so edits/deletes reflect instantly
   const [localEvents, setLocalEvents] = useState<any[]>([]);
-  useEffect(() => { setLocalEvents(events); }, [events]);
+  useEffect(() => {
+    // Everyone sees only active/scheduled — expired events are hidden.
+    // Admins can still edit/delete via the inline buttons on each card.
+    const visible = events.filter(e => e.status !== "expired");
+    setLocalEvents(visible);
+  }, [events, isAdmin]);
 
   const isLoading = eventsLoading;
 
@@ -125,7 +130,13 @@ export default function EKuponPage() {
           <div className="text-center py-10 bg-surface rounded-2xl border border-border shadow-sm">
             <Ticket size={48} className="mx-auto text-text-muted opacity-30 mb-4" />
             <h3 className="text-text font-bold text-lg">No Events Available</h3>
-            <p className="text-text-secondary text-sm mt-1">There are no food distributions active right now.</p>
+            {isAdmin && events.some(e => e.status === "expired") ? (
+              <p className="text-amber-600 text-sm mt-1 font-medium">
+                All events have expired. Add a new E-Kupon above to activate distribution.
+              </p>
+            ) : (
+              <p className="text-text-secondary text-sm mt-1">There are no food distributions active right now.</p>
+            )}
           </div>
         ) : (
           localEvents.map(event => (
@@ -202,12 +213,14 @@ function KuponCard({
   const [isClaiming, setIsClaiming] = useState(false);
   const [isDeclaiming, setIsDeclaiming] = useState(false);
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
+  const [confirmDeclaim, setConfirmDeclaim] = useState(false);
 
   const eventId = event.id;
   const totalPacks = event.total_capacity;
   const remainingPacks = localRemaining ?? event.remaining_capacity;
   const percentageLeft = (remainingPacks / totalPacks) * 100;
   const isScheduled = event.status === "scheduled";
+  const isExpired = event.status === "expired";
 
   useEffect(() => {
     if (event.remaining_capacity != null && localRemaining === null) {
@@ -216,7 +229,7 @@ function KuponCard({
   }, [event.remaining_capacity, localRemaining]);
 
   const handleClaim = async () => {
-    if (!user || isScheduled) return;
+    if (!user || isExpired) return;
     setIsClaiming(true);
     setClaimError(null);
     const result = await claimKupon(event.id, user.id);
@@ -241,10 +254,9 @@ function KuponCard({
       setClaimError("Missing Kupon ID.");
       return;
     }
-    const confirmDelete = window.confirm("Are you sure you want to cancel this claim? This action cannot be undone.");
-    if (!confirmDelete) return;
 
     setIsDeclaiming(true);
+    setConfirmDeclaim(false);
     setClaimError(null);
 
     // In claim.ts we have cancelKupon
@@ -265,7 +277,11 @@ function KuponCard({
   return (
     <div className="card overflow-hidden">
       {/* Event header */}
-      <div className={`p-6 text-white relative overflow-hidden ${isScheduled ? "bg-gradient-to-br from-[#D4A843] to-[#B08A2E]" : "hero-gradient"}`}>
+      <div className={`p-6 text-white relative overflow-hidden ${
+        isExpired ? "bg-gradient-to-br from-gray-500 to-gray-700"
+        : isScheduled ? "bg-gradient-to-br from-[#D4A843] to-[#B08A2E]"
+        : "hero-gradient"
+      }`}>
         <div className="absolute top-0 right-0 w-40 h-40 bg-surface/5 rounded-full -mt-20 -mr-20 blur-2xl" />
 
         <div className="flex items-start justify-between relative z-10 mb-4">
@@ -274,8 +290,12 @@ function KuponCard({
             {event.name}
           </h2>
           <div className="flex items-center gap-2">
-            <span className={`badge text-[10px] ${isScheduled ? "bg-surface/20 text-white" : "bg-primary-50 text-primary"}`}>
-              {isScheduled ? "SCHEDULED" : "● ACTIVE"}
+            <span className={`badge text-[10px] ${
+              isExpired ? "bg-surface/20 text-white/70"
+              : isScheduled ? "bg-surface/20 text-white"
+              : "bg-primary-50 text-primary"
+            }`}>
+              {isExpired ? "EXPIRED" : isScheduled ? "SCHEDULED" : "● ACTIVE"}
             </span>
 
             {/* ── ADMIN: Edit & Delete ── */}
@@ -312,7 +332,7 @@ function KuponCard({
           <div className="flex justify-between text-sm mb-2">
             <span className="text-text-secondary font-medium">Availability</span>
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-primary"} ${!isScheduled && "animate-live"}`} />
+              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-primary"} ${!isScheduled && !isExpired && "animate-live"}`} />
               <span className={`font-bold ${remainingPacks < 100 ? "text-amber-600" : "text-primary"}`}>
                 {remainingPacks}/{totalPacks} remaining
               </span>
@@ -332,24 +352,52 @@ function KuponCard({
         {!isClaimed ? (
           <button
             onClick={handleClaim}
-            disabled={isClaiming || remainingPacks <= 0 || isScheduled}
-            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${isScheduled
-              ? "bg-surface-muted text-text-muted cursor-not-allowed border border-border shadow-none"
-              : "bg-primary text-white hover:bg-primary-dark hover:shadow-lg"
-              }`}
+            disabled={isClaiming || remainingPacks <= 0 || isExpired}
+            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${
+              isExpired
+                ? "bg-surface-muted text-text-muted cursor-not-allowed border border-border shadow-none"
+                : isScheduled
+                  ? "bg-amber-500 hover:bg-amber-600 text-white hover:shadow-lg"
+                  : "bg-primary text-white hover:bg-primary-dark hover:shadow-lg"
+            }`}
           >
-            {isScheduled ? <Clock size={20} /> : <Utensils size={20} />}
-            {isScheduled ? "Opens Soon" : (isClaiming ? "Claiming…" : "Claim Now")}
+            {isExpired ? <Clock size={20} /> : isScheduled ? <CalendarPlus size={20} /> : <Utensils size={20} />}
+            {isExpired
+              ? "Event Ended"
+              : isScheduled
+                ? isClaiming ? "Reserving\u2026" : "Reserve My Spot"
+                : isClaiming ? "Claiming\u2026" : "Claim Now"}
           </button>
         ) : isScanned ? (
-          <div className="border-2 border-dashed border-border rounded-2xl p-6 bg-background opacity-80">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Utensils size={24} className="text-text-muted" />
-              <span className="font-bold text-text-secondary">Food Redeemed</span>
+          /* ── REDEEMED STATE ── */
+          <div className="rounded-2xl p-6 bg-primary-50/40 dark:bg-primary/10 border-2 border-primary/20">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+                <CheckCircle size={30} className="text-primary" />
+              </div>
+              <p className="font-bold text-primary text-base">Food Successfully Redeemed</p>
+              <p className="text-sm text-text-secondary text-center">
+                Alhamdulillah! Your Iftar pack for <span className="font-semibold">{event.name}</span> has been collected. Enjoy your meal!
+              </p>
             </div>
-            <p className="text-sm text-text-muted text-center">
-              Alhamdulillah, your Iftar pack has been collected.
-            </p>
+          </div>
+        ) : isScheduled ? (
+          /* ── RESERVED (claimed but event not active yet) ── */
+          <div className="rounded-2xl p-5 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700/40">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mb-1">
+                <Clock size={24} className="text-amber-600" />
+              </div>
+              <p className="font-bold text-amber-700 dark:text-amber-400">Kupon Reserved</p>
+              <p className="text-sm text-amber-700/80 dark:text-amber-400/80">
+                Your spot is secured! Come to the distribution counter on{" "}
+                <span className="font-semibold">
+                  {new Date(event.event_date).toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>{" "}
+                at <span className="font-semibold">{event.start_time?.slice(0, 5)}</span> to collect your Iftar pack.
+              </p>
+              <p className="text-xs text-amber-600/70 mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
+            </div>
           </div>
         ) : (
           <div className="border-2 border-dashed border-[#D5F5E3] rounded-2xl p-6 bg-primary-50/50">
@@ -363,13 +411,34 @@ function KuponCard({
             <p className="text-sm text-text-secondary mt-5 text-center">Show this QR to the volunteer at the counter.</p>
             <p className="font-mono text-xs text-text-muted text-center mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
             <div className="mt-4 border-t border-border pt-4 flex justify-center">
-              <button
-                onClick={handleDeclaim}
-                disabled={isDeclaiming}
-                className="text-xs font-semibold text-red-500 hover:text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-all"
-              >
-                {isDeclaiming ? "Canceling..." : "Cancel Claim"}
-              </button>
+              {confirmDeclaim ? (
+                <div className="flex flex-col items-center gap-3 w-full">
+                  <p className="text-xs text-text-secondary text-center">Cancel this kupon claim? This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfirmDeclaim(false)}
+                      className="text-xs font-semibold text-text-secondary border border-border bg-surface hover:bg-surface-muted rounded-lg px-4 py-2 transition-all"
+                    >
+                      Keep
+                    </button>
+                    <button
+                      onClick={handleDeclaim}
+                      disabled={isDeclaiming}
+                      className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 transition-all"
+                    >
+                      {isDeclaiming ? "Canceling..." : "Yes, Cancel"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDeclaim(true)}
+                  disabled={isDeclaiming}
+                  className="text-xs font-semibold text-red-500 hover:text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg px-3 py-2 transition-all"
+                >
+                  Cancel Claim
+                </button>
+              )}
             </div>
           </div>
         )}

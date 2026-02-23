@@ -83,6 +83,7 @@ export async function cancelKupon(
 
 /**
  * Claim a volunteer gig slot.
+ * Uses the claim_gig RPC which enforces time-overlap validation server-side.
  */
 export async function claimGig(
   gigId: string,
@@ -92,21 +93,23 @@ export async function claimGig(
     const supabase = createClient();
 
     const result = await Promise.race([
-      supabase.from("gig_claims").insert({ gig_id: gigId, guest_uuid: guestUuid }).then(r => r),
+      supabase.rpc('claim_gig', { p_gig_id: gigId, p_guest_uuid: guestUuid }),
       new Promise<{ error: { code: string; message: string } | null }>((resolve) =>
         setTimeout(() => resolve({ error: { code: "TIMEOUT", message: "Request timed out" } }), 5000)
       ),
     ]);
 
     if (result.error) {
-      if (result.error.code === "23505") {
+      if ((result.error as any).code === "23505" || (result.error as any).message?.includes('already claimed')) {
         return { success: false, error: "You have already claimed this gig." };
       }
-      // Foreign key violation — the gig_id doesn't exist in volunteer_gigs
-      if (result.error.code === "23503") {
+      if ((result.error as any).message?.includes('overlaps')) {
+        return { success: false, error: "You already have a gig that overlaps with this time slot." };
+      }
+      if ((result.error as any).code === '23503') {
         return { success: false, error: "This gig no longer exists. Please refresh the page." };
       }
-      return { success: false, error: result.error.message };
+      return { success: false, error: (result.error as any).message };
     }
     return { success: true };
   } catch (err: any) {

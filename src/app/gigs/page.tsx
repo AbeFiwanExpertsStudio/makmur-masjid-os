@@ -37,7 +37,6 @@ export default function GigsPage() {
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [loadingGigs, setLoadingGigs] = useState(true);
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
-  const [feedback, setFeedback] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGig, setEditingGig] = useState<Gig | null>(null);
@@ -126,15 +125,12 @@ export default function GigsPage() {
     if (!user) return;
     const result = await claimGig(gigId, user.id);
     if (result.success) {
-    setClaimedIds((prev) => new Set(prev).add(gigId));
-    setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: g.claimed + 1 } : g));
-    setFeedback({ id: gigId, msg: "Claimed! See you there 🎉", ok: true });
-    toast.success("Gig claimed successfully!");
-  } else {
-    setFeedback({ id: gigId, msg: result.error ?? "Error", ok: false });
-    toast.error(result.error ?? "Failed to claim gig.");
-  }
-    setTimeout(() => setFeedback(null), 3500);
+      setClaimedIds((prev) => new Set(prev).add(gigId));
+      setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: g.claimed + 1 } : g));
+      toast.success("Gig claimed successfully!");
+    } else {
+      toast.error(result.error ?? "Failed to claim gig.");
+    }
   };
 
   /* ── Cancel ── */
@@ -143,16 +139,13 @@ export default function GigsPage() {
     setCancellingId(gigId);
     const result = await cancelGig(gigId, user.id);
     if (result.success) {
-    setClaimedIds((prev) => { const s = new Set(prev); s.delete(gigId); return s; });
-    setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: Math.max(0, g.claimed - 1) } : g));
-    setFeedback({ id: gigId, msg: "Claim cancelled.", ok: true });
-    toast.success("Claim cancelled.");
-  } else {
-    setFeedback({ id: gigId, msg: result.error ?? "Error cancelling", ok: false });
-    toast.error(result.error ?? "Failed to cancel claim.");
-  }
+      setClaimedIds((prev) => { const s = new Set(prev); s.delete(gigId); return s; });
+      setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: Math.max(0, g.claimed - 1) } : g));
+      toast.success("Claim cancelled.");
+    } else {
+      toast.error(result.error ?? "Failed to cancel claim.");
+    }
     setCancellingId(null);
-    setTimeout(() => setFeedback(null), 3000);
   };
 
   /* ── After add/edit: refresh from DB so list is always accurate ── */
@@ -263,6 +256,19 @@ export default function GigsPage() {
             {activeGigs.map((gig) => {
               const isFull = gig.claimed >= gig.required_pax;
               const isClaimed = claimedIds.has(gig.id);
+
+              // Check if this gig's time overlaps with any other gig the user already claimed
+              const gigStartDt = new Date(`${gig.gig_date}T${gig.start_time}`);
+              const gigEndDt   = new Date(`${gig.gig_date}T${gig.end_time}`);
+              const conflictingGig = !isClaimed ? gigs.find(g =>
+                g.id !== gig.id &&
+                claimedIds.has(g.id) &&
+                g.gig_date === gig.gig_date &&
+                new Date(`${g.gig_date}T${g.start_time}`) < gigEndDt &&
+                new Date(`${g.gig_date}T${g.end_time}`)   > gigStartDt
+              ) : undefined;
+              const isConflict = !!conflictingGig;
+
               const pct = Math.min(100, Math.round((gig.claimed / gig.required_pax) * 100));
               const gigStart = new Date(`${gig.gig_date}T${gig.start_time}`);
               const gigEnd = new Date(`${gig.gig_date}T${gig.end_time}`);
@@ -331,12 +337,6 @@ export default function GigsPage() {
                     <div className="progress-fill" style={{ width: `${pct}%`, background: isFull ? "#D4A843" : undefined }} />
                   </div>
 
-                  {feedback?.id === gig.id && (
-                    <div className={`flex items-center gap-2 text-sm mb-3 px-3 py-2 rounded-lg ${feedback.ok ? "bg-primary-50 text-primary" : "bg-amber-50 text-amber-700"}`}>
-                      {feedback.ok ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {feedback.msg}
-                    </div>
-                  )}
-
                   {/* Claim / Cancel buttons */}
                   {isClaimed ? (
                     <div className="flex gap-2 items-center">
@@ -360,11 +360,16 @@ export default function GigsPage() {
                   ) : (
                     <button
                       onClick={() => handleClaim(gig.id)}
-                      disabled={isFull}
-                      className="w-full py-3 btn-primary text-sm"
+                      disabled={isFull || isConflict}
+                      className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-semibold transition-all ${
+                        isConflict
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                          : 'btn-primary'
+                      }`}
+                      title={isConflict ? `Overlaps with "${conflictingGig?.title}"` : undefined}
                     >
-                      {isAnonymous ? <LogIn size={16} /> : <Users size={16} />}
-                      {isFull ? "Fully Booked" : isAnonymous ? "Sign In to Claim" : "Claim Task"}
+                      {isConflict ? <AlertCircle size={16} /> : isAnonymous ? <LogIn size={16} /> : <Users size={16} />}
+                      {isFull ? 'Fully Booked' : isConflict ? `Clashes with "${conflictingGig?.title}"` : isAnonymous ? 'Sign In to Claim' : 'Claim Task'}
                     </button>
                   )}
                 </div>
