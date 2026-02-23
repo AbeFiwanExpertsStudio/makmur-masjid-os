@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/providers/AuthContext";
 import { useState } from "react";
-import { X, Mail, Lock, User as UserIcon } from "lucide-react";
+import { X, Mail, Lock, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function AuthModal() {
@@ -13,6 +13,7 @@ export function AuthModal() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!showLoginModal) return null;
 
@@ -124,8 +125,17 @@ export function AuthModal() {
 
           <div className="relative">
             <Lock size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-              className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
+            <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+              className="w-full pl-11 pr-11 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3.5 top-3 text-text-muted hover:text-text-secondary transition"
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           <button type="submit" disabled={loading} className="w-full py-3.5 btn-primary text-sm">
