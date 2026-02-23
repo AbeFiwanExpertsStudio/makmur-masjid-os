@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { ms } from "date-fns/locale";
 import { useScreenConfig } from "@/hooks/useScreenConfig";
@@ -93,16 +93,45 @@ export default function PaparanMasjidPage() {
   const lastIqamatFired = useRef<number>(0);
   const audioSubuhRef   = useRef<HTMLAudioElement | null>(null);
   const audioOtherRef   = useRef<HTMLAudioElement | null>(null);
+  const audioBeepRef    = useRef<HTMLAudioElement | null>(null);
   const prayersRef      = useRef<PrayerDay | null>(null);
   const configRef       = useRef(config);
+  const activeZoneRef   = useRef("");
+  // Track the calendar date last fetched so we can re-fetch at midnight
+  const lastFetchedDate = useRef<number>(new Date().getDate());
 
   useEffect(() => { configRef.current = config; }, [config]);
   useEffect(() => { prayersRef.current = prayers; }, [prayers]);
 
-  // ── Restore lastAzanFired from sessionStorage on mount ──
+  // ── Restore fired-guards from sessionStorage on mount ──
   useEffect(() => {
-    const stored = sessionStorage.getItem("lastAzanFired");
-    if (stored) lastAzanFired.current = parseInt(stored, 10);
+    const storedAzan = sessionStorage.getItem("lastAzanFired");
+    if (storedAzan) lastAzanFired.current = parseInt(storedAzan, 10);
+    const storedAlert = sessionStorage.getItem("lastAlertFired");
+    if (storedAlert) lastAlertFired.current = parseInt(storedAlert, 10);
+  }, []);
+
+  // ── Helper: play a double-beep pattern, repeated `reps` times ──
+  // Pattern per rep: beep → 150ms → beep  |  600ms gap before next rep
+  const playBeeps = useCallback((reps = 5) => {
+    const audio = audioBeepRef.current;
+    if (!audio) return;
+    let rep = 0;
+    const playRep = () => {
+      if (rep >= reps) return;
+      // First beep of the pair
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      // Second beep 200ms later
+      setTimeout(() => {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        rep++;
+        // Gap before next pair
+        if (rep < reps) setTimeout(playRep, 600);
+      }, 200);
+    };
+    playRep();
   }, []);
 
   // ── Live broadcasts for ticker (fetch + realtime) ──
@@ -162,14 +191,17 @@ export default function PaparanMasjidPage() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // ── Fetch prayer times when zone changes (or auto-detected zone) ──
+  // ── Fetch prayer times (callable for both zone-change and midnight refresh) ──
   const activeZone = config.zone || detectedZone;
-  useEffect(() => {
-    if (!activeZone) return;
-    fetch(`https://api.waktusolat.app/v2/solat/${activeZone}`)
+  useEffect(() => { activeZoneRef.current = activeZone; }, [activeZone]);
+
+  const fetchPrayers = useCallback((zone: string) => {
+    if (!zone) return;
+    fetch(`https://api.waktusolat.app/v2/solat/${zone}`)
       .then(r => r.json())
       .then((data: { prayers: PrayerDay[] }) => {
         const today = new Date().getDate();
+        lastFetchedDate.current = today;
         const dayData = data.prayers.find(p => p.day === today) || data.prayers[0];
         setPrayers(dayData);
 
@@ -184,6 +216,10 @@ export default function PaparanMasjidPage() {
         }
       })
       .catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    fetchPrayers(activeZone);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeZone]);
 
@@ -199,35 +235,56 @@ export default function PaparanMasjidPage() {
 
       const nowUnix = Math.floor(nowDate.getTime() / 1000);
 
-      // Alert Masuk Waktu (first 120s after prayer time)
+      // ── Midnight prayer-data refresh ─────────────────────────────
+      const todayDay = nowDate.getDate();
+      if (todayDay !== lastFetchedDate.current && activeZoneRef.current) {
+        fetchPrayers(activeZoneRef.current);
+      }
+
+      // ── Alert Masuk Waktu ────────────────────────────────────────
+      // Shows for the first ALERT_WINDOW seconds after prayer time.
+      // When iqamat is also enabled the alert gets ALERT_WINDOW seconds
+      // of exclusive screen time before the countdown takes over.
+      const ALERT_WINDOW = 10; // seconds the alert banner is shown
       if (cfg.alert_masuk.enabled) {
         const triggered = AZAN_PRAYERS.find(
           key => nowUnix >= p[key] && nowUnix < p[key] + 120
         );
         if (triggered && lastAlertFired.current !== p[triggered]) {
           lastAlertFired.current = p[triggered];
+          sessionStorage.setItem("lastAlertFired", String(p[triggered]));
           setAlertPrayer(triggered);
           setShowAlert(true);
           setShowIqamat(false);
-          // Auto-dismiss after 90s
-          setTimeout(() => setShowAlert(false), 90_000);
+          // Beep x5 immediately when the alert appears
+          playBeeps(5);
+          // Auto-dismiss: use ALERT_WINDOW when iqamat will take over, else 90s
+          const dismissAfter = cfg.alert_iqamat.enabled
+            ? ALERT_WINDOW * 1000
+            : 90_000;
+          setTimeout(() => setShowAlert(false), dismissAfter);
         }
       }
 
-      // Iqamat countdown — fires right at azan, counts DOWN to iqamat time
+      // ── Iqamat countdown ─────────────────────────────────────────
+      // Starts ALERT_WINDOW seconds after azan so the alert banner plays
+      // first. Counts down from iqamat_delay to 0.
       if (cfg.alert_iqamat.enabled) {
         const delayMs = cfg.alert_iqamat.delay_minutes * 60;
-        const triggered = AZAN_PRAYERS.find(key => {
-          // Active window: azan just fired up until iqamat fires
-          return nowUnix >= p[key] && nowUnix < p[key] + delayMs;
-        });
+        const iqamatStart = ALERT_WINDOW; // don't start until alert has shown
+        const triggered = AZAN_PRAYERS.find(key =>
+          nowUnix >= p[key] + iqamatStart && nowUnix < p[key] + delayMs
+        );
         if (triggered && lastIqamatFired.current !== p[triggered]) {
           lastIqamatFired.current = p[triggered];
           setAlertPrayer(triggered);
           setIqamatTarget(p[triggered] + delayMs);
           setIqamatTotal(delayMs);
+          // showAlert will already have auto-dismissed by now
           setShowAlert(false);
           setShowIqamat(true);
+          // Beep x5 immediately when the iqamat countdown screen appears
+          playBeeps(5);
         }
       }
 
@@ -262,7 +319,7 @@ export default function PaparanMasjidPage() {
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [iqamatTarget]);
+  }, [iqamatTarget, fetchPrayers, playBeeps]);
 
   // ── Slideshow rotation ──
   useEffect(() => {
@@ -278,6 +335,7 @@ export default function PaparanMasjidPage() {
     setShowIqamat(false);
     setShowAlert(true);
     setShowTestPanel(false);
+    playBeeps(5);
     setTimeout(() => setShowAlert(false), 90_000);
   };
 
@@ -290,6 +348,7 @@ export default function PaparanMasjidPage() {
     setShowAlert(false);
     setShowIqamat(true);
     setShowTestPanel(false);
+    playBeeps(5);
   };
 
   const testAzan = (type: "subuh" | "other") => {
@@ -307,8 +366,7 @@ export default function PaparanMasjidPage() {
     audioSubuhRef.current?.pause();
     audioOtherRef.current?.pause();
     if (audioSubuhRef.current) audioSubuhRef.current.currentTime = 0;
-    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0;
-    setShowAlert(false);
+    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0;      if (audioBeepRef.current) { audioBeepRef.current.pause(); audioBeepRef.current.currentTime = 0; }    setShowAlert(false);
     setShowIqamat(false);
     setIqamatTarget(0);
   };
@@ -327,6 +385,17 @@ export default function PaparanMasjidPage() {
   const bgStyle: React.CSSProperties = config.gambar_masjid.enabled && config.gambar_masjid.url
     ? { backgroundImage: `url(${config.gambar_masjid.url})`, backgroundSize: "cover", backgroundPosition: "center" }
     : {};
+
+  // ── Memoised ticker values — must be before any early return (Rules of Hooks) ──
+  const tickerText = useMemo(
+    () => activeBroadcasts.join("     •     "),
+    [activeBroadcasts]
+  );
+  const tickerDuration = useMemo(
+    () => Math.max(20, Math.round(21 + tickerText.length * 0.09)),
+    [tickerText]
+  );
+  const tickerActive = config.ticker?.enabled && activeBroadcasts.length > 0;
 
   if (!loaded) {
     return (
@@ -349,7 +418,8 @@ export default function PaparanMasjidPage() {
       <div className={`absolute inset-0 ${overlayDarkness}`} />
 
       {/* ── CONTENT LAYER ───────────────────────────── */}
-      <div className="relative z-10 h-full flex flex-col p-6 gap-4">
+      {/* pb is extended when the ticker bar is visible so content never hides behind it */}
+      <div className={`relative z-10 h-full flex flex-col gap-4 pt-6 px-6 ${tickerActive ? "pb-[52px]" : "pb-6"}`}>
 
         {/* ── TOP BAR (always full-width) ─────────────── */}
         <div className="flex items-start justify-between flex-shrink-0">
@@ -586,31 +656,24 @@ export default function PaparanMasjidPage() {
       </div>{/* closes main content layer */}
 
       {/* ── ANNOUNCEMENT TICKER ──────────────── */}
-      {config.ticker?.enabled && activeBroadcasts.length > 0 && (() => {
-        // Join all active broadcasts with a bullet separator
-        const tickerText = activeBroadcasts.join("     •     ");
-        // Scale speed: ~90px/s on a 1920px screen ≈ 21s base + 0.09s per char
-        // so short texts aren't blazing fast and long texts aren't painfully slow
-        const duration = Math.max(20, Math.round(21 + tickerText.length * 0.09));
-        return (
-          <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/70 backdrop-blur-sm border-t border-white/10 overflow-hidden" style={{ height: 40 }}>
-            <div className="flex items-center h-full">
-              <span className="flex-shrink-0 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-widest px-3 h-full flex items-center">
-                MAKLUMAN
-              </span>
-              {/* Scrolling track — starts off-screen right, scrolls to off-screen left, loops */}
-              <div className="flex-1 overflow-hidden h-full relative">
-                <div
-                  className="absolute inset-y-0 left-0 flex items-center animate-ticker"
-                  style={{ animationDuration: `${duration}s` }}
-                >
-                  <span className="text-white/80 text-sm font-medium px-6">{tickerText}</span>
-                </div>
+      {tickerActive && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/70 backdrop-blur-sm border-t border-white/10 overflow-hidden" style={{ height: 40 }}>
+          <div className="flex items-center h-full">
+            <span className="flex-shrink-0 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-widest px-3 h-full flex items-center">
+              MAKLUMAN
+            </span>
+            {/* Scrolling track — starts off-screen right, scrolls to off-screen left */}
+            <div className="flex-1 overflow-hidden h-full relative">
+              <div
+                className="absolute inset-y-0 left-0 flex items-center animate-ticker"
+                style={{ animationDuration: `${tickerDuration}s` }}
+              >
+                <span className="text-white/80 text-sm font-medium px-6">{tickerText}</span>
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* ── TEST PANEL TRIGGER (corner tap / T key) ─── */}
       <button
@@ -771,6 +834,7 @@ export default function PaparanMasjidPage() {
       {/* ── AUDIO ELEMENTS ───────────────────────────── */}
       <audio ref={audioSubuhRef} src="/audio/adzan_subuh.mp3" preload="auto" />
       <audio ref={audioOtherRef} src="/audio/adzan_nahawand.mp3" preload="auto" />
+      <audio ref={audioBeepRef} src="/audio/beep.wav" preload="auto" />
     </div>
   );
 }
