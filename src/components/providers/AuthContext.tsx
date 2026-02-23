@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { toast } from "react-hot-toast";
 
 const SIGNED_OUT_KEY = "makmur_signed_out";
 
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("user_roles")
-        .select("role")
+        .select("role, is_banned")
         .eq("user_id", userId)
         .single();
 
@@ -60,8 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error.message?.includes("LockManager") || error.message?.includes("lock")) {
           console.warn("AuthContext: lock busy, skipping admin check.");
         }
-        // PGRST116 = row not found = user simply has no role row = not admin
         setIsAdmin(false);
+        return false;
+      }
+
+      // Auto-logout if user is banned
+      if (data?.is_banned === true) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setIsAdmin(false);
+        toast.error("Your account has been banned. Please contact the mosque administration.", { duration: 5000 });
         return false;
       }
 
@@ -122,6 +131,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bootstrap();
 
     /* ──────────────────────────────────────────
+       Poll ban status every 30s for logged-in users.
+       Ensures banned users are kicked out promptly
+       without waiting for a page refresh.
+    ────────────────────────────────────────── */
+    const banPollInterval = setInterval(async () => {
+      if (!mounted) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) {
+          checkAdminRole(session.user.id);
+        }
+      } catch {
+        // Ignore poll errors silently
+      }
+    }, 30_000);
+
+    /* ──────────────────────────────────────────
        Listen for auth state changes.
        Fires when: sign in, sign out, token refresh.
     ────────────────────────────────────────── */
@@ -147,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      clearInterval(banPollInterval);
       subscription.unsubscribe();
     };
   }, [checkAdminRole]);
@@ -173,11 +200,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) return error.message;
 
-      // Immediately set user + check admin so UI updates without waiting
-      // for onAuthStateChange to fire (which can take an extra round-trip)
       if (data.user) {
+        // Check ban status BEFORE setting user state so we can block the login
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role, is_banned")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (roleData?.is_banned === true) {
+          await supabase.auth.signOut();
+          return "Your account has been banned. Please contact the mosque administration.";
+        }
+
         setUser(data.user);
-        checkAdminRole(data.user.id);
+        const admin = roleData?.role === "admin";
+        setIsAdmin(admin);
       }
 
       setShowLoginModal(false);

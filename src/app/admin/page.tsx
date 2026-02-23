@@ -33,6 +33,7 @@ type GigEntry = {
 type BroadcastEntry = {
   id: string;
   message: string;
+  is_active: boolean;
   created_at: string;
 };
 
@@ -67,6 +68,7 @@ export default function AdminPage() {
   // User Management
   const [usersList, setUsersList] = useState<UserEntry[]>([]);
   const [userSearch, setUserSearch] = useState("");
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Action Modal
@@ -86,15 +88,20 @@ export default function AdminPage() {
   const [editingBroadcast, setEditingBroadcast] = useState<BroadcastEntry | null>(null);
   const [editMsg, setEditMsg] = useState("");
 
-  const latestBroadcast = broadcasts.length > 0 ? broadcasts[0].message : "";
+  const latestBroadcast = broadcasts.find(b => b.is_active)?.message ?? "";
 
   // Fetch users
   useEffect(() => {
     async function fetchUsers() {
       const supabase = createClient();
-      const { data, error } = await supabase.rpc('get_all_users');
-      if (error) console.error('get_all_users RPC error:', error.message);
-      if (data) setUsersList(data);
+      const { data, error } = await supabase.rpc('admin_get_all_users');
+      if (error) {
+        console.error('admin_get_all_users RPC error:', error.message);
+        setUsersError(error.message);
+      } else {
+        setUsersError(null);
+        setUsersList(data ?? []);
+      }
     }
     fetchUsers();
   }, [refreshKey]);
@@ -118,11 +125,20 @@ export default function AdminPage() {
     async function fetchBroadcasts() {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('broadcasts')
-        .select('id, message, created_at')
+        .from('system_broadcasts')
+        .select('id, message, is_active, created_at')
         .order('created_at', { ascending: false })
-        .limit(10);
-      if (!error && data) setBroadcasts(data);
+        .limit(20);
+      if (!error && data) {
+        // Deduplicate by message — keep the first (most recent) occurrence of each
+        const seen = new Set<string>();
+        const unique = data.filter(b => {
+          if (seen.has(b.message)) return false;
+          seen.add(b.message);
+          return true;
+        });
+        setBroadcasts(unique.slice(0, 10));
+      }
     }
     fetchBroadcasts();
   }, [broadcastRefreshKey]);
@@ -167,7 +183,7 @@ export default function AdminPage() {
   const handleCompleteGig = async (gigId: string) => {
     const supabase = createClient();
     try {
-      const { error } = await supabase.rpc('complete_gig', { gig_id: gigId });
+      const { error } = await supabase.rpc('complete_gig', { p_gig_id: gigId });
       if (error) {
         toast.error(`Failed: ${error.message}`);
       } else {
@@ -206,7 +222,7 @@ export default function AdminPage() {
     const supabase = createClient();
     try {
       const { error } = await supabase
-        .from('broadcasts')
+        .from('system_broadcasts')
         .update({ message: editMsg.trim() })
         .eq('id', editingBroadcast.id);
       if (error) {
@@ -398,8 +414,16 @@ export default function AdminPage() {
                   <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Recent Broadcasts</p>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {broadcasts.map((b) => (
-                      <div key={b.id} className="flex items-start justify-between gap-2 bg-background border border-border rounded-xl px-3 py-2.5 group">
+                      <div key={b.id} className={`flex items-start justify-between gap-2 border rounded-xl px-3 py-2.5 group ${
+                        b.is_active
+                          ? 'bg-primary-50/30 border-primary/20 dark:bg-primary/5'
+                          : 'bg-background border-border opacity-50'
+                      }`}>
                         <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-primary">● Active</span>}
+                            {!b.is_active && <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Archived</span>}
+                          </div>
                           <p className="text-sm text-text truncate">{b.message}</p>
                           <p className="text-[10px] text-text-muted">{timeAgo(b.created_at)}</p>
                         </div>
@@ -580,7 +604,9 @@ export default function AdminPage() {
               ))}
               {visibleUsers.length === 0 && (
                 <p className="text-sm text-text-muted text-center py-8">
-                  {userSearch ? 'No users match your search.' : 'No users found. Ensure the SQL functions are deployed.'}
+                  {usersError
+                    ? <span className="text-red-500">Error: {usersError}</span>
+                    : userSearch ? 'No users match your search.' : 'No users found. Ensure the SQL functions are deployed.'}
                 </p>
               )}
             </div>
