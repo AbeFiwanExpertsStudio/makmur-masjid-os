@@ -31,11 +31,21 @@ export default function EKuponPage() {
   const fetchMyClaims = async (userId: string) => {
     try {
       const supabase = createClient();
-      const { data } = await supabase
+      // Ensure session is active before querying so RLS auth.uid() resolves correctly
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
         .from("kupon_claims")
         .select("id, event_id, is_scanned")
         .eq("guest_uuid", userId);
-      if (data && data.length > 0) {
+
+      if (error) {
+        console.warn("fetchMyClaims error:", error.message);
+        return;
+      }
+
+      if (data) {
         setClaimedIds(new Set(data.map((r: any) => r.event_id)));
         setScannedIds(new Set(data.filter((r: any) => r.is_scanned).map((r: any) => r.event_id)));
         const newMap = new Map<string, string>();
@@ -48,7 +58,7 @@ export default function EKuponPage() {
   };
 
   useEffect(() => {
-    if (user && !user.is_anonymous) {
+    if (user) {
       fetchMyClaims(user.id);
 
       // Setup a background poll to check for scan status changes
