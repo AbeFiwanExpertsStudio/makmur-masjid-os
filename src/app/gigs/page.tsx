@@ -44,6 +44,8 @@ export default function GigsPage() {
   const [deletingGig, setDeletingGig] = useState<Gig | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [myPoints, setMyPoints] = useState(0);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   /* ── Fetch user's existing claims (persists across refresh) ── */
   const fetchMyClaims = async (userId: string) => {
@@ -111,6 +113,12 @@ export default function GigsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Live clock for countdowns (ticks every second)
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   /* ── Claim ── */
   const handleClaim = async (gigId: string) => {
@@ -219,8 +227,13 @@ export default function GigsPage() {
 
       {/* Gig cards */}
       {!loadingGigs && (() => {
-        const allClaimed = gigs.length > 0 && gigs.every((g) => g.claimed >= g.required_pax);
-        const isEmpty = gigs.length === 0;
+        // Filter out past gigs (end_time has passed)
+        const activeGigs = gigs.filter(g => {
+          const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
+          return currentTime < gigEnd;
+        });
+        const allClaimed = activeGigs.length > 0 && activeGigs.every((g) => g.claimed >= g.required_pax);
+        const isEmpty = activeGigs.length === 0;
 
         if (isEmpty || allClaimed) {
           return (
@@ -247,10 +260,35 @@ export default function GigsPage() {
 
         return (
           <div className="space-y-4">
-            {gigs.map((gig) => {
+            {activeGigs.map((gig) => {
               const isFull = gig.claimed >= gig.required_pax;
               const isClaimed = claimedIds.has(gig.id);
               const pct = Math.min(100, Math.round((gig.claimed / gig.required_pax) * 100));
+              const gigStart = new Date(`${gig.gig_date}T${gig.start_time}`);
+              const gigEnd = new Date(`${gig.gig_date}T${gig.end_time}`);
+              const isOngoing = currentTime >= gigStart && currentTime < gigEnd;
+              const isUpcoming = currentTime < gigStart;
+
+              // Countdown calculation
+              let countdownLabel = "";
+              if (isOngoing) {
+                const diff = Math.max(0, Math.floor((gigEnd.getTime() - currentTime.getTime()) / 1000));
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                countdownLabel = `Ends in ${h > 0 ? h + "h " : ""}${m}m ${s}s`;
+              } else if (isUpcoming) {
+                const diff = Math.max(0, Math.floor((gigStart.getTime() - currentTime.getTime()) / 1000));
+                const d = Math.floor(diff / 86400);
+                const h = Math.floor((diff % 86400) / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                if (d > 0) {
+                  countdownLabel = `Starts in ${d}d ${h}h`;
+                } else {
+                  countdownLabel = `Starts in ${h > 0 ? h + "h " : ""}${m}m ${s}s`;
+                }
+              }
               return (
                 <div key={gig.id} className="card p-5">
                   <div className="flex justify-between items-start mb-2">
@@ -283,6 +321,11 @@ export default function GigsPage() {
                   <p className="text-sm text-text-secondary mb-3">{gig.description}</p>
                   <div className="flex items-center gap-2 text-xs text-text-muted mb-3">
                     <Clock size={13} /> {new Date(gig.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} · {gig.start_time?.slice(0,5)} – {gig.end_time?.slice(0,5)}
+                    {countdownLabel && (
+                      <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${isOngoing ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : "bg-primary-50 text-primary"}`}>
+                        {countdownLabel}
+                      </span>
+                    )}
                   </div>
                   <div className="progress-bar mb-4">
                     <div className="progress-fill" style={{ width: `${pct}%`, background: isFull ? "#D4A843" : undefined }} />
@@ -296,21 +339,23 @@ export default function GigsPage() {
 
                   {/* Claim / Cancel buttons */}
                   {isClaimed ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <div className="flex-1 py-3 btn-primary text-sm flex items-center justify-center gap-2 opacity-80 cursor-default">
                         <CheckCircle size={15} /> Claimed ✓
                       </div>
-                      <button
-                        onClick={() => handleCancel(gig.id)}
-                        disabled={cancellingId === gig.id}
-                        title="Cancel your claim"
-                        className="px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingId === gig.id
-                          ? <Loader2 size={14} className="animate-spin" />
-                          : <X size={14} />}
-                        Cancel
-                      </button>
+                      {isOngoing ? (
+                        <span className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0" title="In Progress">
+                          <Clock size={16} className="text-amber-700 dark:text-amber-400" />
+                        </span>
+                      ) : cancelConfirmId === gig.id ? null : (
+                        <button
+                          onClick={() => setCancelConfirmId(gig.id)}
+                          title="Cancel your claim"
+                          className="w-10 h-10 rounded-xl bg-transparent border border-transparent flex items-center justify-center text-text-muted hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-900/30 transition-all shrink-0"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <button
@@ -338,6 +383,14 @@ export default function GigsPage() {
       )}
       {deletingGig && (
         <DeleteConfirmModal gig={deletingGig} onClose={() => setDeletingGig(null)} onDelete={handleDeleteGig} />
+      )}
+      {cancelConfirmId && (
+        <CancelClaimModal
+          gigTitle={gigs.find(g => g.id === cancelConfirmId)?.title ?? "this gig"}
+          cancelling={cancellingId === cancelConfirmId}
+          onConfirm={() => { handleCancel(cancelConfirmId); setCancelConfirmId(null); }}
+          onClose={() => setCancelConfirmId(null)}
+        />
       )}
     </div>
   );
@@ -594,12 +647,12 @@ function DeleteConfirmModal({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
-        <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
+        <div className="bg-red-50 dark:bg-red-950 border-b border-red-100 dark:border-red-900 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
             <div>
-              <h2 className="font-bold text-text">Delete Gig?</h2>
-              <p className="text-xs text-text-muted mt-0.5">This action cannot be undone.</p>
+              <h2 className="font-bold text-red-900 dark:text-red-200">Delete Gig?</h2>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">This action cannot be undone.</p>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
@@ -621,6 +674,54 @@ function DeleteConfirmModal({
             >
               {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
               {deleting ? "Deleting…" : "Delete Gig"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────── */
+/*  Cancel Claim Confirmation Modal            */
+/* ─────────────────────────────────────────── */
+function CancelClaimModal({
+  gigTitle, cancelling, onConfirm, onClose,
+}: {
+  gigTitle: string;
+  cancelling: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-amber-50 dark:bg-amber-950 border-b border-amber-100 dark:border-amber-900 p-5 flex items-center justify-between">
+          <div className="flex gap-3 items-center">
+            <AlertTriangle className="text-amber-500" />
+            <div>
+              <h2 className="font-bold text-amber-900 dark:text-amber-200">Cancel Claim?</h2>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">You can re-claim later if slots are available.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-amber-500 hover:text-amber-700 bg-amber-100 dark:bg-amber-900 p-1 rounded-md"><X size={18} /></button>
+        </div>
+        <div className="p-6">
+          <p className="text-sm text-text-secondary mb-1">You are about to cancel your claim for:</p>
+          <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
+            &ldquo;{gigTitle}&rdquo;
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-3 btn-outline text-sm font-bold rounded-xl">
+              Keep Claim
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={cancelling}
+              className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {cancelling ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
+              {cancelling ? "Cancelling…" : "Cancel Claim"}
             </button>
           </div>
         </div>

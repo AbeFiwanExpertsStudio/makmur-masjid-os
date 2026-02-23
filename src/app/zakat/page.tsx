@@ -450,10 +450,10 @@ function DeleteCounterModal({ counter, onClose, onDelete }: { counter: ZakatCoun
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 transition-opacity" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
+        <div className="bg-red-50 dark:bg-red-950 border-b border-red-100 dark:border-red-900 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
-            <h2 className="font-bold text-text">Delete Location?</h2>
+            <h2 className="font-bold text-red-900 dark:text-red-200">Delete Location?</h2>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md transition-colors"><X size={18} /></button>
         </div>
