@@ -26,6 +26,11 @@ export default function CrowdfundingPage() {
   const [loading, setLoading] = useState(true);
 
   const [donateModal, setDonateModal] = useState<string | null>(null);
+  const [donationAmount, setDonationAmount] = useState<number>(50);
+  const [donorName, setDonorName] = useState("");
+  const [donorEmail, setDonorEmail] = useState("");
+  const [donorPhone, setDonorPhone] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
@@ -48,9 +53,59 @@ export default function CrowdfundingPage() {
 
   useEffect(() => {
     fetchCampaigns();
+
+    // Check for payment success in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    if (paymentStatus === 'success') {
+      toast.success("Thank you for your donation! May Allah reward you.");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'failed') {
+      toast.error("Payment failed or was cancelled. Please try again.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const activeCampaign = campaigns.find((c) => c.id === donateModal);
+
+  const handleDonate = async () => {
+    if (!activeCampaign || !donationAmount) return;
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch("/api/checkout/toyyibpay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          campaignId: activeCampaign.id,
+          amount: donationAmount,
+          donorName: donorName || "Anonymous",
+          donorEmail: donorEmail || "",
+          donorPhone: donorPhone || "",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to initiate payment");
+      }
+
+      if (data.url) {
+        // Redirect to ToyyibPay checkout page
+        window.location.href = data.url;
+      } else {
+        throw new Error("No payment URL received");
+      }
+    } catch (error: any) {
+      console.error("Donation error:", error);
+      toast.error(error.message || "Failed to process donation. Please try again.");
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -149,7 +204,7 @@ export default function CrowdfundingPage() {
         )}
       </div>
 
-      {/* Donate Modal (Simulated) */}
+      {/* Donate Modal */}
       {donateModal && activeCampaign && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setDonateModal(null)}>
           <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
@@ -163,15 +218,78 @@ export default function CrowdfundingPage() {
             </div>
             <div className="p-6">
               <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">Select Amount</p>
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-3 gap-3 mb-4">
                 {[20, 50, 100].map((amt) => (
-                  <button key={amt} className="btn-outline py-3 font-bold text-primary text-sm hover:bg-primary-50">
+                  <button 
+                    key={amt} 
+                    onClick={() => setDonationAmount(amt)}
+                    className={`py-3 font-bold text-sm rounded-xl border transition-colors ${
+                      donationAmount === amt 
+                        ? "bg-primary text-white border-primary" 
+                        : "bg-background text-primary border-primary hover:bg-primary-50"
+                    }`}
+                  >
                     RM{amt}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setDonateModal(null)} className="w-full py-3.5 btn-primary text-sm">Proceed to Payment (Demo)</button>
-              <p className="text-xs text-text-muted text-center mt-3">Simulated Checkout for preview</p>
+              
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Custom Amount (RM)</label>
+                <input 
+                  type="number" 
+                  value={donationAmount} 
+                  onChange={(e) => setDonationAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                  min="1"
+                />
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Name (Optional)</label>
+                  <input 
+                    type="text" 
+                    value={donorName} 
+                    onChange={(e) => setDonorName(e.target.value)}
+                    placeholder="Anonymous"
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Email (Optional)</label>
+                  <input 
+                    type="email" 
+                    value={donorEmail} 
+                    onChange={(e) => setDonorEmail(e.target.value)}
+                    placeholder="For receipt"
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Phone (Optional)</label>
+                  <input 
+                    type="tel" 
+                    value={donorPhone} 
+                    onChange={(e) => setDonorPhone(e.target.value)}
+                    placeholder="0123456789"
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleDonate} 
+                disabled={isProcessing || !donationAmount || donationAmount <= 0}
+                className="w-full py-3.5 btn-primary text-sm flex justify-center items-center gap-2"
+              >
+                {isProcessing ? (
+                  <><Loader2 size={16} className="animate-spin" /> Processing...</>
+                ) : (
+                  `Proceed to Pay RM${donationAmount}`
+                )}
+              </button>
+              <p className="text-xs text-text-muted text-center mt-3">Secure payment via ToyyibPay (FPX / Card)</p>
             </div>
           </div>
         </div>
