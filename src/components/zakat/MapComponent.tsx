@@ -129,29 +129,29 @@ function MapSearchControl() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search world map (e.g. Kuala Lumpur)..."
-            className="w-full bg-white text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-[#E2E8E5] focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] transition"
+            className="w-full bg-surface text-sm rounded-full pl-10 pr-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.15)] outline-none border border-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
           />
-          <button type="submit" className="absolute left-3 top-3 text-[#5A7068] hover:text-[#1B6B4A]">
-            {isSearching ? <Loader2 size={18} className="animate-spin text-[#1B6B4A]" /> : <Search size={18} />}
+          <button type="submit" className="absolute left-3 top-3 text-text-secondary hover:text-primary">
+            {isSearching ? <Loader2 size={18} className="animate-spin text-primary" /> : <Search size={18} />}
           </button>
           {query && (
-            <button type="button" onClick={() => { setQuery(""); setShowResults(false); }} className="absolute right-3 top-3.5 text-[#8FA39B] hover:text-red-500">
+            <button type="button" onClick={() => { setQuery(""); setShowResults(false); }} className="absolute right-3 top-3.5 text-text-muted hover:text-red-500">
               <X size={14} />
             </button>
           )}
         </form>
 
         {showResults && results.length > 0 && (
-          <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-[#E2E8E5] overflow-hidden">
+          <div className="absolute top-full left-0 w-full mt-2 bg-surface rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-border overflow-hidden">
             {results.map((r, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => handleSelect(r.lat, r.lon, r.display_name)}
-                className="w-full text-left px-4 py-3 border-b last:border-0 border-[#E2E8E5] hover:bg-[#F8FAF9] flex items-start gap-2 transition"
+                className="w-full text-left px-4 py-3 border-b last:border-0 border-border hover:bg-background flex items-start gap-2 transition"
               >
-                <Navigation size={14} className="mt-0.5 text-[#1B6B4A] shrink-0" />
-                <span className="text-xs text-[#5A7068] line-clamp-2">{r.display_name}</span>
+                <Navigation size={14} className="mt-0.5 text-primary shrink-0" />
+                <span className="text-xs text-text-secondary line-clamp-2">{r.display_name}</span>
               </button>
             ))}
           </div>
@@ -159,7 +159,7 @@ function MapSearchControl() {
       </div>
       {searchedPin && (
         <Marker position={[searchedPin.lat, searchedPin.lng]} icon={goldIcon}>
-          <Popup className="text-xs font-bold text-[#1A2E2A]">{searchedPin.name}</Popup>
+          <Popup className="text-xs font-bold text-text">{searchedPin.name}</Popup>
         </Marker>
       )}
     </>
@@ -216,7 +216,7 @@ function LocateControl({ onLocationFound }: { onLocationFound?: (lat: number, ln
       <button
         onClick={handleLocate}
         title="My Current Location"
-        className="bg-white text-[#1B6B4A] shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-[#E2E8E5] p-3 rounded-full hover:bg-[#F8FAF9] flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className="bg-surface text-primary shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-border p-3 rounded-full hover:bg-background flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
         <Navigation size={22} className={locating ? "animate-ping opacity-50" : ""} />
         <span className="ml-2 font-bold text-sm hidden md:inline">My Location</span>
@@ -272,11 +272,6 @@ export default function Map({
       lng: pinCoords.lng,
       status: isFuture ? "scheduled" : "active",
       address: "Removed",
-      pic_name: formPicName || "Masjid Al-Makmur Admin",
-      start_date: formStartDate,
-      end_date: formEndDate,
-      start_time: formStartTime,
-      end_time: formEndTime,
     };
     onAddCounter?.(newLoc);
     // Reset form
@@ -328,7 +323,7 @@ export default function Map({
                   href={`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-[#1B6B4A] hover:bg-[#0F4A33] text-white w-full py-1.5 rounded flex items-center justify-center gap-1 text-xs transition-colors"
+                  className="bg-primary hover:bg-primary-dark text-white w-full py-1.5 rounded flex items-center justify-center gap-1 text-xs transition-colors"
                 >
                   <Navigation size={12} />
                   Get Directions
@@ -372,18 +367,18 @@ export default function Map({
           {!addMode ? (
             <button
               onClick={() => setAddMode(true)}
-              className="bg-white text-[#1B6B4A] shadow-lg border border-[#E2E8E5] px-4 py-2 rounded-full font-bold text-sm hover:shadow-xl transition-all flex items-center gap-2"
+              className="bg-surface text-primary shadow-lg border border-border px-4 py-2 rounded-full font-bold text-sm hover:shadow-xl transition-all flex items-center gap-2"
             >
               <Plus size={16} /> Add Counter
             </button>
           ) : (
-            <div className="bg-white rounded-2xl shadow-2xl border border-[#E2E8E5] w-72 overflow-hidden">
+            <div className="bg-surface rounded-2xl shadow-2xl border border-border w-72 overflow-hidden">
               <div className="hero-gradient px-4 py-3 text-white flex items-center justify-between">
                 <span className="font-bold text-sm">Add Zakat Counter</span>
                 <button onClick={cancelAdd} className="text-white/60 hover:text-white"><X size={16} /></button>
               </div>
               <div className="p-4 space-y-3">
-                <p className="text-xs text-[#8FA39B]">
+                <p className="text-xs text-text-muted">
                   {pinCoords
                     ? `📍 ${pinCoords.lat.toFixed(4)}, ${pinCoords.lng.toFixed(4)}`
                     : "👆 Click on the map to place a pin"}
@@ -393,24 +388,24 @@ export default function Map({
                   placeholder="Booth name (e.g., Masjid Al-Falah)"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#E2E8E5] rounded-lg text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#8FA39B] uppercase font-bold">Start Date</label>
-                    <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="w-full px-2 py-1.5 border border-[#E2E8E5] rounded-lg text-[13px] bg-[#F8FAF9] outline-none focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A]" />
+                    <label className="text-[10px] text-text-muted uppercase font-bold">Start Date</label>
+                    <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#8FA39B] uppercase font-bold">End Date</label>
-                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full px-2 py-1.5 border border-[#E2E8E5] rounded-lg text-[13px] bg-[#F8FAF9] outline-none focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A]" />
+                    <label className="text-[10px] text-text-muted uppercase font-bold">End Date</label>
+                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#8FA39B] uppercase font-bold">Start Time</label>
-                    <input type="time" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#E2E8E5] rounded-lg text-[13px] bg-[#F8FAF9] outline-none focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A]" />
+                    <label className="text-[10px] text-text-muted uppercase font-bold">Start Time</label>
+                    <input type="time" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] text-[#8FA39B] uppercase font-bold">End Time</label>
-                    <input type="time" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} className="w-full px-2 py-1.5 border border-[#E2E8E5] rounded-lg text-[13px] bg-[#F8FAF9] outline-none focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A]" />
+                    <label className="text-[10px] text-text-muted uppercase font-bold">End Time</label>
+                    <input type="time" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                 </div>
                 <button
@@ -428,7 +423,7 @@ export default function Map({
 
       {/* Instruction overlay when in add mode */}
       {addMode && !pinCoords && (
-        <div className="absolute top-4 left-4 z-[400] bg-[#1A2E2A] text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg animate-pulse">
+        <div className="absolute top-4 left-4 z-[400] bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-4 py-2 rounded-full text-sm font-medium shadow-lg animate-pulse">
           👆 Click anywhere on the map to place the counter
         </div>
       )}

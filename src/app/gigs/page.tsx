@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import React, { useEffect, useState } from "react";
 import {
   Users, Clock, CheckCircle, AlertCircle, LogIn,
-  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2,
+  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 type Gig = {
   id: string;
@@ -15,7 +16,9 @@ type Gig = {
   description: string;
   required_pax: number;
   claimed: number;
-  time: string;
+  gig_date: string;
+  start_time: string;
+  end_time: string;
 };
 
 // No hardcoded fallback — all gigs come from Supabase.
@@ -40,6 +43,7 @@ export default function GigsPage() {
   const [editingGig, setEditingGig] = useState<Gig | null>(null);
   const [deletingGig, setDeletingGig] = useState<Gig | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [myPoints, setMyPoints] = useState(0);
 
   /* ── Fetch user's existing claims (persists across refresh) ── */
   const fetchMyClaims = async (userId: string) => {
@@ -63,8 +67,8 @@ export default function GigsPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("volunteer_gigs")
-        .select(`id, title, description, required_pax, created_at, gig_claims(count)`)
-        .order("created_at", { ascending: false });
+        .select(`id, title, description, required_pax, gig_date, start_time, end_time, created_at, gig_claims(count)`)
+        .order("gig_date", { ascending: true });
 
       if (error) {
         console.warn("Could not load gigs:", error.message);
@@ -77,7 +81,9 @@ export default function GigsPage() {
           description: row.description ?? "",
           required_pax: row.required_pax,
           claimed: row.gig_claims?.[0]?.count ?? 0,
-          time: "TBC",
+          gig_date: row.gig_date ?? new Date().toISOString().split('T')[0],
+          start_time: row.start_time ?? '19:00',
+          end_time: row.end_time ?? '21:00',
         }));
         setGigs(mapped);
       }
@@ -92,6 +98,16 @@ export default function GigsPage() {
     fetchGigs();
     if (user && !user.is_anonymous) {
       fetchMyClaims(user.id);
+      // Fetch user points
+      (async () => {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from('user_roles')
+          .select('total_points')
+          .eq('user_id', user.id)
+          .single();
+        if (data) setMyPoints(data.total_points ?? 0);
+      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -102,12 +118,14 @@ export default function GigsPage() {
     if (!user) return;
     const result = await claimGig(gigId, user.id);
     if (result.success) {
-      setClaimedIds((prev) => new Set(prev).add(gigId));
-      setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: g.claimed + 1 } : g));
-      setFeedback({ id: gigId, msg: "Claimed! See you there 🎉", ok: true });
-    } else {
-      setFeedback({ id: gigId, msg: result.error ?? "Error", ok: false });
-    }
+    setClaimedIds((prev) => new Set(prev).add(gigId));
+    setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: g.claimed + 1 } : g));
+    setFeedback({ id: gigId, msg: "Claimed! See you there 🎉", ok: true });
+    toast.success("Gig claimed successfully!");
+  } else {
+    setFeedback({ id: gigId, msg: result.error ?? "Error", ok: false });
+    toast.error(result.error ?? "Failed to claim gig.");
+  }
     setTimeout(() => setFeedback(null), 3500);
   };
 
@@ -117,12 +135,14 @@ export default function GigsPage() {
     setCancellingId(gigId);
     const result = await cancelGig(gigId, user.id);
     if (result.success) {
-      setClaimedIds((prev) => { const s = new Set(prev); s.delete(gigId); return s; });
-      setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: Math.max(0, g.claimed - 1) } : g));
-      setFeedback({ id: gigId, msg: "Claim cancelled.", ok: true });
-    } else {
-      setFeedback({ id: gigId, msg: result.error ?? "Error cancelling", ok: false });
-    }
+    setClaimedIds((prev) => { const s = new Set(prev); s.delete(gigId); return s; });
+    setGigs((prev) => prev.map((g) => g.id === gigId ? { ...g, claimed: Math.max(0, g.claimed - 1) } : g));
+    setFeedback({ id: gigId, msg: "Claim cancelled.", ok: true });
+    toast.success("Claim cancelled.");
+  } else {
+    setFeedback({ id: gigId, msg: result.error ?? "Error cancelling", ok: false });
+    toast.error(result.error ?? "Failed to cancel claim.");
+  }
     setCancellingId(null);
     setTimeout(() => setFeedback(null), 3000);
   };
@@ -149,33 +169,49 @@ export default function GigsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="icon-box icon-box-primary"><Briefcase size={22} /></div>
+          <div className="text-primary"><Briefcase size={28} strokeWidth={2.5} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-[#1A2E2A]">Volunteer Gigs</h1>
-            <p className="text-sm text-[#8FA39B]">Claim a task and contribute this Ramadan</p>
+            <h1 className="text-2xl font-bold text-text">Volunteer Gigs</h1>
+            <p className="text-sm text-text-muted">Claim a task and contribute this Ramadan</p>
           </div>
         </div>
         {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-[#1B6B4A] hover:bg-[#0F4A33] text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
             <Plus size={16} /> Add Gig
           </button>
         )}
       </div>
 
+      {/* User points card */}
+      {!isAnonymous && user && (
+        <div className="card p-4 mb-6 flex items-center gap-4 border-l-4 border-l-gold">
+          <div className="w-10 h-10 rounded-xl bg-gold-light/20 flex items-center justify-center">
+            <Star size={20} className="text-gold fill-gold" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted">My Volunteer Points</p>
+            <p className="text-2xl font-bold text-text">{myPoints.toLocaleString()} <span className="text-sm font-normal text-text-muted">pts</span></p>
+          </div>
+          <div className="ml-auto text-xs text-text-muted max-w-[140px] text-right">
+            Earn 100 points per completed gig!
+          </div>
+        </div>
+      )}
+
       {/* Login notice */}
       {isAnonymous && (
-        <div className="card p-4 mb-6 flex items-center gap-3 border-l-4 border-l-[#D4A843]">
-          <div className="icon-box icon-box-gold w-10 h-10"><LogIn size={16} /></div>
-          <p className="text-sm text-[#5A7068]"><strong className="text-[#1A2E2A]">Sign in required</strong> to claim gigs — the AJK needs to know who is coming!</p>
+        <div className="card p-4 mb-6 flex items-center gap-3 border-l-4 border-l-primary">
+          <div className="text-primary"><LogIn size={24} strokeWidth={2.5} /></div>
+          <p className="text-sm text-text-secondary"><strong className="text-text">Sign in required</strong> to claim gigs — the AJK needs to know who is coming!</p>
         </div>
       )}
 
       {/* Loading state */}
       {loadingGigs && (
-        <div className="flex items-center justify-center py-12 gap-3 text-[#8FA39B]">
+        <div className="flex items-center justify-center py-12 gap-3 text-text-muted">
           <Loader2 size={20} className="animate-spin" />
           <span className="text-sm">Loading gigs…</span>
         </div>
@@ -192,10 +228,10 @@ export default function GigsPage() {
               <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={32} className="text-amber-500" />
               </div>
-              <h3 className="font-bold text-[#1A2E2A] text-lg mb-2">
+              <h3 className="font-bold text-text text-lg mb-2">
                 {allClaimed ? "All Volunteer Slots Have Been Claimed! 🎉" : "No Gigs Available"}
               </h3>
-              <p className="text-sm text-[#8FA39B] max-w-xs mx-auto">
+              <p className="text-sm text-text-muted max-w-xs mx-auto">
                 {allClaimed
                   ? "MasyaAllah! Every volunteer slot is filled. Jazakallahu khairan to all our volunteers."
                   : isAdmin
@@ -203,7 +239,7 @@ export default function GigsPage() {
                     : "Check back soon — new volunteer tasks will be posted here."}
               </p>
               {allClaimed && isAdmin && (
-                <p className="text-xs text-[#8FA39B] mt-3">You can still add more gigs using the \"Add Gig\" button above.</p>
+                <p className="text-xs text-text-muted mt-3">You can still add more gigs using the \"Add Gig\" button above.</p>
               )}
             </div>
           );
@@ -218,9 +254,9 @@ export default function GigsPage() {
               return (
                 <div key={gig.id} className="card p-5">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-[#1A2E2A] pr-2">{gig.title}</h3>
+                    <h3 className="font-bold text-text pr-2">{gig.title}</h3>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`badge ${isFull ? "bg-amber-100 text-amber-700" : "bg-[#EEFBF4] text-[#1B6B4A]"}`}>
+                      <span className={`badge ${isFull ? "bg-amber-100 text-amber-700" : "bg-primary-50 text-primary"}`}>
                         <Users size={12} /> {gig.claimed}/{gig.required_pax}
                       </span>
                       {isAdmin && (
@@ -228,14 +264,14 @@ export default function GigsPage() {
                           <button
                             onClick={() => setEditingGig(gig)}
                             title="Edit gig"
-                            className="w-8 h-8 rounded-lg bg-[#F8FAF9] border border-[#E2E8E5] flex items-center justify-center text-[#5A7068] hover:bg-[#EEFBF4] hover:text-[#1B6B4A] hover:border-[#1B6B4A] transition-all"
+                            className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-primary-50 hover:text-primary hover:border-primary transition-all"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => setDeletingGig(gig)}
                             title="Delete gig"
-                            className="w-8 h-8 rounded-lg bg-[#F8FAF9] border border-[#E2E8E5] flex items-center justify-center text-[#5A7068] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
+                            className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -244,18 +280,16 @@ export default function GigsPage() {
                     </div>
                   </div>
 
-                  <p className="text-sm text-[#5A7068] mb-3">{gig.description}</p>
-                  {gig.time !== "TBC" && (
-                    <div className="flex items-center gap-2 text-xs text-[#8FA39B] mb-3">
-                      <Clock size={13} /> {gig.time}
-                    </div>
-                  )}
+                  <p className="text-sm text-text-secondary mb-3">{gig.description}</p>
+                  <div className="flex items-center gap-2 text-xs text-text-muted mb-3">
+                    <Clock size={13} /> {new Date(gig.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} · {gig.start_time?.slice(0,5)} – {gig.end_time?.slice(0,5)}
+                  </div>
                   <div className="progress-bar mb-4">
                     <div className="progress-fill" style={{ width: `${pct}%`, background: isFull ? "#D4A843" : undefined }} />
                   </div>
 
                   {feedback?.id === gig.id && (
-                    <div className={`flex items-center gap-2 text-sm mb-3 px-3 py-2 rounded-lg ${feedback.ok ? "bg-[#EEFBF4] text-[#1B6B4A]" : "bg-amber-50 text-amber-700"}`}>
+                    <div className={`flex items-center gap-2 text-sm mb-3 px-3 py-2 rounded-lg ${feedback.ok ? "bg-primary-50 text-primary" : "bg-amber-50 text-amber-700"}`}>
                       {feedback.ok ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {feedback.msg}
                     </div>
                   )}
@@ -324,7 +358,9 @@ function GigFormModal({
   const [title, setTitle] = useState(gig?.title ?? "");
   const [description, setDescription] = useState(gig?.description ?? "");
   const [requiredPax, setRequiredPax] = useState(String(gig?.required_pax ?? 10));
-  const [time, setTime] = useState(gig?.time && gig.time !== "TBC" ? gig.time : "");
+  const [gigDate, setGigDate] = useState(gig?.gig_date ?? new Date().toISOString().split('T')[0]);
+  const [startTime, setStartTime] = useState(gig?.start_time ?? '19:00');
+  const [endTime, setEndTime] = useState(gig?.end_time ?? '21:00');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -346,30 +382,32 @@ function GigFormModal({
         const result = await Promise.race([
           supabase
             .from("volunteer_gigs")
-            .update({ title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10 })
+            .update({ title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10, gig_date: gigDate, start_time: startTime, end_time: endTime })
             .eq("id", gig.id),
           waitMs(6000),
         ]);
 
         if (result && "error" in result && result.error) {
           console.warn("Update warning (saved locally):", result.error.message);
+          toast.error(result.error.message);
+        } else {
+          toast.success("Gig updated successfully!");
         }
 
         // Always update local state regardless of DB result
-        onSave({ ...gig, title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10, time: time.trim() || gig.time });
+        onSave({ ...gig, title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10, gig_date: gigDate, start_time: startTime, end_time: endTime });
 
       } else {
         // ── INSERT ──
         const result = await Promise.race([
           supabase
             .from("volunteer_gigs")
-            .insert({ title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10, created_by: user.id })
+            .insert({ title: title.trim(), description: description.trim(), required_pax: parseInt(requiredPax) || 10, gig_date: gigDate, start_time: startTime, end_time: endTime, created_by: user.id })
             .select("id")
             .single(),
           waitMs(6000),
         ]);
 
-        // Get the UUID from DB, or generate one locally as fallback
         const newId: string =
           result && "data" in result && result.data?.id
             ? (result.data.id as string)
@@ -377,16 +415,20 @@ function GigFormModal({
 
         if (result && "error" in result && result.error) {
           console.warn("Insert warning (saved locally with UUID):", result.error.message);
+          toast.error(result.error.message);
+        } else {
+          toast.success("Gig created successfully!");
         }
 
-        // ✅ Always call onSave — this adds the gig to the visible list
         onSave({
           id: newId,
           title: title.trim(),
           description: description.trim(),
           required_pax: parseInt(requiredPax) || 10,
           claimed: 0,
-          time: time.trim() || "TBC",
+          gig_date: gigDate,
+          start_time: startTime,
+          end_time: endTime,
         });
       }
 
@@ -395,6 +437,7 @@ function GigFormModal({
 
     } catch (err) {
       console.error("Unexpected error in handleSave:", err);
+      toast.error("Failed to save gig due to an unexpected error.");
       // Even on unexpected error, add the gig locally so user's work isn't lost
       const fallbackGig: Gig = {
         id: gig?.id ?? crypto.randomUUID(),
@@ -402,7 +445,9 @@ function GigFormModal({
         description: description.trim(),
         required_pax: parseInt(requiredPax) || 10,
         claimed: gig?.claimed ?? 0,
-        time: time.trim() || "TBC",
+        gig_date: gigDate,
+        start_time: startTime,
+        end_time: endTime,
       };
       onSave(fallbackGig);
       setSuccess(true);
@@ -414,13 +459,13 @@ function GigFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
 
         <div className="hero-gradient p-5 text-white overflow-hidden rounded-t-2xl relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-surface/5 rounded-full -mt-16 -mr-16 blur-2xl" />
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <Briefcase size={22} />}
             <div>
@@ -435,9 +480,9 @@ function GigFormModal({
         <div className="p-6 space-y-4">
           {success ? (
             <div className="text-center py-8">
-              <CheckCircle size={52} className="text-[#1B6B4A] mx-auto mb-3" />
-              <p className="font-bold text-[#1A2E2A] text-lg">{isEdit ? "Gig Updated!" : "Gig Created!"}</p>
-              <p className="text-sm text-[#8FA39B] mt-1">
+              <CheckCircle size={52} className="text-primary mx-auto mb-3" />
+              <p className="font-bold text-text text-lg">{isEdit ? "Gig Updated!" : "Gig Created!"}</p>
+              <p className="text-sm text-text-muted mt-1">
                 {isEdit ? "Changes have been saved." : "The new gig is now listed for volunteers."}
               </p>
             </div>
@@ -450,34 +495,51 @@ function GigFormModal({
               )}
 
               <div>
-                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Task Title *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Task Title *</label>
                 <input
                   type="text" placeholder="e.g., Setup Audio System" value={title} onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Description *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Description *</label>
                 <textarea
                   placeholder="Describe what volunteers will do…" value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9] resize-none"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Volunteers Needed</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Volunteers Needed</label>
                   <input
                     type="number" placeholder="10" value={requiredPax} onChange={(e) => setRequiredPax(e.target.value)} min="1"
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Time Slot</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Date</label>
                   <input
-                    type="text" placeholder="e.g., 3 PM – 5 PM" value={time} onChange={(e) => setTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    type="date" value={gigDate} onChange={(e) => setGigDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Start Time</label>
+                  <input
+                    type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">End Time</label>
+                  <input
+                    type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
               </div>
@@ -513,32 +575,39 @@ function DeleteConfirmModal({
   const handleDelete = async () => {
     setDeleting(true);
     const supabase = createClient();
-    await Promise.race([
+    const result = await Promise.race([
       supabase.from("volunteer_gigs").delete().eq("id", gig.id),
       waitMs(5000),
     ]);
-    onDelete(gig.id);
-    onClose();
+    if (result && "error" in result && result.error) {
+      console.error("Error deleting gig:", result.error.message);
+      toast.error("Failed to delete gig.");
+      setDeleting(false);
+    } else {
+      toast.success("Gig deleted.");
+      onDelete(gig.id);
+      onClose();
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
         <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
             <div>
-              <h2 className="font-bold text-[#1A2E2A]">Delete Gig?</h2>
-              <p className="text-xs text-[#8FA39B] mt-0.5">This action cannot be undone.</p>
+              <h2 className="font-bold text-text">Delete Gig?</h2>
+              <p className="text-xs text-text-muted mt-0.5">This action cannot be undone.</p>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">
-          <p className="text-sm text-[#5A7068] mb-1">You are about to permanently delete:</p>
-          <p className="font-bold text-[#1A2E2A] bg-[#F8FAF9] border border-[#E2E8E5] rounded-xl px-4 py-3 text-sm mb-5">
+          <p className="text-sm text-text-secondary mb-1">You are about to permanently delete:</p>
+          <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
             &ldquo;{gig.title}&rdquo;
           </p>
           <div className="flex gap-3">

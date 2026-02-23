@@ -6,7 +6,7 @@ import { LayoutDashboard, Users, HandHeart, QrCode, MapPin } from 'lucide-react'
 
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith('/admin')) return null;
+  // Mobile navigation is visible globally
 
   const links = [
     { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
@@ -17,7 +17,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 w-full glass border-t border-[#E2E8E5] z-50 safe-area-bottom">
+    <nav className="lg:hidden fixed bottom-0 w-full glass border-t border-border z-50 safe-area-bottom pb-env-bottom">
       <div className="flex justify-around items-center h-[60px] px-1">
         {links.map((link) => {
           const Icon = link.icon;
@@ -27,10 +27,10 @@ export function BottomNav() {
               key={link.href} 
               href={link.href}
               className={`flex flex-col items-center justify-center w-full h-full space-y-0.5 transition-colors ${
-                isActive ? "text-[#1B6B4A]" : "text-[#8FA39B]"
+                isActive ? "text-primary dark:text-primary-light" : "text-text-muted hover:text-text-secondary"
               }`}
             >
-              <div className={`p-1.5 rounded-xl transition-colors ${isActive ? "bg-[#EEFBF4]" : ""}`}>
+              <div className={`p-1.5 rounded-xl transition-colors ${isActive ? "bg-primary-50 dark:bg-primary-100/20" : ""}`}>
                 <Icon size={19} strokeWidth={isActive ? 2.5 : 1.8} />
               </div>
               <span className={`text-[10px] leading-none ${isActive ? "font-bold" : "font-medium"}`}>{link.label}</span>

@@ -10,6 +10,7 @@ import {
   Utensils, Clock, MapPin, CheckCircle, AlertCircle, Ticket,
   Plus, X, CalendarPlus, Pencil, Trash2, AlertTriangle, Loader2,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 // timeout helper
 function waitMs(ms: number): Promise<null> {
@@ -102,16 +103,16 @@ export default function EKuponPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className="icon-box icon-box-gold"><Ticket size={22} /></div>
+          <div className="text-primary"><Ticket size={28} strokeWidth={2.5} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-[#1A2E2A]">E-Kupon Iftar</h1>
-            <p className="text-sm text-[#8FA39B]">Claim your digital coupon for food distribution</p>
+            <h1 className="text-2xl font-bold text-text">E-Kupon Iftar</h1>
+            <p className="text-sm text-text-muted">Claim your digital coupon for food distribution</p>
           </div>
         </div>
         {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-[#1B6B4A] hover:bg-[#0F4A33] text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
             <Plus size={16} /> Add E-Kupon
           </button>
@@ -121,10 +122,10 @@ export default function EKuponPage() {
       {/* Main List */}
       <div className="space-y-6">
         {localEvents.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl border border-[#E2E8E5] shadow-sm">
-            <Ticket size={48} className="mx-auto text-[#8FA39B] opacity-30 mb-4" />
-            <h3 className="text-[#1A2E2A] font-bold text-lg">No Events Available</h3>
-            <p className="text-[#5A7068] text-sm mt-1">There are no food distributions active right now.</p>
+          <div className="text-center py-10 bg-surface rounded-2xl border border-border shadow-sm">
+            <Ticket size={48} className="mx-auto text-text-muted opacity-30 mb-4" />
+            <h3 className="text-text font-bold text-lg">No Events Available</h3>
+            <p className="text-text-secondary text-sm mt-1">There are no food distributions active right now.</p>
           </div>
         ) : (
           localEvents.map(event => (
@@ -222,12 +223,14 @@ function KuponCard({
     if (result.success) {
       onClaimSuccess(result.claimId);
       setLocalRemaining((prev) => Math.max(0, (prev ?? event.remaining_capacity) - 1));
+      toast.success("Kupon claimed!");
     } else {
       // Supabase duplicate error returns 23505 — treat as success if already claimed
       if (result.error === "You have already claimed this kupon.") {
         onClaimSuccess(result.claimId);
       } else {
         setClaimError(result.error ?? "Failed to claim kupon.");
+        toast.error(result.error ?? "Failed to claim kupon.");
       }
     }
     setIsClaiming(false);
@@ -251,8 +254,10 @@ function KuponCard({
     if (result.success) {
       onDeclaimSuccess();
       setLocalRemaining((prev) => Math.min(totalPacks, (prev ?? event.remaining_capacity) + 1));
+      toast.success("Kupon claim cancelled.");
     } else {
       setClaimError(result.error ?? "Failed to cancel kupon.");
+      toast.error(result.error ?? "Failed to cancel kupon.");
     }
     setIsDeclaiming(false);
   };
@@ -261,7 +266,7 @@ function KuponCard({
     <div className="card overflow-hidden">
       {/* Event header */}
       <div className={`p-6 text-white relative overflow-hidden ${isScheduled ? "bg-gradient-to-br from-[#D4A843] to-[#B08A2E]" : "hero-gradient"}`}>
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mt-20 -mr-20 blur-2xl" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-surface/5 rounded-full -mt-20 -mr-20 blur-2xl" />
 
         <div className="flex items-start justify-between relative z-10 mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
@@ -269,7 +274,7 @@ function KuponCard({
             {event.name}
           </h2>
           <div className="flex items-center gap-2">
-            <span className={`badge text-[10px] ${isScheduled ? "bg-white/20 text-white" : "bg-[#EEFBF4] text-[#1B6B4A]"}`}>
+            <span className={`badge text-[10px] ${isScheduled ? "bg-surface/20 text-white" : "bg-primary-50 text-primary"}`}>
               {isScheduled ? "SCHEDULED" : "● ACTIVE"}
             </span>
 
@@ -279,14 +284,14 @@ function KuponCard({
                 <button
                   onClick={onEdit}
                   title="Edit event"
-                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-all"
+                  className="w-8 h-8 rounded-lg bg-surface/15 hover:bg-surface/30 flex items-center justify-center text-white transition-all"
                 >
                   <Pencil size={14} />
                 </button>
                 <button
                   onClick={onDelete}
                   title="Delete event"
-                  className="w-8 h-8 rounded-lg bg-white/15 hover:bg-red-400/60 flex items-center justify-center text-white transition-all"
+                  className="w-8 h-8 rounded-lg bg-surface/15 hover:bg-red-400/60 flex items-center justify-center text-white transition-all"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -296,7 +301,7 @@ function KuponCard({
         </div>
 
         <div className="space-y-2 relative z-10 text-white/80">
-          <div className="flex items-center gap-2 text-sm"><Clock size={14} /> {event.event_date} ({event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)})</div>
+          <div className="flex items-center gap-2 text-sm"><Clock size={14} /> {new Date(event.event_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} ({event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)})</div>
           <div className="flex items-center gap-2 text-sm"><MapPin size={14} /> {event.location || "Primary Distribution Center"}</div>
         </div>
       </div>
@@ -305,10 +310,10 @@ function KuponCard({
         {/* Live counter */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-[#5A7068] font-medium">Availability</span>
+            <span className="text-text-secondary font-medium">Availability</span>
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-[#1B6B4A]"} ${!isScheduled && "animate-live"}`} />
-              <span className={`font-bold ${remainingPacks < 100 ? "text-amber-600" : "text-[#1B6B4A]"}`}>
+              <span className={`w-2 h-2 rounded-full ${remainingPacks < 100 ? "bg-amber-500" : "bg-primary"} ${!isScheduled && "animate-live"}`} />
+              <span className={`font-bold ${remainingPacks < 100 ? "text-amber-600" : "text-primary"}`}>
                 {remainingPacks}/{totalPacks} remaining
               </span>
             </span>
@@ -329,35 +334,35 @@ function KuponCard({
             onClick={handleClaim}
             disabled={isClaiming || remainingPacks <= 0 || isScheduled}
             className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${isScheduled
-              ? "bg-[#F1F5F3] text-[#8FA39B] cursor-not-allowed border border-[#E2E8E5] shadow-none"
-              : "bg-[#1B6B4A] text-white hover:bg-[#0F4A33] hover:shadow-lg"
+              ? "bg-surface-muted text-text-muted cursor-not-allowed border border-border shadow-none"
+              : "bg-primary text-white hover:bg-primary-dark hover:shadow-lg"
               }`}
           >
             {isScheduled ? <Clock size={20} /> : <Utensils size={20} />}
             {isScheduled ? "Opens Soon" : (isClaiming ? "Claiming…" : "Claim Now")}
           </button>
         ) : isScanned ? (
-          <div className="border-2 border-dashed border-[#E2E8E5] rounded-2xl p-6 bg-[#F8FAF9] opacity-80">
+          <div className="border-2 border-dashed border-border rounded-2xl p-6 bg-background opacity-80">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Utensils size={24} className="text-[#8FA39B]" />
-              <span className="font-bold text-[#5A7068]">Food Redeemed</span>
+              <Utensils size={24} className="text-text-muted" />
+              <span className="font-bold text-text-secondary">Food Redeemed</span>
             </div>
-            <p className="text-sm text-[#8FA39B] text-center">
+            <p className="text-sm text-text-muted text-center">
               Alhamdulillah, your Iftar pack has been collected.
             </p>
           </div>
         ) : (
-          <div className="border-2 border-dashed border-[#D5F5E3] rounded-2xl p-6 bg-[#EEFBF4]/50">
+          <div className="border-2 border-dashed border-[#D5F5E3] rounded-2xl p-6 bg-primary-50/50">
             <div className="flex items-center justify-center gap-2 mb-5">
-              <CheckCircle size={18} className="text-[#1B6B4A]" />
-              <span className="font-bold text-[#1B6B4A]">Kupon Claimed Successfully</span>
+              <CheckCircle size={18} className="text-primary" />
+              <span className="font-bold text-primary">Kupon Claimed Successfully</span>
             </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm mx-auto w-fit">
+            <div className="bg-surface p-5 rounded-xl shadow-sm mx-auto w-fit">
               <QRCode value={`makmur-kupon:${claimId || user?.id}`} size={180} level="H" fgColor="#1B6B4A" />
             </div>
-            <p className="text-sm text-[#5A7068] mt-5 text-center">Show this QR to the volunteer at the counter.</p>
-            <p className="font-mono text-xs text-[#8FA39B] text-center mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
-            <div className="mt-4 border-t border-[#E2E8E5] pt-4 flex justify-center">
+            <p className="text-sm text-text-secondary mt-5 text-center">Show this QR to the volunteer at the counter.</p>
+            <p className="font-mono text-xs text-text-muted text-center mt-1">ID: {claimId ? claimId.split("-")[0] : user?.id.split("-")[0]}</p>
+            <div className="mt-4 border-t border-border pt-4 flex justify-center">
               <button
                 onClick={handleDeclaim}
                 disabled={isDeclaiming}
@@ -449,8 +454,10 @@ function EKuponFormModal({
 
       setSuccess(true);
       setTimeout(() => onClose(), 1400);
+      toast.success(isEdit ? "Event updated!" : "E-Kupon created!"); // Added toast
     } catch (err: any) {
       setSaveError(err?.message ?? "Unexpected error.");
+      toast.error(err?.message ?? "Unexpected error."); // Added toast
     } finally {
       setSaving(false);
     }
@@ -458,14 +465,14 @@ function EKuponFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
 
         {/* Header */}
         <div className="hero-gradient p-5 text-white overflow-hidden rounded-t-2xl relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-surface/5 rounded-full -mt-16 -mr-16 blur-2xl" />
           <div className="flex items-center gap-3 relative z-10">
             {isEdit ? <Pencil size={20} /> : <CalendarPlus size={22} />}
             <div>
@@ -481,9 +488,9 @@ function EKuponFormModal({
         <div className="p-6 space-y-4">
           {success ? (
             <div className="text-center py-8">
-              <CheckCircle size={52} className="text-[#1B6B4A] mx-auto mb-3" />
-              <p className="font-bold text-[#1A2E2A] text-lg">{isEdit ? "Event Updated!" : "E-Kupon Created!"}</p>
-              <p className="text-sm text-[#8FA39B] mt-1">{isEdit ? "Changes saved successfully." : "Users can now claim this kupon."}</p>
+              <CheckCircle size={52} className="text-primary mx-auto mb-3" />
+              <p className="font-bold text-text text-lg">{isEdit ? "Event Updated!" : "E-Kupon Created!"}</p>
+              <p className="text-sm text-text-muted mt-1">{isEdit ? "Changes saved successfully." : "Users can now claim this kupon."}</p>
             </div>
           ) : (
             <>
@@ -494,51 +501,51 @@ function EKuponFormModal({
               )}
 
               <div>
-                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Food Name *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Food Name *</label>
                 <input
                   type="text" placeholder="e.g., Nasi Briyani Kambing" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Location *</label>
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Location *</label>
                 <input
                   type="text" placeholder="e.g., Primary Distribution Center" value={location} onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Capacity</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Capacity</label>
                   <input
                     type="number" placeholder="500" value={capacity} onChange={(e) => setCapacity(e.target.value)} min="1"
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Date *</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Date *</label>
                   <input
                     type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">Start Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Start Time</label>
                   <input
                     type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#5A7068] uppercase tracking-wider mb-1.5 block">End Time</label>
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">End Time</label>
                   <input
                     type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                    className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
               </div>
@@ -584,21 +591,21 @@ function DeleteEKuponModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
         <div className="bg-red-50 border-b border-red-100 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500" />
             <div>
-              <h2 className="font-bold text-[#1A2E2A]">Delete E-Kupon?</h2>
+              <h2 className="font-bold text-text">Delete E-Kupon?</h2>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 bg-red-100 p-1 rounded-md"><X size={18} /></button>
         </div>
 
         <div className="p-6">
-          <p className="text-sm text-[#5A7068] mb-1">You are about to permanently delete:</p>
-          <p className="font-bold text-[#1A2E2A] bg-[#F8FAF9] border border-[#E2E8E5] rounded-xl px-4 py-3 text-sm mb-5">
+          <p className="text-sm text-text-secondary mb-1">You are about to permanently delete:</p>
+          <p className="font-bold text-text bg-background border border-border rounded-xl px-4 py-3 text-sm mb-5">
             &ldquo;{event.name}&rdquo;
           </p>
           <div className="flex gap-3">

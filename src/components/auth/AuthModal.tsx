@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/providers/AuthContext";
 import { useState } from "react";
 import { X, Mail, Lock, User as UserIcon } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export function AuthModal() {
   const { showLoginModal, setShowLoginModal, signInWithEmail, signUp } = useAuth();
@@ -19,11 +20,44 @@ export function AuthModal() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
     const result = mode === "login"
       ? await signInWithEmail(email, password)
       : await signUp(email, password, name);
-    if (result) setError(result);
-    setLoading(false);
+
+    if (result) {
+      setError(result);
+      setLoading(false);
+      return;
+    }
+
+    // Success — small delay to let the Supabase SSR cookie fully persist,
+    // then determine redirect target and reload.
+    await new Promise((r) => setTimeout(r, 300));
+
+    let target = "/";
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user?.id) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (roleData?.role === "admin") {
+          target = "/dashboard";
+        }
+      }
+    } catch (err) {
+      console.error("Error checking role post-login:", err);
+    }
+
+    // Use router-safe reload: assign target, then force full reload
+    // so the AuthProvider re-bootstraps with the fresh cookie session.
+    window.location.assign(target);
   };
 
   const close = () => {
@@ -36,7 +70,7 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={close}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
         <button onClick={close} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
@@ -44,7 +78,7 @@ export function AuthModal() {
 
         {/* Header */}
         <div className="hero-gradient p-7 text-white overflow-hidden rounded-t-2xl relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mt-16 -mr-16 blur-2xl" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-surface/5 rounded-full -mt-16 -mr-16 blur-2xl" />
           <p className="text-2xl mb-1">🌙</p>
           <h2 className="text-xl font-bold relative z-10">Welcome to Makmur</h2>
           <p className="text-white/60 text-sm mt-1 relative z-10">
@@ -60,7 +94,7 @@ export function AuthModal() {
             <button
               key={m}
               onClick={() => { setMode(m); setError(null); }}
-              className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${mode === m ? "text-[#1B6B4A] border-[#1B6B4A]" : "text-[#8FA39B] border-transparent hover:text-[#5A7068]"
+              className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${mode === m ? "text-primary border-primary" : "text-text-muted border-transparent hover:text-text-secondary"
                 }`}
             >
               {m === "login" ? "Sign In" : "Register"}
@@ -76,22 +110,22 @@ export function AuthModal() {
 
           {mode === "register" && (
             <div className="relative">
-              <UserIcon size={16} className="absolute left-3.5 top-3.5 text-[#8FA39B]" />
+              <UserIcon size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
               <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} required
-                className="w-full pl-11 pr-4 py-3 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none transition bg-[#F8FAF9]" />
+                className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
             </div>
           )}
 
           <div className="relative">
-            <Mail size={16} className="absolute left-3.5 top-3.5 text-[#8FA39B]" />
+            <Mail size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
             <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required
-              className="w-full pl-11 pr-4 py-3 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none transition bg-[#F8FAF9]" />
+              className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
           </div>
 
           <div className="relative">
-            <Lock size={16} className="absolute left-3.5 top-3.5 text-[#8FA39B]" />
+            <Lock size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
             <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-              className="w-full pl-11 pr-4 py-3 border border-[#E2E8E5] rounded-xl text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none transition bg-[#F8FAF9]" />
+              className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
           </div>
 
           <button type="submit" disabled={loading} className="w-full py-3.5 btn-primary text-sm">

@@ -12,7 +12,7 @@ export const metadata = {
 
 export default function WaktuSolatPage() {
     return (
-        <div className="min-h-[calc(100vh-64px)] flex flex-col bg-white">
+        <div className="min-h-[calc(100vh-64px)] flex flex-col bg-surface">
             <DynamicWaktuSolat />
         </div>
     );

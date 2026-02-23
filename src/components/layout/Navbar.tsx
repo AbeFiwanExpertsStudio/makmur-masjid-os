@@ -2,17 +2,30 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Menu, X, LogOut, Shield } from 'lucide-react';
+import { Bell, Menu, X, LogOut, Shield, Sun, Moon, Check } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthContext';
-import { useState, useRef, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSystemSettings } from "@/hooks/useSystemSettings";
+import { createClient } from "@/lib/supabase/client";
 
-const mockNotifications = [
-  { id: "1", text: "Tarawih tonight at 8:45 PM — led by Sheikh Al-Afasy", time: "5 min ago", read: false },
-  { id: "2", text: "Bubur Lambuk ready for distribution at 5 PM", time: "1 hour ago", read: false },
-  { id: "3", text: "New volunteer gig: Clean Up Kitchen needs 6 more people", time: "3 hours ago", read: true },
-  { id: "4", text: "Crowdfunding target reached for Tabung Iftar Asnaf!", time: "Yesterday", read: true },
-];
+type Notification = {
+  id: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? 'Yesterday' : `${days}d ago`;
+}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -20,9 +33,48 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+  
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const settings = useSystemSettings();
+
+  // Notification state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notifications from DB
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, message, is_read, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (!error && data) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.is_read).length);
+      }
+    } catch {
+      // Notifications table might not exist yet — fail silently
+    }
+  }, []);
+
+  // Mark all as read when dropdown opens
+  const markAllRead = useCallback(async () => {
+    if (unreadCount === 0) return;
+    try {
+      const supabase = createClient();
+      await supabase.rpc('mark_notifications_read');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch {
+      // Fail silently
+    }
+  }, [unreadCount]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -35,13 +87,23 @@ export function Navbar() {
       }
     }
     document.addEventListener("mousedown", handleClick);
+    setMounted(true);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const unreadCount = mockNotifications.filter(n => !n.read).length;
+  // Fetch notifications on mount and periodically
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 5000); // poll every 5s
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
-  // Hide navbar on admin page
-  if (pathname.startsWith('/admin')) return null;
+  // When notification dropdown opens, mark all as read
+  useEffect(() => {
+    if (notifOpen && unreadCount > 0) {
+      markAllRead();
+    }
+  }, [notifOpen, unreadCount, markAllRead]);
 
   const links = [
     ...(isAdmin ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
@@ -59,15 +121,13 @@ export function Navbar() {
   };
 
   return (
-    <header className="bg-white border-b border-[#E2E8E5] sticky top-0 z-50">
-      <div className="h-1 hero-gradient" />
-
+    <header className="bg-surface border-b border-border sticky top-0 z-50 transition-colors duration-300">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 hero-gradient rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🌙</div>
           <div>
-            <span className="font-bold text-lg text-[#1A2E2A] block leading-tight">{settings.system_name}</span>
-            <span className="text-[10px] text-[#8FA39B] font-medium -mt-0.5 block">{settings.system_desc}</span>
+            <span className="font-bold text-lg text-text block leading-tight">{settings.system_name}</span>
+            <span className="text-[10px] text-text-muted font-medium -mt-0.5 block">{settings.system_desc}</span>
           </div>
         </Link>
 
@@ -77,8 +137,8 @@ export function Navbar() {
           ) : isAdmin && (
             <Link href="/admin"
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${pathname.startsWith('/admin')
-                ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
-                : 'text-[#D4A843] hover:text-[#B8922F] hover:bg-[#FFF9EE]'
+                ? 'bg-primary-50 text-primary font-semibold'
+                : 'text-gold hover:text-gold-dark hover:bg-gold-light/20'
                 }`}
             >
               <Shield size={14} /> Admin
@@ -87,8 +147,8 @@ export function Navbar() {
           {links.map((link) => (
             <Link key={link.href} href={link.href}
               className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${pathname.startsWith(link.href)
-                ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold'
-                : 'text-[#5A7068] hover:text-[#1B6B4A] hover:bg-[#F8FAF9]'
+                ? 'bg-primary-50 text-primary font-semibold'
+                : 'text-text-secondary hover:text-primary hover:bg-surface-alt'
                 }`}
             >
               {link.label}
@@ -97,38 +157,64 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          {mounted && (
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="w-9 h-9 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary transition-all relative overflow-hidden group"
+              aria-label="Toggle Dark Mode"
+            >
+              <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${theme === 'dark' ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100 group-hover:text-gold-dark'}`}>
+                <Sun size={18} />
+              </div>
+              <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-in-out ${theme === 'dark' ? 'rotate-0 opacity-100 scale-100 group-hover:text-blue-400' : '-rotate-90 opacity-0 scale-50'}`}>
+                <Moon size={18} />
+              </div>
+            </button>
+          )}
+
           {/* Notification bell with dropdown */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setNotifOpen(!notifOpen)}
-              className="w-9 h-9 rounded-xl hover:bg-[#F1F5F3] flex items-center justify-center text-[#5A7068] transition relative"
+              className="w-9 h-9 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary transition relative"
             >
               <Bell size={18} />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">
                   {unreadCount}
                 </span>
               )}
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-2xl border border-[#E2E8E5] overflow-hidden z-50">
-                <div className="px-4 py-3 border-b border-[#E2E8E5] flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-[#1A2E2A]">Notifications</h3>
-                  <span className="badge bg-[#EEFBF4] text-[#1B6B4A] text-xs">{unreadCount} new</span>
+              <div className="absolute right-0 top-12 w-80 bg-surface rounded-xl shadow-2xl border border-border overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-text">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <span className="badge bg-primary-50 text-primary text-xs flex items-center gap-1">
+                      <Check size={10} /> All read
+                    </span>
+                  )}
                 </div>
                 <div className="max-h-72 overflow-y-auto">
-                  {mockNotifications.map((n) => (
-                    <div key={n.id} className={`px-4 py-3 border-b border-[#F1F5F3] last:border-0 ${!n.read ? "bg-[#EEFBF4]/40" : ""}`}>
-                      <div className="flex items-start gap-2">
-                        {!n.read && <span className="w-2 h-2 bg-[#1B6B4A] rounded-full mt-1.5 shrink-0" />}
-                        <div>
-                          <p className="text-sm text-[#1A2E2A]">{n.text}</p>
-                          <p className="text-xs text-[#8FA39B] mt-1">{n.time}</p>
+                  {notifications.length > 0 ? (
+                    notifications.map((n) => (
+                      <div key={n.id} className="px-4 py-3 border-b border-surface-muted last:border-0">
+                        <div className="flex items-start gap-2">
+                          <div>
+                            <p className="text-sm text-text">{n.message}</p>
+                            <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at)}</p>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-8 text-center">
+                      <Bell size={24} className="mx-auto text-text-muted/30 mb-2" />
+                      <p className="text-sm text-text-muted">No notifications yet</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -151,12 +237,12 @@ export function Navbar() {
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-2xl border border-[#E2E8E5] overflow-hidden z-50">
-                  <div className="px-4 py-3 border-b border-[#F1F5F3]">
-                    <p className="text-sm font-bold text-[#1A2E2A] truncate">
+                <div className="absolute right-0 top-12 w-56 bg-surface rounded-xl shadow-2xl border border-border overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-surface-muted">
+                    <p className="text-sm font-bold text-text truncate">
                       {user?.user_metadata?.full_name || user?.email || 'User'}
                     </p>
-                    <p className="text-xs text-[#8FA39B] truncate">{user?.email}</p>
+                    <p className="text-xs text-text-muted truncate">{user?.email}</p>
                   </div>
                   <button
                     onClick={handleSignOut}
@@ -169,17 +255,17 @@ export function Navbar() {
             </div>
           )}
 
-          <button className="lg:hidden w-9 h-9 rounded-xl hover:bg-[#F1F5F3] flex items-center justify-center text-[#5A7068]" onClick={() => setMobileOpen(!mobileOpen)}>
+          <button className="lg:hidden w-9 h-9 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden bg-white border-t border-[#E2E8E5] px-4 pb-4 pt-2 space-y-1 shadow-lg">
+        <div className="lg:hidden bg-surface border-t border-border px-4 pb-4 pt-2 space-y-1 shadow-lg">
           {links.map((link) => (
             <Link key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
-              className={`block px-4 py-3 rounded-xl text-sm font-medium transition ${pathname.startsWith(link.href) ? 'bg-[#EEFBF4] text-[#1B6B4A] font-semibold' : 'text-[#5A7068] hover:bg-[#F8FAF9]'
+              className={`block px-4 py-3 rounded-xl text-sm font-medium transition ${pathname.startsWith(link.href) ? 'bg-primary-50 text-primary font-semibold' : 'text-text-secondary hover:bg-surface-alt'
                 }`}
             >{link.label}</Link>
           ))}
@@ -191,7 +277,7 @@ export function Navbar() {
             <>
               {isAdmin && (
                 <Link href="/admin" onClick={() => setMobileOpen(false)}
-                  className="block px-4 py-3 rounded-xl text-sm font-medium transition text-[#D4A843] hover:bg-[#FFF9EE] flex items-center gap-2 mt-1"
+                  className="block px-4 py-3 rounded-xl text-sm font-medium transition text-gold hover:bg-gold-light/20 flex items-center gap-2 mt-1"
                 >
                   <Shield size={15} /> Admin Panel
                 </Link>

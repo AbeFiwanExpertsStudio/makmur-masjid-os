@@ -58,8 +58,68 @@ AS $$
     WHERE user_id = auth.uid() AND role = 'admin'
   );
 $$;
+-- ----------------------------------------------------------
+-- 0C. FUNCTION: Promote User to Admin Securely
+-- ----------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.promote_user_to_admin(target_email text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  target_user_id uuid;
+BEGIN
+  -- 1. Ensure caller is an admin
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Unauthorized: Only admins can promote users.';
+  END IF;
 
+  -- 2. Find the target user ID by email in the auth schema
+  SELECT id INTO target_user_id
+  FROM auth.users
+  WHERE email = target_email;
 
+  IF target_user_id IS NULL THEN
+    RAISE EXCEPTION 'User with email % not found.', target_email;
+  END IF;
+
+  -- 3. Upsert the user into the user_roles table with the 'admin' role
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (target_user_id, 'admin')
+  ON CONFLICT (user_id) DO UPDATE
+  SET role = 'admin',
+      created_at = now();
+END;
+$$;
+
+-- ----------------------------------------------------------
+-- 0D. FUNCTION: Get All Users Securely (Admins Only)
+-- ----------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_all_users()
+RETURNS TABLE (
+  id uuid,
+  email varchar,
+  role text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- 1. Ensure caller is an admin
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Unauthorized: Only admins can view user list.';
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    au.id, 
+    au.email::varchar, 
+    COALESCE(ur.role, 'volunteer') as role
+  FROM auth.users au
+  LEFT JOIN public.user_roles ur ON au.id = ur.user_id
+  ORDER BY au.email ASC;
+END;
+$$;
 -- ===========================================================
 -- 1. VOLUNTEER GIGS
 -- ===========================================================

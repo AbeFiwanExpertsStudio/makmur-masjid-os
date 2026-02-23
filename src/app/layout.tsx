@@ -2,9 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthContext";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { Toaster } from "react-hot-toast";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Navbar } from "@/components/layout/Navbar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { GlobalBackground } from "@/components/layout/GlobalBackground";
 import { createClient } from "@supabase/supabase-js";
 
 const inter = Inter({
@@ -45,18 +48,39 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased islamic-pattern`}>
-        <AuthProvider>
-          <div className="flex flex-col min-h-screen pb-16 md:pb-0">
-            <Navbar />
-            <main className="flex-1 relative">
-              {children}
-            </main>
-            <BottomNav />
-          </div>
-          <AuthModal />
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <GlobalBackground />
+            <div className="flex flex-col min-h-screen pb-16 md:pb-0">
+              <Navbar />
+              <main className="flex-1 relative">
+                {children}
+              </main>
+              <BottomNav />
+            </div>
+            <AuthModal />
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                className: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-50 border border-slate-100 dark:border-slate-800",
+                success: {
+                  iconTheme: {
+                    primary: "#059669", 
+                    secondary: "white",
+                  },
+                },
+                error: {
+                  iconTheme: {
+                    primary: "#f59e0b", 
+                    secondary: "white",
+                  },
+                },
+              }}
+            />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

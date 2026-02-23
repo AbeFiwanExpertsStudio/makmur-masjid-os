@@ -1,50 +1,279 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, HandHeart, QrCode, MapPin, Shield,
-  Send, ScanLine, Award, Ban, LogOut, Bell, Settings, Loader2
+  Send, ScanLine, Award, Ban, LogOut, Bell, Settings, Loader2, Search, CheckCircle,
+  ShieldOff, ShieldCheck, UserX, UserCheck, ChevronUp, Pencil, Trash2, X, Clock
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { scanKupon } from "@/lib/mutations/claims";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
-const sidebarLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/gigs", label: "Volunteer Gigs", icon: Users },
-  { href: "/crowdfunding", label: "Crowdfunding", icon: HandHeart },
-  { href: "/e-kupon", label: "E-Kupon", icon: QrCode },
-  { href: "/zakat", label: "Zakat Locator", icon: MapPin },
-  { href: "/admin", label: "AJK Admin", icon: Shield },
-];
+import { toast } from "react-hot-toast";
 
 const mockDonations = [
   { label: "Replace 5 broken fans in Women's Section", amount: 850 },
   { label: "Iftar Sponsorship Week 1", amount: 1200 },
 ];
 
-const mockGigs = [
-  { id: "1", title: "Stir Bubur Lambuk" },
-  { id: "2", title: "Traffic Control" },
-];
+type UserEntry = { id: string; email: string; display_name: string; role: string; is_banned: boolean; total_points: number };
+type ActionType = 'ban' | 'unban' | 'demote' | 'promote';
+type GigEntry = {
+  id: string;
+  title: string;
+  gig_date: string;
+  start_time: string;
+  end_time: string;
+  is_completed: boolean;
+  completed_at: string | null;
+};
+type BroadcastEntry = {
+  id: string;
+  message: string;
+  created_at: string;
+};
 
-const mockUsers = [
-  { id: "u1", name: "Siti" },
-  { id: "u2", name: "Ahmad" },
-];
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? 'Yesterday' : `${days}d ago`;
+}
+
+function formatTime(t: string) {
+  const [h, m] = t.split(':');
+  const hr = parseInt(h);
+  const ampm = hr >= 12 ? 'PM' : 'AM';
+  return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${ampm}`;
+}
 
 export default function AdminPage() {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [scanInput, setScanInput] = useState("");
   const [scanHistory, setScanHistory] = useState<{ id: string, status: string }[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const settings = useSystemSettings();
 
+  // User Management
+  const [usersList, setUsersList] = useState<UserEntry[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Action Modal
+  const [actionModal, setActionModal] = useState<{
+    type: ActionType;
+    user: UserEntry;
+  } | null>(null);
+  const [isActioning, setIsActioning] = useState(false);
+
+  // Gigs from DB
+  const [gigs, setGigs] = useState<GigEntry[]>([]);
+  const [gigsRefreshKey, setGigsRefreshKey] = useState(0);
+
+  // Broadcasts
+  const [broadcasts, setBroadcasts] = useState<BroadcastEntry[]>([]);
+  const [broadcastRefreshKey, setBroadcastRefreshKey] = useState(0);
+  const [editingBroadcast, setEditingBroadcast] = useState<BroadcastEntry | null>(null);
+  const [editMsg, setEditMsg] = useState("");
+
+  const latestBroadcast = broadcasts.length > 0 ? broadcasts[0].message : "";
+
+  // Fetch users
+  useEffect(() => {
+    async function fetchUsers() {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('get_all_users');
+      if (error) console.error('get_all_users RPC error:', error.message);
+      if (data) setUsersList(data);
+    }
+    fetchUsers();
+  }, [refreshKey]);
+
+  // Fetch gigs from DB
+  useEffect(() => {
+    async function fetchGigs() {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('volunteer_gigs')
+        .select('id, title, gig_date, start_time, end_time, is_completed, completed_at')
+        .order('gig_date', { ascending: false });
+      if (error) console.error('Fetch gigs error:', error.message);
+      if (data) setGigs(data);
+    }
+    fetchGigs();
+  }, [gigsRefreshKey]);
+
+  // Fetch broadcasts
+  useEffect(() => {
+    async function fetchBroadcasts() {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('broadcasts')
+        .select('id, message, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (!error && data) setBroadcasts(data);
+    }
+    fetchBroadcasts();
+  }, [broadcastRefreshKey]);
+
+  // Filter users
+  const visibleUsers = usersList
+    .filter(u => u.email)
+    .filter(u => {
+      if (!userSearch.trim()) return true;
+      const q = userSearch.toLowerCase();
+      return u.email.toLowerCase().includes(q) || (u.display_name || '').toLowerCase().includes(q);
+    });
+
   const totalCollected = mockDonations.reduce((s, d) => s + d.amount, 0);
+
+  // Gig logic: filter to past gigs, deduplicate, sort completed to bottom
+  const now = new Date();
+  const pastGigs = gigs.filter(g => {
+    const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
+    return gigEnd < now;
+  });
+  // Deduplicate by title+date+time (in case of duplicate DB rows)
+  const seen = new Set<string>();
+  const uniquePastGigs = pastGigs.filter(g => {
+    const key = `${g.title}|${g.gig_date}|${g.start_time}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const visibleGigs = uniquePastGigs
+    .filter(g => {
+      if (!g.is_completed) return true;
+      if (!g.completed_at) return true;
+      return (Date.now() - new Date(g.completed_at).getTime()) < 12 * 60 * 60 * 1000;
+    })
+    .sort((a, b) => {
+      if (a.is_completed && !b.is_completed) return 1;
+      if (!a.is_completed && b.is_completed) return -1;
+      return 0;
+    });
+
+  const handleCompleteGig = async (gigId: string) => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.rpc('complete_gig', { gig_id: gigId });
+      if (error) {
+        toast.error(`Failed: ${error.message}`);
+      } else {
+        toast.success("Gig completed! Points awarded to volunteers.");
+        setGigsRefreshKey(k => k + 1);
+      }
+    } catch {
+      toast.error("An unexpected error occurred.");
+    }
+  };
+
+  // Send broadcast
+  const handleSendBroadcast = async () => {
+    if (!broadcastMsg.trim() || isSendingBroadcast) return;
+    setIsSendingBroadcast(true);
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.rpc('send_broadcast', { msg: broadcastMsg.trim() });
+      if (error) {
+        toast.error(`Broadcast failed: ${error.message}`);
+      } else {
+        toast.success("Broadcast sent to all users!");
+        setBroadcastMsg("");
+        setBroadcastRefreshKey(k => k + 1);
+      }
+    } catch {
+      toast.error("Failed to send broadcast.");
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
+  // Edit broadcast
+  const handleEditBroadcast = async () => {
+    if (!editingBroadcast || !editMsg.trim()) return;
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from('broadcasts')
+        .update({ message: editMsg.trim() })
+        .eq('id', editingBroadcast.id);
+      if (error) {
+        toast.error(`Edit failed: ${error.message}`);
+      } else {
+        toast.success("Broadcast updated!");
+        setEditingBroadcast(null);
+        setEditMsg("");
+        setBroadcastRefreshKey(k => k + 1);
+      }
+    } catch {
+      toast.error("Failed to edit broadcast.");
+    }
+  };
+
+  // Delete broadcast
+  const handleDeleteBroadcast = async (id: string) => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.rpc('delete_broadcast', { broadcast_id: id });
+      if (error) {
+        toast.error(`Delete failed: ${error.message}`);
+      } else {
+        toast.success("Broadcast deleted.");
+        setBroadcastRefreshKey(k => k + 1);
+      }
+    } catch {
+      toast.error("Failed to delete broadcast.");
+    }
+  };
+
+  // User action handler
+  const handleUserAction = async () => {
+    if (!actionModal || isActioning) return;
+    setIsActioning(true);
+    const supabase = createClient();
+
+    const rpcMap: Record<ActionType, string> = {
+      ban: 'ban_user',
+      unban: 'unban_user',
+      demote: 'demote_admin',
+      promote: 'promote_user_to_admin',
+    };
+
+    try {
+      const { error } = await supabase.rpc(rpcMap[actionModal.type], {
+        target_email: actionModal.user.email,
+      });
+      if (error) {
+        toast.error(`Failed: ${error.message}`);
+      } else {
+        const msgs: Record<ActionType, string> = {
+          ban: `${actionModal.user.email} has been banned.`,
+          unban: `${actionModal.user.email} has been unbanned.`,
+          demote: `${actionModal.user.email} has been demoted to Volunteer.`,
+          promote: `${actionModal.user.email} has been promoted to Admin!`,
+        };
+        toast.success(msgs[actionModal.type]);
+        setRefreshKey(k => k + 1);
+      }
+    } catch (e) {
+      toast.error("An unexpected error occurred.");
+    } finally {
+      setIsActioning(false);
+      setActionModal(null);
+    }
+  };
 
   const handleScan = async () => {
     if (!scanInput.trim() || isScanning) return;
@@ -56,125 +285,151 @@ export default function AdminPage() {
       const res = await scanKupon(input);
       if (res.success) {
         setScanHistory((prev) => [{ id: input, status: "Scanned ✓" }, ...prev]);
-        alert(`Successfully scanned! Remaining capacity: ${res.remaining}`);
+        toast.success(`Successfully scanned! Remaining capacity: ${res.remaining}`);
       } else {
-        alert(res.error || "Failed to scan kupon");
+        toast.error(res.error || "Failed to scan kupon");
         setScanHistory((prev) => [{ id: input, status: "Failed ❌" }, ...prev]);
       }
     } catch (e: any) {
-      alert("Error scanning kupon");
+      toast.error("Error scanning kupon");
     } finally {
       setIsScanning(false);
     }
   };
 
+  // Action modal config
+  const actionConfig: Record<ActionType, { icon: typeof Ban; color: string; btnColor: string; title: string; desc: (email: string) => string; confirm: string }> = {
+    ban: {
+      icon: Ban,
+      color: 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400',
+      btnColor: 'bg-red-500 hover:bg-red-600',
+      title: 'Ban User',
+      desc: (e) => `Are you sure you want to ban ${e}? They will lose access to all features.`,
+      confirm: 'Yes, Ban',
+    },
+    unban: {
+      icon: UserCheck,
+      color: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-400',
+      btnColor: 'bg-emerald-500 hover:bg-emerald-600',
+      title: 'Unban User',
+      desc: (e) => `Are you sure you want to unban ${e}? They will regain access to the platform.`,
+      confirm: 'Yes, Unban',
+    },
+    demote: {
+      icon: ShieldOff,
+      color: 'bg-amber-50 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400',
+      btnColor: 'bg-amber-500 hover:bg-amber-600',
+      title: 'Demote Admin',
+      desc: (e) => `Are you sure you want to demote ${e} from Admin to Volunteer? They will lose admin privileges.`,
+      confirm: 'Yes, Demote',
+    },
+    promote: {
+      icon: ShieldCheck,
+      color: 'bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400',
+      btnColor: 'bg-blue-500 hover:bg-blue-600',
+      title: 'Promote to Admin',
+      desc: (e) => `Are you sure you want to promote ${e} to Admin? They will have full access to the dashboard and management tools.`,
+      confirm: 'Yes, Promote',
+    },
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#F8FAF9]">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-[#E2E8E5] sticky top-0 h-screen">
-        <div className="p-6 border-b border-[#E2E8E5]">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 hero-gradient rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🌙</div>
-            <div>
-              <span className="font-bold text-lg text-[#1A2E2A] block leading-tight">{settings.system_name}</span>
-              <span className="text-[10px] text-[#8FA39B] font-medium block">{settings.system_desc}</span>
-            </div>
-          </Link>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-1">
-          {sidebarLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? "bg-[#EEFBF4] text-[#1B6B4A] font-semibold" : "text-[#5A7068] hover:bg-[#F8FAF9] hover:text-[#1A2E2A]"
-                  }`}
-              >
-                <Icon size={18} />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-[#E2E8E5]">
-          <div className="flex items-center gap-3 px-2 mb-3">
-            <div className="w-10 h-10 rounded-xl hero-gradient flex items-center justify-center text-white text-sm font-bold shadow-sm">
-              A
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[#1A2E2A]">Ahmad (AJK)</p>
-              <p className="text-xs text-[#8FA39B]">Administrator</p>
-            </div>
-          </div>
-          <button onClick={signOut} className="flex items-center gap-2 text-red-500 text-sm font-medium px-2 hover:text-red-600 transition">
-            <LogOut size={16} /> Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 min-h-screen">
-        {/* Broadcast top bar */}
-        <div className="hero-gradient text-white px-4 py-3 flex items-center gap-3 shadow-sm">
-          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+    <div className="min-h-screen">
+      {/* Broadcast banner — OUTSIDE container, directly under navbar */}
+      {latestBroadcast && (
+        <div className="hero-gradient text-white px-4 py-3 flex items-center gap-3">
+          <div className="w-6 h-6 rounded-full bg-surface/15 flex items-center justify-center shrink-0">
             <Bell size={12} />
           </div>
-          <span className="text-sm"><strong>Latest Broadcast:</strong> <span className="text-white/70">Welcome to Makmur App!</span></span>
+          <span className="text-sm"><strong>Latest Broadcast:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
         </div>
+      )}
 
-        <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <div className="w-full">
           <div className="flex items-center gap-3 mb-8">
             <div className="icon-box icon-box-primary"><Shield size={22} /></div>
             <div>
-              <h1 className="text-2xl font-bold text-[#1A2E2A]">AJK Admin Panel</h1>
-              <p className="text-sm text-[#8FA39B]">Manage operations and community</p>
+              <h1 className="text-2xl font-bold text-text">AJK Admin Panel</h1>
+              <p className="text-sm text-text-muted">Manage operations and community</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Financials */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-[#1A2E2A] mb-4">Financials Overview</h2>
+              <h2 className="font-bold text-lg text-text mb-4">Financials Overview</h2>
               <div className="hero-gradient rounded-xl p-5 mb-5">
                 <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-1">Total Collected (Stripe)</p>
                 <p className="text-3xl font-bold text-white">RM {totalCollected.toLocaleString()}</p>
               </div>
               <div className="space-y-3">
                 {mockDonations.map((d, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm py-2 border-b border-dashed border-[#E2E8E5] last:border-0">
-                    <span className="text-[#5A7068]">{d.label}</span>
-                    <span className="font-bold text-[#1A2E2A]">RM {d.amount.toLocaleString()}</span>
+                  <div key={i} className="flex justify-between items-center text-sm py-2 border-b border-dashed border-border last:border-0">
+                    <span className="text-text-secondary">{d.label}</span>
+                    <span className="font-bold text-text">RM {d.amount.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Broadcast */}
+            {/* Broadcast — with history + edit/delete */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-[#1A2E2A] mb-2">Community Broadcast</h2>
-              <p className="text-sm text-[#8FA39B] mb-4">Send a push notification to all registered users.</p>
+              <h2 className="font-bold text-lg text-text mb-2">Community Broadcast</h2>
+              <p className="text-sm text-text-muted mb-4">Send a notification to all users.</p>
               <textarea
                 value={broadcastMsg}
                 onChange={(e) => setBroadcastMsg(e.target.value)}
                 placeholder="e.g., Tarawih delayed by 15 mins due to rain..."
-                className="w-full border border-[#E2E8E5] rounded-xl p-3 text-sm resize-none h-24 focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9] mb-3"
+                className="w-full border border-border rounded-xl p-3 text-sm resize-none h-20 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background mb-3"
               />
               <button
-                onClick={() => { if (broadcastMsg) { alert("Broadcast: " + broadcastMsg); setBroadcastMsg(""); } }}
-                className="w-full py-3 btn-primary text-sm"
+                onClick={handleSendBroadcast}
+                disabled={!broadcastMsg.trim() || isSendingBroadcast}
+                className="w-full py-3 btn-primary text-sm disabled:opacity-50 flex justify-center items-center gap-2 mb-4"
               >
-                <Send size={16} /> Blast Message
+                {isSendingBroadcast ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {isSendingBroadcast ? 'Sending...' : 'Blast Message'}
               </button>
+
+              {/* Broadcast history */}
+              {broadcasts.length > 0 && (
+                <>
+                  <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Recent Broadcasts</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {broadcasts.map((b) => (
+                      <div key={b.id} className="flex items-start justify-between gap-2 bg-background border border-border rounded-xl px-3 py-2.5 group">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-text truncate">{b.message}</p>
+                          <p className="text-[10px] text-text-muted">{timeAgo(b.created_at)}</p>
+                        </div>
+                        <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => { setEditingBroadcast(b); setEditMsg(b.message); }}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-text-muted hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 transition"
+                            title="Edit"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBroadcast(b.id)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-text-muted hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 transition"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Scanner */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-[#1A2E2A] mb-2">E-Kupon Scanner</h2>
-              <p className="text-sm text-[#8FA39B] mb-4">Scan a user&apos;s QR to mark food as claimed.</p>
+              <h2 className="font-bold text-lg text-text mb-2">E-Kupon Scanner</h2>
+              <p className="text-sm text-text-muted mb-4">Scan a user&apos;s QR to mark food as claimed.</p>
               <div className="flex gap-2 mb-4">
                 <input
                   type="text"
@@ -182,56 +437,227 @@ export default function AdminPage() {
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleScan()}
-                  className="flex-1 border border-[#E2E8E5] rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+                  className="flex-1 border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                 />
                 <button onClick={handleScan} className="p-2.5 btn-primary rounded-xl"><ScanLine size={20} /></button>
               </div>
               <div className="space-y-2">
                 {scanHistory.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm px-4 py-2.5 bg-[#F8FAF9] rounded-xl border border-[#E2E8E5]">
-                    <span className="font-mono text-[#5A7068]">{s.id}</span>
-                    <span className={`font-semibold ${s.status === "Pending" ? "text-[#D4A843]" : "text-[#1B6B4A]"}`}>{s.status}</span>
+                  <div key={i} className="flex justify-between items-center text-sm px-4 py-2.5 bg-background rounded-xl border border-border">
+                    <span className="font-mono text-text-secondary">{s.id}</span>
+                    <span className={`font-semibold ${s.status === "Pending" ? "text-gold" : "text-primary"}`}>{s.status}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Gig Management */}
+            {/* Gig Completion — from DB */}
             <div className="card p-6">
-              <h2 className="font-bold text-lg text-[#1A2E2A] mb-5">User & Gig Management</h2>
+              <h2 className="font-bold text-lg text-text mb-2">Gig Completion</h2>
+              <p className="text-sm text-text-muted mb-4">Award points for completed volunteer gigs (past date only).</p>
 
-              <p className="text-xs font-bold uppercase tracking-widest text-[#D4A843] mb-3">Complete Gigs (Award Points)</p>
-              <div className="space-y-2 mb-6">
-                {mockGigs.map((g) => (
-                  <div key={g.id} className="flex justify-between items-center bg-[#F8FAF9] border border-[#E2E8E5] rounded-xl px-4 py-3">
-                    <span className="text-sm font-medium text-[#1A2E2A]">{g.title}</span>
-                    <button className="badge bg-[#EEFBF4] text-[#1B6B4A] border border-[#D5F5E3] hover:bg-[#D5F5E3] transition text-xs">
-                      <Award size={12} /> Complete & Award
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {visibleGigs.length > 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {visibleGigs.map((g) => (
+                    <div
+                      key={g.id}
+                      className={`flex justify-between items-center bg-background border rounded-xl px-4 py-3 transition-all duration-500 ${
+                        g.is_completed
+                          ? 'border-primary/30 bg-primary-50/30 dark:bg-primary/5 opacity-70'
+                          : 'border-border'
+                      }`}
+                    >
+                      <div>
+                        <span className={`text-sm font-medium ${g.is_completed ? 'text-text-muted line-through' : 'text-text'}`}>{g.title}</span>
+                        <span className="text-xs text-text-muted block">
+                          {new Date(g.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })} · {formatTime(g.start_time)} – {formatTime(g.end_time)}
+                        </span>
+                      </div>
+                      {g.is_completed ? (
+                        <span className="badge bg-primary-50 text-primary border border-primary/20 text-xs animate-pulse">
+                          <CheckCircle size={12} /> Awarded ✓
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleCompleteGig(g.id)}
+                          className="badge bg-primary-50 text-primary border border-[#D5F5E3] hover:bg-[#D5F5E3] hover:scale-105 active:scale-95 transition-all text-xs"
+                        >
+                          <Award size={12} /> Complete & Award
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted text-center py-6">No past gigs to complete right now.</p>
+              )}
+            </div>
+          </div>
 
-              <p className="text-xs font-bold uppercase tracking-widest text-[#8FA39B] mb-3">Manage Users</p>
-              <div className="space-y-2">
-                {mockUsers.map((u) => (
-                  <div key={u.id} className="flex justify-between items-center bg-[#F8FAF9] border border-[#E2E8E5] rounded-xl px-4 py-3">
-                    <span className="text-sm font-medium text-[#1A2E2A]">{u.name}</span>
-                    <button className="badge bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition text-xs">
-                      <Ban size={12} /> Ban User
-                    </button>
-                  </div>
-                ))}
+          {/* ─── Full-Width User Management Section ─── */}
+          <div className="card p-6 mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-text" />
+                <h2 className="font-bold text-lg text-text">Manage Users</h2>
+                <span className="text-xs text-text-muted bg-surface-muted px-2 py-0.5 rounded-full">{visibleUsers.length}</span>
               </div>
+              <div className="relative w-full sm:w-72">
+                <Search size={14} className="absolute left-3 top-3 text-text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-96 space-y-2 pr-1">
+              {visibleUsers.map((u) => (
+                <div key={u.id} className={`flex items-center justify-between rounded-xl px-4 py-3 border transition-colors ${
+                  u.is_banned
+                    ? 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900'
+                    : 'bg-background border-border hover:border-primary/30'
+                }`}>
+                  <div className="min-w-0 flex-1 mr-3">
+                    <span className="text-sm font-medium text-text block truncate">{u.display_name || u.email.split('@')[0]}</span>
+                    <span className="text-xs text-text-muted truncate block">{u.email}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                    {(u.total_points ?? 0) > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-gold-light/20 text-gold">
+                        ⭐ {u.total_points} pts
+                      </span>
+                    )}
+                    <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${
+                      u.is_banned
+                        ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+                        : u.role === 'admin'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                          : 'bg-primary-50 text-primary'
+                    }`}>
+                      {u.is_banned ? 'Banned' : u.role}
+                    </span>
+
+                    {u.is_banned ? (
+                      <button
+                        onClick={() => setActionModal({ type: 'unban', user: u })}
+                        className="badge bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-900/50 transition text-xs"
+                      >
+                        <UserCheck size={12} /> Unban
+                      </button>
+                    ) : (
+                      <>
+                        {u.role === 'volunteer' && (
+                          <button
+                            onClick={() => setActionModal({ type: 'promote', user: u })}
+                            className="badge bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/50 transition text-xs"
+                          >
+                            <ShieldCheck size={12} /> Promote
+                          </button>
+                        )}
+                        {u.role === 'admin' && (
+                          <button
+                            onClick={() => setActionModal({ type: 'demote', user: u })}
+                            className="badge bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/50 transition text-xs"
+                          >
+                            <ShieldOff size={12} /> Demote
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setActionModal({ type: 'ban', user: u })}
+                          className="badge bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50 transition text-xs"
+                        >
+                          <Ban size={12} /> Ban
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {visibleUsers.length === 0 && (
+                <p className="text-sm text-text-muted text-center py-8">
+                  {userSearch ? 'No users match your search.' : 'No users found. Ensure the SQL functions are deployed.'}
+                </p>
+              )}
             </div>
           </div>
 
           <div className="mt-6">
-            {/* System Name / Desc Settings */}
             <SystemSettingsEditor initialName={settings.system_name} initialDesc={settings.system_desc} />
           </div>
         </div>
       </div>
+
+      {/* Unified Action Confirmation Modal */}
+      {actionModal && (() => {
+        const config = actionConfig[actionModal.type];
+        const Icon = config.icon;
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setActionModal(null)}>
+            <div className="bg-surface rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 mx-auto ${config.color}`}>
+                <Icon size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-text text-center mb-2">{config.title}</h3>
+              <p className="text-sm text-text-muted text-center mb-6">
+                {config.desc(actionModal.user.email)}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setActionModal(null)}
+                  className="flex-1 py-3 border border-border rounded-xl text-sm font-bold text-text hover:bg-background transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUserAction}
+                  disabled={isActioning}
+                  className={`flex-1 py-3 text-white rounded-xl text-sm font-bold shadow-md transition flex justify-center items-center ${config.btnColor}`}
+                >
+                  {isActioning ? <Loader2 size={16} className="animate-spin" /> : config.confirm}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Edit Broadcast Modal */}
+      {editingBroadcast && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setEditingBroadcast(null)}>
+          <div className="bg-surface rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl flex items-center justify-center mb-4 mx-auto">
+              <Pencil size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-text text-center mb-2">Edit Broadcast</h3>
+            <p className="text-xs text-text-muted text-center mb-4">Update the message. If this is the latest broadcast, the banner will update too.</p>
+            <textarea
+              value={editMsg}
+              onChange={(e) => setEditMsg(e.target.value)}
+              className="w-full border border-border rounded-xl p-3 text-sm resize-none h-24 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingBroadcast(null)}
+                className="flex-1 py-3 border border-border rounded-xl text-sm font-bold text-text hover:bg-background transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditBroadcast}
+                disabled={!editMsg.trim()}
+                className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md transition disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -241,7 +667,6 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
   const [desc, setDesc] = useState(initialDesc);
   const [saving, setSaving] = useState(false);
 
-  // Sync state if it updates externally
   useEffect(() => {
     setName(initialName);
     setDesc(initialDesc);
@@ -270,28 +695,28 @@ function SystemSettingsEditor({ initialName, initialDesc }: { initialName: strin
   return (
     <div className="card p-6">
       <div className="flex items-center gap-2 mb-4">
-        <Settings size={18} className="text-[#1A2E2A]" />
-        <h2 className="font-bold text-lg text-[#1A2E2A]">System Branding</h2>
+        <Settings size={18} className="text-text" />
+        <h2 className="font-bold text-lg text-text">System Branding</h2>
       </div>
-      <p className="text-sm text-[#8FA39B] mb-4">Update the app's global header name and description.</p>
+      <p className="text-sm text-text-muted mb-4">Update the app&apos;s global header name and description.</p>
 
       <div className="space-y-3">
         <div>
-          <label className="text-xs font-bold uppercase tracking-widest text-[#5A7068] mb-1 block">System Name</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">System Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border border-[#E2E8E5] rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
           />
         </div>
         <div>
-          <label className="text-xs font-bold uppercase tracking-widest text-[#5A7068] mb-1 block">Description</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-1 block">Description</label>
           <input
             type="text"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            className="w-full border border-[#E2E8E5] rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#1B6B4A]/20 focus:border-[#1B6B4A] outline-none bg-[#F8FAF9]"
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
           />
         </div>
         <button

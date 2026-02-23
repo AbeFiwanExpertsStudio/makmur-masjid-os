@@ -134,7 +134,7 @@ export default function DynamicWaktuSolat() {
     const t = (en: string, ms: string) => language === "ms" ? ms : en;
 
     const activeStyles = theme.bgClass + " text-white flex flex-col justify-center rounded-xl p-4 md:p-6 transition-all scale-[1.02] shadow-xl";
-    const inactiveStyles = "text-slate-800 flex flex-col justify-center rounded-xl p-4 md:p-6 transition-all bg-white border border-slate-200 shadow-sm hover:shadow-md";
+    const inactiveStyles = "text-text flex flex-col justify-center rounded-xl p-4 md:p-6 transition-all bg-surface border border-border shadow-sm hover:shadow-md";
 
     const formatTimeStr = (unixSec: number) => {
         const d = new Date(unixSec * 1000);
@@ -143,17 +143,6 @@ export default function DynamicWaktuSolat() {
 
     return (
         <div className="flex-1 w-full flex flex-col relative overflow-hidden transition-colors duration-500 shadow-2xl">
-
-            {/* Background Image Layer */}
-            <div
-                className="absolute inset-0 z-0 bg-[#F8FAF9] transition-opacity"
-                style={{
-                    backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    opacity: bgOpacity ? bgOpacity / 100 : 1
-                }}
-            />
 
             {/* Custom Pop-up Toast Alert logic */}
             {alertMessage && (
@@ -166,18 +155,18 @@ export default function DynamicWaktuSolat() {
             <div className="relative z-20 w-full max-w-7xl mx-auto px-4 py-6 md:p-12 flex flex-col flex-1 h-full min-h-[500px]">
                 {/* Header Data Section */}
                 <header className="flex justify-between items-start w-full mb-10 md:mb-16">
-                    <div className="space-y-1 text-slate-800 font-bold">
+                    <div className="space-y-1 text-text font-bold">
                         <h1 className="text-2xl md:text-5xl font-bold tracking-tight">{format(currentTime, "EEEE, d MMM yyyy")}</h1>
                         <h2 className="text-xl md:text-3xl font-medium opacity-90">{customTitle || hijriDate}</h2>
                     </div>
                     <div className="text-right flex flex-col items-end">
                         <div className={`flex items-center gap-2 text-xl md:text-3xl font-bold tracking-tight ${theme.textClass}`}>
                             {sysSettings.system_name || "Makmur OS"}
-                            <button onClick={() => setSettingsOpen(true)} className="ml-2 hover:opacity-80 p-2 text-slate-400 hover:text-slate-800 transition">
+                            <button onClick={() => setSettingsOpen(true)} className="ml-2 hover:opacity-80 p-2 text-text-muted hover:text-text transition">
                                 <Settings size={28} />
                             </button>
                         </div>
-                        <div className="text-2xl md:text-4xl font-semibold mt-1 tracking-wider tabular-nums text-slate-800">
+                        <div className="text-2xl md:text-4xl font-semibold mt-1 tracking-wider tabular-nums text-text">
                             {format(currentTime, "HH:mm:ss")}
                         </div>
                     </div>
@@ -186,7 +175,7 @@ export default function DynamicWaktuSolat() {
                 {/* Grid Map */}
                 {loading || !prayers ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6 animate-pulse flex-1 max-h-[60vh] opacity-50">
-                        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="bg-white/10 rounded-xl h-40 border border-white/5" />)}
+                        {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="bg-surface/10 rounded-xl h-40 border border-white/5" />)}
                     </div>
                 ) : (
                     <main className="grid grid-cols-2 md:grid-cols-3 gap-y-12 gap-x-6 w-full max-w-5xl mx-auto flex-1 content-center">
@@ -242,7 +231,7 @@ export default function DynamicWaktuSolat() {
                     </main>
                 )}
 
-                <footer className="mt-auto min-h-16 pt-8 text-center text-sm font-semibold opacity-60 text-slate-800">
+                <footer className="mt-auto min-h-16 pt-8 text-center text-sm font-semibold opacity-60 text-text">
                     Zone: {zoneLabel}
                 </footer>
             </div>
@@ -254,7 +243,7 @@ export default function DynamicWaktuSolat() {
                     <div className="relative w-full md:w-[480px] bg-[#1A1A1A] h-full flex flex-col shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
                         <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-[#1A1A1A]/95 backdrop-blur z-10">
                             <h3 className="text-xl font-bold text-white">Settings</h3>
-                            <button onClick={() => setSettingsOpen(false)} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition text-white">
+                            <button onClick={() => setSettingsOpen(false)} className="p-2 bg-surface/5 rounded-full hover:bg-surface/10 transition text-white">
                                 <X size={20} />
                             </button>
                         </div>
@@ -379,7 +368,7 @@ export default function DynamicWaktuSolat() {
                                 <div className="space-y-3 bg-[#2A2A2A] rounded-2xl p-2 border border-white/5 mb-3">
                                     <div className="flex justify-between items-center p-2 px-3 cursor-pointer" onClick={() => setAudioEnabled(!audioEnabled)}>
                                         <span className="text-sm font-medium text-white/90">Azan Status</span>
-                                        <div className={`w-11 h-6 rounded-full flex items-center p-1 transition-colors ${audioEnabled ? 'bg-blue-500 justify-end' : 'bg-[#1A1A1A] justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-sm" /></div>
+                                        <div className={`w-11 h-6 rounded-full flex items-center p-1 transition-colors ${audioEnabled ? 'bg-blue-500 justify-end' : 'bg-[#1A1A1A] justify-start'}`}><div className="w-4 h-4 bg-surface rounded-full shadow-sm" /></div>
                                     </div>
                                 </div>
 

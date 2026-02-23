@@ -3,45 +3,97 @@
 @theme {
   --font-sans: var(--font-inter);
 
-  /* ═══════════════════════════════════════════════════
-     Project Makmur — Premium Islamic Design System
-     Inspired by modern mosque & Islamic SaaS websites
-     ═══════════════════════════════════════════════════ */
+  /* Define base semantic color keys that point to raw variables */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-50: var(--primary-100);
+  /* mapping down for simplicity */
+  --color-primary-100: var(--primary-200);
 
-  /* Primary Greens */
-  --color-primary: #1B6B4A;
-  --color-primary-light: #2D8F65;
-  --color-primary-dark: #0F4A33;
-  --color-primary-50: #EEFBF4;
-  --color-primary-100: #D5F5E3;
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
 
-  /* Warm Gold Accents */
-  --color-gold: #D4A843;
-  --color-gold-light: #F0DBA8;
-  --color-gold-dark: #B8922F;
-
-  /* Neutrals */
-  --color-surface: #FFFFFF;
-  --color-surface-alt: #F8FAF9;
-  --color-surface-muted: #F1F5F3;
-  --color-border: #E2E8E5;
-  --color-text: #1A2E2A;
-  --color-text-secondary: #5A7068;
-  --color-text-muted: #8FA39B;
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
 }
 
 @layer base {
   :root {
+    /* ═══════════════════════════════════════════════════
+       LIGHT MODE (Default)
+       ═══════════════════════════════════════════════════ */
     --background: #F8FAF9;
     --foreground: #1A2E2A;
+
+    --primary: #1B6B4A;
+    --primary-light: #2D8F65;
+    --primary-dark: #0F4A33;
+    --primary-100: #EEFBF4;
+    --primary-200: #D5F5E3;
+
+    --gold: #D4A843;
+    --gold-light: #F0DBA8;
+    --gold-dark: #B8922F;
+
+    --surface: #FFFFFF;
+    --surface-alt: #F8FAF9;
+    --surface-muted: #F1F5F3;
+    --border: #E2E8E5;
+    --text: #1A2E2A;
+    --text-secondary: #5A7068;
+    --text-muted: #8FA39B;
   }
 
-  body {
-    background: var(--background);
-    color: var(--foreground);
+  .dark {
+    /* ═══════════════════════════════════════════════════
+       DARK MODE - Style 1 (Teal/Emerald on Dark Slate)
+       ═══════════════════════════════════════════════════ */
+    --background: #0B1120;
+    /* Very dark slate-teal */
+    --foreground: #F8FAF9;
+
+    --primary: #10B981;
+    /* Emerald 500 - Glowing */
+    --primary-light: #34D399;
+    /* Emerald 400 */
+    --primary-dark: #047857;
+    /* Emerald 700 */
+    --primary-100: #064E3B;
+    /* Emerald 900 for dark subtle bg */
+    --primary-200: #065F46;
+    /* Emerald 800 */
+
+    --gold: #FCD34D;
+    /* Amber 300 - brighter gold */
+    --gold-light: #FEF08A;
+    /* Yellow 200 */
+    --gold-dark: #D97706;
+    /* Amber 600 */
+
+    --surface: #0F172A;
+    /* Slate 900 for inset depth on cards */
+    --surface-alt: #1E293B;
+    /* Slate 800 */
+    --surface-muted: #1E293B;
+    /* Slate 800 */
+    --border: #1E293B;
+    /* Slate 800 */
+    --text: #F8FAF9;
+    --text-secondary: #94A3B8;
+    /* Slate 400 */
+    --text-muted: #64748B;
+    /* Slate 500 */
   }
 
-  /* Smooth scroll */
   html {
     scroll-behavior: smooth;
   }
@@ -80,16 +132,22 @@
 
 /* Premium card styling */
 .card {
-  background: white;
+  background: var(--surface);
   border-radius: 16px;
-  border: 1px solid #E2E8E5;
+  border: 1px solid var(--border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card:hover {
-  border-color: #D5F5E3;
+  border-color: var(--primary-100);
   box-shadow: 0 10px 40px -12px rgba(27, 107, 74, 0.12);
   transform: translateY(-2px);
+}
+
+.dark .card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 10px 40px -12px rgba(16, 185, 129, 0.15);
+  /* Emerald Glow */
 }
 
 /* Icon container (circular) */
@@ -104,13 +162,13 @@
 }
 
 .icon-box-primary {
-  background: #EEFBF4;
-  color: #1B6B4A;
+  background: var(--primary-50);
+  color: var(--primary);
 }
 
 .icon-box-gold {
-  background: #FDF6E3;
-  color: #D4A843;
+  background: var(--gold-light);
+  color: var(--gold-dark);
 }
 
 /* Stat chip */
@@ -126,8 +184,9 @@
 
 /* Button styles */
 .btn-primary {
-  background: #1B6B4A;
-  color: white;
+  background: var(--primary);
+  color: #FFFFFF;
+  /* Light text by default (Light Mode Green) */
   font-weight: 700;
   border-radius: 12px;
   transition: all 0.2s;
@@ -137,10 +196,19 @@
   gap: 8px;
 }
 
+.dark .btn-primary {
+  /* No override needed for emerald on dark mode, white text works perfectly */
+}
+
 .btn-primary:hover {
-  background: #0F4A33;
+  background: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px -2px rgba(27, 107, 74, 0.3);
+}
+
+.dark .btn-primary:hover {
+  box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.4);
+  /* Stronger Emerald Glow */
 }
 
 .btn-primary:disabled {
@@ -151,30 +219,30 @@
 }
 
 .btn-outline {
-  border: 2px solid #E2E8E5;
-  color: #1B6B4A;
+  border: 2px solid var(--border);
+  color: var(--primary);
   font-weight: 700;
   border-radius: 12px;
   transition: all 0.2s;
 }
 
 .btn-outline:hover {
-  border-color: #1B6B4A;
-  background: #EEFBF4;
+  border-color: var(--primary);
+  background: var(--primary-50);
 }
 
 /* Progress bar gradient */
 .progress-bar {
   height: 8px;
   border-radius: 999px;
-  background: #F1F5F3;
+  background: var(--surface-muted);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2D8F65, #1B6B4A);
+  background: linear-gradient(90deg, var(--primary-light), var(--primary));
   transition: width 0.5s ease;
 }
 
@@ -216,7 +284,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #8FA39B;
+  color: var(--text-muted);
 }
 
 .divider-diamond::before,
@@ -224,5 +292,5 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: #E2E8E5;
+  background: var(--border);
 }

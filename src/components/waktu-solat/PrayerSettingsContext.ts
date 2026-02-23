@@ -83,6 +83,7 @@ export function usePrayerSettings() {
                 setBgImage("");
                 localStorage.removeItem("makmur_waktu_bgImage");
             }
+            window.dispatchEvent(new Event("makmur-bg-update"));
         } catch (e) {
             console.error("Storage save failed", e);
         }

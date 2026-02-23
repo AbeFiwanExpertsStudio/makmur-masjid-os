@@ -38,7 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const isAnonymous = user?.is_anonymous ?? true;
+  // Use email presence to definitively detect anonymous vs registered users
+  const isAnonymous = user ? (!user.email) : true;
 
   /* ──────────────────────────────────────────
      Check if a user has the 'admin' role.
@@ -78,9 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* ──────────────────────────────────────────
      Bootstrap: runs once on mount.
-     1. Check if user explicitly signed out → skip session
-     2. Restore existing non-anonymous session FAST
-     3. Otherwise sign in anonymously (guest)
+     1. Restore existing non-anonymous session if present
+     2. Otherwise, stay unauthenticated (guest)
+     NOTE: We no longer create anonymous sessions because
+     the SSR cookie-based auth causes them to persist and
+     conflict with real signInWithPassword calls.
   ────────────────────────────────────────── */
   useEffect(() => {
     const supabase = createClient();
@@ -91,23 +94,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userSignedOut = localStorage.getItem(SIGNED_OUT_KEY) === "true";
 
         if (!userSignedOut) {
-          // getSession reads from local storage first — it's instant unless auth
-          // token needs a network refresh. No artificial timeout needed.
           const { data: { session } } = await supabase.auth.getSession();
 
-          if (mounted && session?.user && !session.user.is_anonymous) {
+          if (mounted && session?.user && session.user.email) {
+            // Real authenticated user — restore session
             setUser(session.user);
-            // Run admin check in background — don't block UI rendering
             checkAdminRole(session.user.id);
             return;
           }
+
+          // If there's an anonymous session lingering, sign out of it
+          // so it doesn't interfere with future sign-ins
+          if (session?.user?.is_anonymous) {
+            await supabase.auth.signOut();
+          }
         }
 
-        // Not signed in → sign in as anonymous guest
+        // No valid session — user is a guest (null user, isAnonymous = true)
         localStorage.removeItem(SIGNED_OUT_KEY);
-        const { data, error } = await supabase.auth.signInAnonymously();
-        if (error) console.warn("Guest sign-in failed:", error.message);
-        else if (mounted) setUser(data.user);
       } catch (err) {
         console.error("AuthContext bootstrap error:", err);
       } finally {
@@ -120,19 +124,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     /* ──────────────────────────────────────────
        Listen for auth state changes.
        Fires when: sign in, sign out, token refresh.
-       We track whether the admin check was triggered
-       by our own signInWithEmail to avoid a double call.
     ────────────────────────────────────────── */
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        if (event === "SIGNED_OUT") return;
+        if (event === "SIGNED_OUT") {
+          setUser(null);
+          setIsAdmin(false);
+          return;
+        }
 
         const newUser = session?.user ?? null;
         setUser(newUser);
 
-        if (newUser && !newUser.is_anonymous) {
-          // Check admin role whenever session changes (login, token refresh, etc.)
+        if (newUser && newUser.email) {
           checkAdminRole(newUser.id);
         } else {
           setIsAdmin(false);
@@ -151,6 +156,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string): Promise<string | null> => {
       const supabase = createClient();
       localStorage.removeItem(SIGNED_OUT_KEY);
+
+      // Sign out any existing anonymous session first to clear the cookie
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession?.user?.is_anonymous || (currentSession?.user && !currentSession.user.email)) {
+          await supabase.auth.signOut();
+          // Small delay to let the cookie clear
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) return error.message;
