@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Cloud, TrendingUp, BarChart3, Zap } from "lucide-react";
+import { Bell, Cloud, TrendingUp, BarChart3, Zap, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getAiCrowdPrediction, CrowdPrediction } from "@/lib/ai/getAiPrediction";
 
 const attendanceData = [
   { day: "Mon", value: 320 },
@@ -17,7 +18,11 @@ const attendanceData = [
 export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const isWeekend = ["0", "6"].includes(String(new Date(selectedDate).getDay()));
-  const tier = 2;
+  
+  const [weatherData, setWeatherData] = useState<{ temp: number; code: number; desc: string } | null>(null);
+  const [prediction, setPrediction] = useState<CrowdPrediction | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch latest broadcast from DB
   const [latestBroadcast, setLatestBroadcast] = useState<string>("");
@@ -34,6 +39,68 @@ export default function DashboardPage() {
     }
     fetchBroadcast();
   }, []);
+
+  // Fetch Weather and AI Prediction when date changes
+  useEffect(() => {
+    async function fetchPredictionData() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // 1. Fetch Weather from Open-Meteo (Kuala Lumpur coordinates)
+        // Using forecast for future dates, or current weather for today
+        const lat = 3.1390;
+        const lon = 101.6869;
+        
+        // Calculate days difference to see if we need forecast or historical
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const target = new Date(selectedDate);
+        target.setHours(0, 0, 0, 0);
+        const diffTime = Math.abs(target.getTime() - today.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        let weatherCode = 0; // Default clear sky
+        let temp = 28;
+        let desc = "Clear";
+
+        // Open-Meteo only provides 16 days forecast for free
+        if (diffDays <= 16 && target >= today) {
+          const weatherRes = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max&timezone=Asia%2FSingapore&start_date=${selectedDate}&end_date=${selectedDate}`
+          );
+          
+          if (weatherRes.ok) {
+            const wData = await weatherRes.json();
+            if (wData.daily && wData.daily.weather_code && wData.daily.weather_code.length > 0) {
+              weatherCode = wData.daily.weather_code[0];
+              temp = Math.round(wData.daily.temperature_2m_max[0]);
+              
+              // Simple WMO code mapping
+              if (weatherCode <= 3) desc = "Clear/Cloudy";
+              else if (weatherCode <= 49) desc = "Fog/Mist";
+              else if (weatherCode <= 69) desc = "Rain";
+              else if (weatherCode <= 79) desc = "Snow";
+              else desc = "Storm";
+            }
+          }
+        }
+
+        setWeatherData({ temp, code: weatherCode, desc });
+
+        // 2. Call AI Predictor
+        const aiResult = await getAiCrowdPrediction(selectedDate, weatherCode, isWeekend);
+        setPrediction(aiResult);
+
+      } catch (err: any) {
+        console.error("Failed to fetch prediction data:", err);
+        setError(err.message || "Failed to load prediction");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchPredictionData();
+  }, [selectedDate, isWeekend]);
 
   return (
     <div className="min-h-screen">
@@ -71,43 +138,61 @@ export default function DashboardPage() {
               {[
                 ["Day of Ramadan", "Auto-calculated"],
                 ["Is Weekend", isWeekend ? "Yes" : "No"],
-                ["Weather API", "Connected"],
+                ["Weather API", weatherData ? `${weatherData.desc} (${weatherData.temp}°C)` : "Loading..."],
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between text-sm py-1.5 border-b border-dashed border-border last:border-0">
                   <span className="text-text-secondary">{label}</span>
-                  <span className={`font-semibold ${val === "Connected" ? "text-primary" : "text-text"}`}>{val}</span>
+                  <span className={`font-semibold ${val === "Connected" || val?.includes("°C") ? "text-primary" : "text-text"}`}>{val}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Prediction Results */}
-          <div className="card p-6">
-            <h2 className="font-bold text-lg text-text mb-5">Prediction Results</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[
-                { label: "TIER", value: String(tier) },
-                { label: "EST. CROWD", value: "500-1000" },
-                { label: "WEATHER", value: "28°C", icon: true },
-                { label: "CONFIDENCE", value: "87%", highlight: true },
-              ].map((item) => (
-                <div key={item.label} className="bg-background border border-border rounded-xl p-3.5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">{item.label}</p>
-                  <p className={`text-xl font-bold ${item.highlight ? "text-primary" : "text-text"} flex items-center justify-center gap-1`}>
-                    {item.icon && <Cloud size={16} className="text-text-muted" />}
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-primary-50 border border-[#D5F5E3] rounded-xl p-4 flex items-start gap-3">
-              <div className="text-gold shrink-0 mt-0.5"><Zap size={22} /></div>
-              <div>
-                <p className="font-bold text-sm text-text">AI Recommendation</p>
-                <p className="text-sm text-text-secondary mt-0.5">Standard preparation. 500 Iftar packs recommended.</p>
+          <div className="card p-6 relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-surface/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+                <Loader2 className="animate-spin text-primary" size={32} />
               </div>
-            </div>
+            )}
+            <h2 className="font-bold text-lg text-text mb-5">Prediction Results</h2>
+            
+            {error ? (
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">
+                <p className="font-bold mb-1">Prediction Error</p>
+                <p>{error}</p>
+                <p className="mt-2 text-xs opacity-80">Make sure the AI Predictor microservice is running on port 8000.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: "TIER", value: prediction ? String(prediction.predicted_tier) : "-" },
+                    { label: "EST. CROWD", value: prediction ? `${prediction.recommended_food_packs - 50}-${prediction.recommended_food_packs + 50}` : "-" },
+                    { label: "WEATHER", value: weatherData ? `${weatherData.temp}°C` : "-", icon: true },
+                    { label: "CONFIDENCE", value: "87%", highlight: true },
+                  ].map((item) => (
+                    <div key={item.label} className="bg-background border border-border rounded-xl p-3.5 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">{item.label}</p>
+                      <p className={`text-xl font-bold ${item.highlight ? "text-primary" : "text-text"} flex items-center justify-center gap-1`}>
+                        {item.icon && <Cloud size={16} className="text-text-muted" />}
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-primary-50 border border-[#D5F5E3] rounded-xl p-4 flex items-start gap-3">
+                  <div className="text-gold shrink-0 mt-0.5"><Zap size={22} /></div>
+                  <div>
+                    <p className="font-bold text-sm text-text">AI Recommendation</p>
+                    <p className="text-sm text-text-secondary mt-0.5">
+                      {prediction ? prediction.recommendation : "Loading recommendation..."}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

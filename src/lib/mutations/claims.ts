@@ -81,31 +81,14 @@ export async function cancelKupon(
   }
 }
 
-// These are the hardcoded fallback IDs from the initialGigs array in gigs/page.tsx.
-// Claims for these IDs should be allowed locally without hitting the DB
-// (the real rows may not exist in the database yet).
-const FALLBACK_GIG_IDS = new Set([
-  "a1111111-1111-4111-a111-111111111111",
-  "a2222222-2222-4222-a222-222222222222",
-  "a3333333-3333-4333-a333-333333333333",
-  "a4444444-4444-4444-a444-444444444444",
-]);
-
 /**
  * Claim a volunteer gig slot.
- * Falls back to local-only claim if DB is unreachable or ID is demo-only.
  */
 export async function claimGig(
   gigId: string,
   guestUuid: string
 ): Promise<ClaimResult> {
   try {
-    // If this is a fallback/demo gig (no real DB row), allow local claim only.
-    if (FALLBACK_GIG_IDS.has(gigId)) {
-      console.info("Demo gig — local claim only (no DB row exists).");
-      return { success: true };
-    }
-
     const supabase = createClient();
 
     const result = await Promise.race([
@@ -123,21 +106,12 @@ export async function claimGig(
       if (result.error.code === "23503") {
         return { success: false, error: "This gig no longer exists. Please refresh the page." };
       }
-      // Invalid UUID format — gig was created locally without a real UUID
-      if (result.error.message?.includes("invalid input syntax for type uuid")) {
-        console.warn("Invalid UUID for gig claim, proceeding with local claim");
-        return { success: true };
-      }
-      if (result.error.code === "42501" || result.error.code === "TIMEOUT" || result.error.message?.includes("policy")) {
-        console.warn("Gig claim blocked/timed out, proceeding with local claim");
-        return { success: true };
-      }
       return { success: false, error: result.error.message };
     }
     return { success: true };
-  } catch (err) {
-    console.warn("Gig claim request failed, proceeding with local claim:", err);
-    return { success: true };
+  } catch (err: any) {
+    console.error("Gig claim request failed:", err);
+    return { success: false, error: err.message || "Failed to claim gig" };
   }
 }
 
