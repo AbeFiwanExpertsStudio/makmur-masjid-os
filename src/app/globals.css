@@ -305,3 +305,14 @@
   animation: scan-line 2s ease-in-out infinite;
   position: absolute;
 }
+
+/* Mosque screen ticker — right to left, single copy, duration set inline per text length */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
+}
+.animate-ticker {
+  white-space: nowrap;
+  will-change: transform;
+  animation: ticker-scroll 30s linear infinite;
+}

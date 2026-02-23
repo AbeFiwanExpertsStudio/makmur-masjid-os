@@ -943,6 +943,7 @@ const MODULE_LIST: { key: keyof ScreenConfig; labelKey: string; descKey: string 
   { key: "slideshow",     labelKey: "skrinSlideshow",  descKey: "skrinSlideshowDesc"  },
   { key: "panel_waktu",   labelKey: "skrinPanelWaktu", descKey: "skrinPanelWaktuDesc" },
   { key: "bunyi_azan",    labelKey: "skrinAzan",        descKey: "skrinAzanDesc"       },
+  { key: "ticker",        labelKey: "skrinTicker",     descKey: "skrinTickerDesc"     },
 ];
 
 // ── Sortable slide card used inside SkrinMasjidEditor ────────────
@@ -986,8 +987,8 @@ function SkrinMasjidEditor() {
   const [slides, setSlides] = useState<ScreenSlide[]>([]);
   const [loadingCfg, setLoadingCfg] = useState(true);
 
-  // dnd-kit sensors
-  const sensors = useSensors(useSensor(PointerSensor));
+  // dnd-kit sensors — require 5px movement so sliders don’t accidentally trigger drag
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // Photo upload
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -1150,6 +1151,18 @@ function SkrinMasjidEditor() {
         >
           <ExternalLink size={13} /> {t.skrinOpenDisplay}
         </a>
+      </div>
+
+      {/* Live Preview */}
+      <div>
+        <label className="text-xs font-bold uppercase tracking-widest text-text-secondary mb-2 block">Live Preview</label>
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-black" style={{ height: 165 }}>
+          <iframe
+            src="/paparan-masjid"
+            className="absolute top-0 left-0 pointer-events-none border-0"
+            style={{ width: "334%", height: "334%", transform: "scale(0.3)", transformOrigin: "top left" }}
+          />
+        </div>
       </div>
 
       {/* Zone Selector */}

@@ -10,6 +10,7 @@ export interface ScreenConfig {
   slideshow: { enabled: boolean; interval_seconds: number };
   panel_waktu: { enabled: boolean; layout?: "horizontal" | "vertical" };
   bunyi_azan: { enabled: boolean };
+  ticker: { enabled: boolean };
   zone: string;
 }
 
@@ -27,6 +28,7 @@ export const DEFAULT_SCREEN_CONFIG: ScreenConfig = {
   slideshow: { enabled: true, interval_seconds: 8 },
   panel_waktu: { enabled: true },
   bunyi_azan: { enabled: true },
+  ticker: { enabled: false },
   zone: "WLY01",
 };
 

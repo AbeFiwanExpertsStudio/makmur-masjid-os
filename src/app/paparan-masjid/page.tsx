@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ms } from "date-fns/locale";
 import { useScreenConfig } from "@/hooks/useScreenConfig";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
+import { createClient } from "@/lib/supabase/client";
 import { Monitor, X, Volume2, Bell, Timer, ChevronDown } from "lucide-react";
 
 // ── Types ───────────────────────────────────────────────────────
@@ -48,7 +49,8 @@ function getCurrentAndNext(prayers: PrayerDay, nowUnix: number) {
   }
 
   const idx = current ? order.indexOf(current) : -1;
-  const next: PrayerKey | null = idx < order.length - 1 ? order[idx + 1] : null;
+  // Skip syuruk as "next" — it’s a sunrise window, not a congregational prayer
+  const next: PrayerKey | null = order.slice(idx + 1).find(k => k !== "syuruk") ?? null;
   return { current, next };
 }
 
@@ -82,6 +84,9 @@ export default function PaparanMasjidPage() {
   const [detectedZone, setDetectedZone] = useState<string>("");
   const [zoneDetecting, setZoneDetecting] = useState(false);
 
+  // Active broadcasts for the ticker
+  const [activeBroadcasts, setActiveBroadcasts] = useState<string[]>([]);
+
   // Refs to avoid stale closures in setInterval
   const lastAzanFired   = useRef<number>(0);
   const lastAlertFired  = useRef<number>(0);
@@ -98,6 +103,25 @@ export default function PaparanMasjidPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem("lastAzanFired");
     if (stored) lastAzanFired.current = parseInt(stored, 10);
+  }, []);
+
+  // ── Live broadcasts for ticker (fetch + realtime) ──
+  useEffect(() => {
+    const supabase = createClient();
+    const fetchBroadcasts = async () => {
+      const { data } = await supabase
+        .from("system_broadcasts")
+        .select("message")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      setActiveBroadcasts((data ?? []).map((b: { message: string }) => b.message));
+    };
+    fetchBroadcasts();
+    const channel = supabase
+      .channel("ticker_broadcasts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_broadcasts" }, fetchBroadcasts)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // ── Auto-detect zone from geolocation when config.zone is blank ──
@@ -317,10 +341,12 @@ export default function PaparanMasjidPage() {
 
   // ── Render ──────────────────────────────────────────────────
   const panelLayout = config.panel_waktu.layout ?? "horizontal";
+  const isFriday = now.getDay() === 5;
+  const overlayDarkness = (now.getHours() >= 0 && now.getHours() < 4) ? "bg-black/93" : "bg-black/70";
   return (
     <div className="fixed inset-0 z-[9999] overflow-hidden select-none" style={bgStyle}>
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/70" />
+      {/* Dark overlay — auto-darkens between midnight and 4 am to reduce burn-in */}
+      <div className={`absolute inset-0 ${overlayDarkness}`} />
 
       {/* ── CONTENT LAYER ───────────────────────────── */}
       <div className="relative z-10 h-full flex flex-col p-6 gap-4">
@@ -335,6 +361,24 @@ export default function PaparanMasjidPage() {
             {hijriDate && (
               <p className="text-white/40 text-xs mt-0.5">{hijriDate}</p>
             )}
+            {/* Next prayer countdown chip */}
+            {nextPrayer && prayers && (() => {
+              const secs = Math.max(0, prayers[nextPrayer] - nowUnix);
+              const h = Math.floor(secs / 3600);
+              const m = Math.floor((secs % 3600) / 60);
+              const s = secs % 60;
+              return (
+                <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-1 mt-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-white/70 text-xs font-semibold uppercase tracking-widest">
+                    {prayerLabel(nextPrayer)}
+                  </span>
+                  <span className="text-white/50 text-xs tabular-nums">
+                    {`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Right: clock */}
@@ -392,29 +436,82 @@ export default function PaparanMasjidPage() {
             </div>
           )}
 
+          {/* ── NO-SLIDE PLACEHOLDER ────────────────────── */}
+          {(!config.slideshow.enabled || slides.length === 0) && (
+            <div className="flex-1 relative rounded-2xl overflow-hidden min-h-0 flex items-center justify-center bg-black/30 border border-white/10">
+              {/* Islamic geometric tile pattern overlay */}
+              <div
+                className="absolute inset-0 opacity-[0.07]"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%23fff' stroke-width='0.8'%3E%3Cpolygon points='40,4 51,14 64,10 64,24 75,32 68,44 75,56 64,56 56,68 44,62 32,68 24,56 12,56 18,44 12,32 24,24 24,10 36,14'/%3E%3Cpolygon points='40,16 48,22 57,19 57,28 65,34 60,42 65,50 57,50 51,58 43,54 34,58 28,50 20,50 25,42 20,34 28,28 28,19 37,22'/%3E%3Cline x1='40' y1='4' x2='40' y2='16'/%3E%3Cline x1='75' y1='32' x2='65' y2='34'/%3E%3Cline x1='75' y1='56' x2='65' y2='50'/%3E%3Cline x1='40' y1='68' x2='40' y2='58'/%3E%3Cline x1='12' y1='56' x2='20' y2='50'/%3E%3Cline x1='12' y1='32' x2='20' y2='34'/%3E%3C/g%3E%3C/svg%3E")`,
+                  backgroundSize: "80px 80px",
+                }}
+              />
+              {/* Corner ornaments */}
+              <div className="absolute top-5 left-5 w-10 h-10 border-t-2 border-l-2 border-white/20 rounded-tl-lg" />
+              <div className="absolute top-5 right-5 w-10 h-10 border-t-2 border-r-2 border-white/20 rounded-tr-lg" />
+              <div className="absolute bottom-5 left-5 w-10 h-10 border-b-2 border-l-2 border-white/20 rounded-bl-lg" />
+              <div className="absolute bottom-5 right-5 w-10 h-10 border-b-2 border-r-2 border-white/20 rounded-br-lg" />
+              {/* Centre card */}
+              <div className="relative z-10 flex flex-col items-center gap-5 px-12 py-10 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl text-center max-w-md">
+                {/* Arabic bismillah */}
+                <p className="text-white/90 text-3xl leading-relaxed" style={{ fontFamily: "serif", direction: "rtl" }}>
+                  بسم الله الرحمن الرحيم
+                </p>
+                {/* Divider with diamond */}
+                <div className="flex items-center gap-3 w-full">
+                  <div className="flex-1 h-px bg-white/20" />
+                  <div className="w-2 h-2 bg-white/30 rotate-45" />
+                  <div className="flex-1 h-px bg-white/20" />
+                </div>
+                {/* Mosque name */}
+                <p className="text-white text-2xl font-bold tracking-widest uppercase leading-tight">
+                  {sysSettings?.system_desc || sysSettings?.system_name || "MASJID"}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ── VERTICAL: right prayer panel ── */}
           {panelLayout === "vertical" && config.panel_waktu.enabled && prayers && (
             <div className="w-60 flex-shrink-0 flex flex-col">
               {/* Prayer list — fills full middle-row height */}
               <div className="flex-1 min-h-0 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex flex-col">
-                <div className="flex flex-col divide-y divide-white/10 h-full">
-                  {PRAYER_DISPLAY.map(({ key, ms: prayerLabel }) => {
+                {/* Hijri date header */}
+                {hijriDate && (
+                  <div className="flex-shrink-0 px-4 py-2 border-b border-white/10 text-center">
+                    <p className="text-white/40 text-[11px] font-medium tracking-widest">{hijriDate}</p>
+                  </div>
+                )}
+                <div className="flex flex-col divide-y divide-white/10 flex-1 min-h-0">
+                  {PRAYER_DISPLAY.map(({ key, ms: label }) => {
                     const isCurrent = key === currentPrayer;
                     const isNext = key === nextPrayer;
+                    const isJumaat = isFriday && key === "dhuhr";
+                    const isSyuruk = key === "syuruk";
                     return (
                       <div
                         key={key}
-                        className={`flex-1 flex flex-col justify-center px-5 relative transition-all ${
-                          isCurrent ? "bg-emerald-500/80" : isNext ? "bg-white/20" : ""
-                        }`}
+                        className={[
+                          "flex-1 flex flex-col justify-center px-5 relative transition-all",
+                          isSyuruk && !isCurrent ? "opacity-40" : "",
+                          isCurrent
+                            ? isJumaat ? "bg-amber-500/80" : "bg-emerald-500/80"
+                            : isNext ? "bg-white/20" : "",
+                        ].join(" ")}
                       >
                         <div className="flex items-center gap-2 mb-1">
                           {isCurrent && <div className="w-2 h-2 rounded-full bg-white animate-pulse flex-shrink-0" />}
                           <p className={`text-lg font-bold uppercase tracking-widest ${
                             isCurrent ? "text-white" : isNext ? "text-white" : "text-white/50"
-                          }`}>{prayerLabel}</p>
+                          }`}>{label}</p>
                           {isCurrent && (
-                            <span className="text-[9px] font-bold tracking-widest text-emerald-100 bg-white/10 rounded-full px-1.5 py-0.5">NOW</span>
+                            <span className={`text-[9px] font-bold tracking-widest rounded-full px-1.5 py-0.5 ${
+                              isJumaat ? "text-amber-100 bg-white/10" : "text-emerald-100 bg-white/10"
+                            }`}>NOW</span>
+                          )}
+                          {isFriday && key === "dhuhr" && !isCurrent && (
+                            <span className="text-[9px] font-bold tracking-widest text-amber-300 bg-amber-500/20 rounded-full px-1.5 py-0.5">JUMAAT</span>
                           )}
                         </div>
                         <p className={`text-3xl font-bold tabular-nums ${
@@ -445,20 +542,31 @@ export default function PaparanMasjidPage() {
           {panelLayout === "horizontal" && config.panel_waktu.enabled && prayers && (
             <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden flex-shrink-0">
               <div className="grid grid-cols-6">
-                {PRAYER_DISPLAY.map(({ key, ms: prayerLabel }) => {
+                {PRAYER_DISPLAY.map(({ key, ms: label }) => {
                   const isCurrent = key === currentPrayer;
                   const isNext = key === nextPrayer;
+                  const isJumaat = isFriday && key === "dhuhr";
+                  const isSyuruk = key === "syuruk";
                   return (
                     <div
                       key={key}
-                      className={`flex flex-col items-center py-5 px-2 relative transition-all ${
-                        isCurrent ? "bg-emerald-500/80 text-white" : isNext ? "bg-white/20 text-white" : "text-white/60"
-                      }`}
+                      className={[
+                        "flex flex-col items-center py-5 px-2 relative transition-all",
+                        isSyuruk && !isCurrent ? "opacity-40" : "",
+                        isCurrent
+                          ? isJumaat ? "bg-amber-500/80 text-white" : "bg-emerald-500/80 text-white"
+                          : isNext ? "bg-white/20 text-white" : "text-white/60",
+                      ].join(" ")}
                     >
                       {isCurrent && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white animate-pulse" />}
-                      <p className={`text-base font-bold uppercase tracking-wider mb-2 ${isCurrent ? "text-white" : ""}`}>{prayerLabel}</p>
+                      <p className={`text-base font-bold uppercase tracking-wider mb-2 ${isCurrent ? "text-white" : ""}`}>{label}</p>
                       <p className={`text-3xl font-bold tabular-nums ${isCurrent ? "text-white" : ""}`}>{unixToTimeStr(prayers[key])}</p>
-                      {isCurrent && <p className="text-[11px] text-emerald-100 mt-1 font-bold tracking-widest">SEKARANG</p>}
+                      {isCurrent && (
+                        <p className={`text-[11px] mt-1 font-bold tracking-widest ${isJumaat ? "text-amber-100" : "text-emerald-100"}`}>SEKARANG</p>
+                      )}
+                      {isFriday && key === "dhuhr" && !isCurrent && (
+                        <p className="text-[10px] text-amber-300 font-bold tracking-widest mt-1">JUMAAT</p>
+                      )}
                       {isNext && !isCurrent && (() => {
                         const secs = Math.max(0, prayers[key] - nowUnix);
                         const h = Math.floor(secs / 3600);
@@ -476,6 +584,33 @@ export default function PaparanMasjidPage() {
         </div>{/* closes middle row */}
 
       </div>{/* closes main content layer */}
+
+      {/* ── ANNOUNCEMENT TICKER ──────────────── */}
+      {config.ticker?.enabled && activeBroadcasts.length > 0 && (() => {
+        // Join all active broadcasts with a bullet separator
+        const tickerText = activeBroadcasts.join("     •     ");
+        // Scale speed: ~90px/s on a 1920px screen ≈ 21s base + 0.09s per char
+        // so short texts aren't blazing fast and long texts aren't painfully slow
+        const duration = Math.max(20, Math.round(21 + tickerText.length * 0.09));
+        return (
+          <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/70 backdrop-blur-sm border-t border-white/10 overflow-hidden" style={{ height: 40 }}>
+            <div className="flex items-center h-full">
+              <span className="flex-shrink-0 bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-widest px-3 h-full flex items-center">
+                MAKLUMAN
+              </span>
+              {/* Scrolling track — starts off-screen right, scrolls to off-screen left, loops */}
+              <div className="flex-1 overflow-hidden h-full relative">
+                <div
+                  className="absolute inset-y-0 left-0 flex items-center animate-ticker"
+                  style={{ animationDuration: `${duration}s` }}
+                >
+                  <span className="text-white/80 text-sm font-medium px-6">{tickerText}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── TEST PANEL TRIGGER (corner tap / T key) ─── */}
       <button

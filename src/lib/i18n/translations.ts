@@ -345,7 +345,10 @@ const translations = {
     skrinAddSlide: "Add Slide",
     skrinNoSlides: "No slides added yet.",
     skrinUploading: "Uploading…",
-    skrinSaveSettings: "Save Settings",  },
+    skrinSaveSettings: "Save Settings",
+    skrinTicker: "Announcement Ticker",
+    skrinTickerDesc: "Scrolls active system broadcasts at the bottom of the screen.",
+  },
 
   ms: {
     // ── Common ──────────────────────────────────────────────
@@ -687,7 +690,10 @@ const translations = {
     skrinAddSlide: "Tambah Slaid",
     skrinNoSlides: "Tiada slaid ditambah lagi.",
     skrinUploading: "Memuat naik…",
-    skrinSaveSettings: "Simpan Tetapan",  },
+    skrinSaveSettings: "Simpan Tetapan",
+    skrinTicker: "Pita Pengumuman",
+    skrinTickerDesc: "Tatal siaran sistem aktif di bahagian bawah skrin.",
+  },
 } as const;
 
 export type TranslationsType = typeof translations.en;
