@@ -23,12 +23,12 @@ interface PrayerDay {
 type PrayerKey = "fajr" | "syuruk" | "dhuhr" | "asr" | "maghrib" | "isha";
 
 const PRAYER_DISPLAY: { key: PrayerKey; ms: string }[] = [
-  { key: "fajr",    ms: "Subuh"   },
-  { key: "syuruk",  ms: "Syuruk"  },
-  { key: "dhuhr",   ms: "Zuhur"   },
-  { key: "asr",     ms: "Asar"    },
+  { key: "fajr", ms: "Subuh" },
+  { key: "syuruk", ms: "Syuruk" },
+  { key: "dhuhr", ms: "Zuhur" },
+  { key: "asr", ms: "Asar" },
   { key: "maghrib", ms: "Maghrib" },
-  { key: "isha",    ms: "Isyak"   },
+  { key: "isha", ms: "Isyak" },
 ];
 
 // Prayers that have azan (exclude syuruk)
@@ -88,15 +88,15 @@ export default function PaparanMasjidPage() {
   const [activeBroadcasts, setActiveBroadcasts] = useState<string[]>([]);
 
   // Refs to avoid stale closures in setInterval
-  const lastAzanFired   = useRef<number>(0);
-  const lastAlertFired  = useRef<number>(0);
+  const lastAzanFired = useRef<number>(0);
+  const lastAlertFired = useRef<number>(0);
   const lastIqamatFired = useRef<number>(0);
-  const audioSubuhRef   = useRef<HTMLAudioElement | null>(null);
-  const audioOtherRef   = useRef<HTMLAudioElement | null>(null);
-  const audioBeepRef    = useRef<HTMLAudioElement | null>(null);
-  const prayersRef      = useRef<PrayerDay | null>(null);
-  const configRef       = useRef(config);
-  const activeZoneRef   = useRef("");
+  const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
+  const audioOtherRef = useRef<HTMLAudioElement | null>(null);
+  const audioBeepRef = useRef<HTMLAudioElement | null>(null);
+  const prayersRef = useRef<PrayerDay | null>(null);
+  const configRef = useRef(config);
+  const activeZoneRef = useRef("");
   // Track the calendar date last fetched so we can re-fetch at midnight
   const lastFetchedDate = useRef<number>(new Date().getDate());
 
@@ -113,7 +113,7 @@ export default function PaparanMasjidPage() {
 
   // ── Helper: play a double-beep pattern, repeated `reps` times ──
   // Pattern per rep: beep → 150ms → beep  |  600ms gap before next rep
-  const playBeeps = useCallback((reps = 5) => {
+  const playBeeps = useCallback((reps = 10) => {
     const audio = audioBeepRef.current;
     if (!audio) return;
     let rep = 0;
@@ -121,11 +121,11 @@ export default function PaparanMasjidPage() {
       if (rep >= reps) return;
       // First beep of the pair
       audio.currentTime = 0;
-      audio.play().catch(() => {});
+      audio.play().catch(() => { });
       // Second beep 200ms later
       setTimeout(() => {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
         rep++;
         // Gap before next pair
         if (rep < reps) setTimeout(playRep, 600);
@@ -174,7 +174,7 @@ export default function PaparanMasjidPage() {
       },
       () => setZoneDetecting(false)
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.zone]);
 
   // ── Keyboard shortcut: press T to open test panel ──
@@ -220,7 +220,7 @@ export default function PaparanMasjidPage() {
 
   useEffect(() => {
     fetchPrayers(activeZone);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeZone]);
 
   // ── Clock + alert + azan logic ──
@@ -256,8 +256,8 @@ export default function PaparanMasjidPage() {
           setAlertPrayer(triggered);
           setShowAlert(true);
           setShowIqamat(false);
-          // Beep x5 immediately when the alert appears
-          playBeeps(5);
+          // Beep x10 immediately when the alert appears
+          playBeeps(10);
           // Auto-dismiss: use ALERT_WINDOW when iqamat will take over, else 90s
           const dismissAfter = cfg.alert_iqamat.enabled
             ? ALERT_WINDOW * 1000
@@ -283,8 +283,8 @@ export default function PaparanMasjidPage() {
           // showAlert will already have auto-dismissed by now
           setShowAlert(false);
           setShowIqamat(true);
-          // Beep x5 immediately when the iqamat countdown screen appears
-          playBeeps(5);
+          // Beep x10 immediately when the iqamat countdown screen appears
+          playBeeps(10);
         }
       }
 
@@ -335,7 +335,7 @@ export default function PaparanMasjidPage() {
     setShowIqamat(false);
     setShowAlert(true);
     setShowTestPanel(false);
-    playBeeps(5);
+    playBeeps(10);
     setTimeout(() => setShowAlert(false), 90_000);
   };
 
@@ -348,7 +348,7 @@ export default function PaparanMasjidPage() {
     setShowAlert(false);
     setShowIqamat(true);
     setShowTestPanel(false);
-    playBeeps(5);
+    playBeeps(10);
   };
 
   const testAzan = (type: "subuh" | "other") => {
@@ -366,7 +366,7 @@ export default function PaparanMasjidPage() {
     audioSubuhRef.current?.pause();
     audioOtherRef.current?.pause();
     if (audioSubuhRef.current) audioSubuhRef.current.currentTime = 0;
-    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0;      if (audioBeepRef.current) { audioBeepRef.current.pause(); audioBeepRef.current.currentTime = 0; }    setShowAlert(false);
+    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0; if (audioBeepRef.current) { audioBeepRef.current.pause(); audioBeepRef.current.currentTime = 0; } setShowAlert(false);
     setShowIqamat(false);
     setIqamatTarget(0);
   };
@@ -444,7 +444,7 @@ export default function PaparanMasjidPage() {
                     {prayerLabel(nextPrayer)}
                   </span>
                   <span className="text-white/50 text-xs tabular-nums">
-                    {`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+                    {`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}
                   </span>
                 </div>
               );
@@ -572,21 +572,18 @@ export default function PaparanMasjidPage() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           {isCurrent && <div className="w-2 h-2 rounded-full bg-white animate-pulse flex-shrink-0" />}
-                          <p className={`text-lg font-bold uppercase tracking-widest ${
-                            isCurrent ? "text-white" : isNext ? "text-white" : "text-white/50"
-                          }`}>{label}</p>
+                          <p className={`text-lg font-bold uppercase tracking-widest ${isCurrent ? "text-white" : isNext ? "text-white" : "text-white/50"
+                            }`}>{label}</p>
                           {isCurrent && (
-                            <span className={`text-[9px] font-bold tracking-widest rounded-full px-1.5 py-0.5 ${
-                              isJumaat ? "text-amber-100 bg-white/10" : "text-emerald-100 bg-white/10"
-                            }`}>NOW</span>
+                            <span className={`text-[9px] font-bold tracking-widest rounded-full px-1.5 py-0.5 ${isJumaat ? "text-amber-100 bg-white/10" : "text-emerald-100 bg-white/10"
+                              }`}>NOW</span>
                           )}
                           {isFriday && key === "dhuhr" && !isCurrent && (
                             <span className="text-[9px] font-bold tracking-widest text-amber-300 bg-amber-500/20 rounded-full px-1.5 py-0.5">JUMAAT</span>
                           )}
                         </div>
-                        <p className={`text-3xl font-bold tabular-nums ${
-                          isCurrent ? "text-white" : isNext ? "text-white" : "text-white/60"
-                        }`}>
+                        <p className={`text-3xl font-bold tabular-nums ${isCurrent ? "text-white" : isNext ? "text-white" : "text-white/60"
+                          }`}>
                           {unixToTimeStr(prayers[key])}
                         </p>
                         {isNext && !isCurrent && (() => {
@@ -596,7 +593,7 @@ export default function PaparanMasjidPage() {
                           const s = secs % 60;
                           return (
                             <p className="text-xs text-white/40 tabular-nums mt-0.5">
-                              {`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+                              {`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}
                             </p>
                           );
                         })()}
@@ -642,7 +639,7 @@ export default function PaparanMasjidPage() {
                         const h = Math.floor(secs / 3600);
                         const m = Math.floor((secs % 3600) / 60);
                         const s = secs % 60;
-                        return <p className="text-[11px] text-white/50 mt-1 font-medium tabular-nums">{`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}</p>;
+                        return <p className="text-[11px] text-white/50 mt-1 font-medium tabular-nums">{`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}</p>;
                       })()}
                     </div>
                   );

@@ -30,6 +30,8 @@ export function usePrayerSettings() {
     const [bgImage, setBgImage] = useState<string>("");
     const [bgOpacity, setBgOpacity] = useState<number>(75);
     const [selectedZone, setSelectedZone] = useState<string>("");
+    const [showBannerAlert, setShowBannerAlert] = useState<boolean>(true);
+    const [enableBlinking, setEnableBlinking] = useState<boolean>(true);
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initial Load
@@ -45,6 +47,8 @@ export function usePrayerSettings() {
                 if (parsed.language) setLanguage(parsed.language);
                 if (parsed.bgOpacity !== undefined) setBgOpacity(parsed.bgOpacity);
                 if (parsed.selectedZone) setSelectedZone(parsed.selectedZone);
+                if (typeof parsed.showBannerAlert === 'boolean') setShowBannerAlert(parsed.showBannerAlert);
+                if (typeof parsed.enableBlinking === 'boolean') setEnableBlinking(parsed.enableBlinking);
             } catch (e) { }
         }
 
@@ -73,7 +77,9 @@ export function usePrayerSettings() {
                 audioEnabled,
                 language,
                 bgOpacity,
-                selectedZone
+                selectedZone,
+                showBannerAlert,
+                enableBlinking
             }));
 
             // For large base64 images, use extremely simple localstorage with try catch, 
@@ -90,7 +96,7 @@ export function usePrayerSettings() {
         } catch (e) {
             console.error("Storage save failed", e);
         }
-    }, [theme, use24Hour, customTitle, audioEnabled, language, bgImage, bgOpacity, isLoaded]);
+    }, [theme, use24Hour, customTitle, audioEnabled, language, bgImage, bgOpacity, selectedZone, showBannerAlert, enableBlinking, isLoaded]);
 
     return {
         theme, setTheme,
@@ -101,6 +107,8 @@ export function usePrayerSettings() {
         bgImage, setBgImage,
         bgOpacity, setBgOpacity,
         selectedZone, setSelectedZone,
+        showBannerAlert, setShowBannerAlert,
+        enableBlinking, setEnableBlinking,
         isLoaded
     };
 }

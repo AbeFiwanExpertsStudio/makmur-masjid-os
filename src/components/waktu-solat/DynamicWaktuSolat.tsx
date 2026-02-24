@@ -28,11 +28,14 @@ export default function DynamicWaktuSolat() {
         bgImage, setBgImage,
         bgOpacity, setBgOpacity,
         selectedZone, setSelectedZone,
+        showBannerAlert, setShowBannerAlert,
+        enableBlinking, setEnableBlinking,
         isLoaded
     } = usePrayerSettings();
 
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [dismissedAlertTime, setDismissedAlertTime] = useState<number | null>(null);
+    const [demoAlertEndTime, setDemoAlertEndTime] = useState<number | null>(null);
 
     const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
     const audioOtherRef = useRef<HTMLAudioElement | null>(null);
@@ -187,22 +190,44 @@ export default function DynamicWaktuSolat() {
                     const prayerNamesEn = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 
                     // Find any prayer within exactly 15 mins
+                    let activeAlertIdx = -1;
+                    let actualDiff = 0;
+                    let isDemo = false;
+
                     const alertIdx = times.findIndex(t => t - nowUnixLocal > 0 && t - nowUnixLocal <= 900);
 
-                    if (alertIdx !== -1 && times[alertIdx] !== dismissedAlertTime) {
-                        const actualDiff = times[alertIdx] - nowUnixLocal;
-                        const isBlinking = actualDiff <= 300; // <= 5 minutes
+                    if (demoAlertEndTime !== null) {
+                        activeAlertIdx = 3; // Mock Maghrib
+                        actualDiff = demoAlertEndTime - nowUnixLocal;
+                        isDemo = true;
+
+                        if (actualDiff <= 0) {
+                            setTimeout(() => setDemoAlertEndTime(null), 0);
+                            return null;
+                        }
+                    } else if (showBannerAlert && alertIdx !== -1 && times[alertIdx] !== dismissedAlertTime) {
+                        activeAlertIdx = alertIdx;
+                        actualDiff = times[alertIdx] - nowUnixLocal;
+                    }
+
+                    if (activeAlertIdx !== -1) {
+                        const isBlinking = enableBlinking && actualDiff <= 300; // <= 5 minutes
 
                         const m = Math.floor(actualDiff / 60);
                         const s = actualDiff % 60;
                         const countdownStr = `${m}M ${s}S`;
 
-                        const pName = language === "ms" ? prayerNames[alertIdx] : prayerNamesEn[alertIdx];
+                        const pName = language === "ms" ? prayerNames[activeAlertIdx] : prayerNamesEn[activeAlertIdx];
                         const msg = language === "ms" ? `Azan ${pName} dalam ${countdownStr}` : `${pName} Azan in ${countdownStr}`;
 
                         return (
-                            <div className={`w-full max-w-5xl mx-auto mb-4 md:mb-6 shrink-0 bg-[#2A1E00] border border-yellow-600/60 text-yellow-500 px-6 py-2 md:py-3 flex justify-center items-center gap-3 font-semibold text-lg md:text-xl tracking-wide rounded ${isBlinking ? 'animate-pulse' : ''}`}>
-                                <span>⚠️</span> {msg}
+                            <div className={`w-full max-w-5xl mx-auto mb-4 md:mb-6 shrink-0 bg-[#2A1E00] border border-yellow-600/60 text-yellow-500 px-6 py-2 md:py-3 flex justify-center items-center gap-3 font-semibold text-lg md:text-xl tracking-wide rounded relative ${isBlinking ? 'animate-pulse' : ''} ${isDemo ? 'ring-2 ring-blue-500/50' : ''}`}>
+                                <span>⚠️</span> {msg} {isDemo && <span className="text-[10px] ml-1 bg-blue-500 text-white px-2 rounded-full uppercase tracking-wider">Demo</span>}
+                                {isDemo && (
+                                    <button onClick={() => setDemoAlertEndTime(null)} className="absolute right-4 hidden md:block text-xs bg-red-500/20 text-red-500 px-3 py-1 rounded-full hover:bg-red-500/30 transition">
+                                        Stop Demo
+                                    </button>
+                                )}
                             </div>
                         );
                     }
@@ -435,6 +460,37 @@ export default function DynamicWaktuSolat() {
                                         className="flex-1 bg-emerald-500/20 text-emerald-400 font-medium py-3 rounded-lg hover:bg-emerald-500/30 transition flex flex-col items-center justify-center gap-1 text-xs border border-emerald-500/20"
                                     >
                                         <Volume2 size={16} /> {t("Test Local Azan", "Uji Azan Tempatan")}
+                                    </button>
+                                </div>
+                            </section>
+
+                            <section>
+                                <div className="mb-4">
+                                    <h4 className="font-bold text-white mb-1">{t("Alerts & Notifications", "Amaran & Notifikasi")}</h4>
+                                    <p className="text-xs text-white/50">{t("Visual warnings", "Peringatan visual")}</p>
+                                </div>
+                                <div className="space-y-3 bg-[#2A2A2A] rounded-2xl p-2 border border-white/5 mb-3">
+                                    <div className="flex justify-between items-center p-2 px-3 cursor-pointer" onClick={() => setShowBannerAlert(!showBannerAlert)}>
+                                        <span className="text-sm font-medium text-white/90">{t("Show 15-Min Banner", "Papar Sepanduk 15 Min")}</span>
+                                        <div className={`w-11 h-6 rounded-full flex items-center p-1 transition-colors ${showBannerAlert ? 'bg-blue-500 justify-end' : 'bg-[#1A1A1A] justify-start'}`}><div className="w-4 h-4 bg-surface rounded-full shadow-sm" /></div>
+                                    </div>
+                                    <div className="w-full h-px bg-white/5"></div>
+                                    <div className={`flex justify-between items-center p-2 px-3 cursor-pointer ${!showBannerAlert ? 'opacity-50 pointer-events-none' : ''}`} onClick={() => setEnableBlinking(!enableBlinking)}>
+                                        <span className="text-sm font-medium text-white/90">{t("Blink on last 5 min", "Berkelip pada 5 min akhir")}</span>
+                                        <div className={`w-11 h-6 rounded-full flex items-center p-1 transition-colors ${enableBlinking ? 'bg-blue-500 justify-end' : 'bg-[#1A1A1A] justify-start'}`}><div className="w-4 h-4 bg-surface rounded-full shadow-sm" /></div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 mb-3">
+                                    <button
+                                        onClick={() => {
+                                            if (demoAlertEndTime) setDemoAlertEndTime(null);
+                                            else setDemoAlertEndTime(Math.floor(currentTime.getTime() / 1000) + 310); // Start at 5m 10s so it blinks soon
+                                            setSettingsOpen(false);
+                                        }}
+                                        className={`flex-1 font-medium py-3 rounded-lg transition flex justify-center items-center gap-2 text-xs border ${demoAlertEndTime ? 'bg-red-500/20 text-red-400 border-red-500/20 hover:bg-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/20 hover:bg-blue-500/30'}`}
+                                    >
+                                        <Settings size={16} />
+                                        {demoAlertEndTime ? t("Stop Demo Alert", "Hentikan Demo") : t("Test Banner & Blinking", "Uji Sepanduk & Kerdipan")}
                                     </button>
                                 </div>
                             </section>
