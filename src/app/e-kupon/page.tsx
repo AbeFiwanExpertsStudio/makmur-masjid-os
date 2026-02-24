@@ -9,6 +9,7 @@ import QRCode from "react-qr-code";
 import {
   Utensils, Clock, MapPin, CheckCircle, AlertCircle, Ticket,
   Plus, X, CalendarPlus, Pencil, Trash2, AlertTriangle, Loader2,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
@@ -312,6 +313,7 @@ function KuponCard({
   const [isDeclaiming, setIsDeclaiming] = useState(false);
   const [localRemaining, setLocalRemaining] = useState<number | null>(null);
   const [confirmDeclaim, setConfirmDeclaim] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { t } = useLanguage();
 
   const totalPacks = event.total_capacity;
@@ -409,28 +411,26 @@ function KuponCard({
   return (
     <div className={`card overflow-hidden transition-shadow ${
       isScheduled
-        ? "ring-1 ring-gold/35 dark:ring-gold/20 shadow-md shadow-gold/10 dark:shadow-gold/5"
+        ? "card-scheduled ring-1 ring-gold/35 dark:ring-gold/20 shadow-md shadow-gold/10 dark:shadow-gold/5"
         : isActive
           ? "ring-1 ring-primary/20 dark:ring-primary/30 shadow-md shadow-primary/10 dark:shadow-primary/20"
           : ""
     }`}>
-      {/* Event header */}
       <div
         className={`p-6 text-white relative overflow-hidden ${
           isExpired
             ? "bg-gradient-to-br from-gray-600/90 to-gray-800 dark:from-gray-700 dark:to-gray-900"
-            : event.background_image
-              ? ""
-              : isActive
-                ? "hero-gradient"
-                : "gold-banner-gradient"
+            : isActive
+              ? "hero-gradient"
+              : "bg-gradient-to-br from-amber-500 to-amber-600"
         }`}
         style={event.background_image && !isExpired ? {
           backgroundImage: isActive
             ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 100%), url(${event.background_image})`
-            : `linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%), url(${event.background_image})`,
+            : `linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.65) 100%), url(${event.background_image})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          backgroundColor: isActive ? "#059669" : "#d97706",
         } : undefined}
       >
         <div className="pattern-bg absolute inset-0 opacity-20" />
@@ -446,7 +446,7 @@ function KuponCard({
               isExpired
                 ? "bg-white/10 text-white/50 border border-white/10"
                 : isScheduled
-                  ? "bg-gold/25 text-gold-light border border-gold/40 backdrop-blur-sm"
+                  ? "bg-black/20 text-white border border-white/20 backdrop-blur-sm"
                   : "bg-white/20 text-white font-semibold backdrop-blur-sm border border-white/10"
             }`}>
             {isExpired ? "EXPIRED" : isScheduled ? t.statusScheduled : t.statusActive}
@@ -493,8 +493,8 @@ function KuponCard({
               )}
               <span className={`font-bold ${
                 isScheduled
-                  ? "text-amber-800 dark:text-gold-light"
-                  : "text-emerald-800 dark:text-primary-light"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-primary-dark dark:text-primary-light"
               }`}>
                 {remainingPacks}/{totalPacks} {t.remaining}
               </span>
@@ -522,8 +522,8 @@ function KuponCard({
               isExpired
                 ? "bg-surface-muted dark:bg-surface text-text-muted cursor-not-allowed border border-border shadow-none"
                 : isScheduled
-                  ? "bg-amber-500 hover:bg-amber-600 dark:bg-gold dark:hover:bg-gold-dark text-white hover:shadow-lg shadow-amber-500/25 dark:shadow-gold/20"
-                  : "bg-primary text-white hover:bg-primary-dark hover:shadow-lg shadow-primary/20 dark:shadow-primary/30"
+                  ? "bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/25"
+                  : "bg-gradient-to-br from-primary-light to-primary hover:from-primary hover:to-primary-dark text-white hover:shadow-lg shadow-primary/20 dark:shadow-primary/30"
             }`}
           >
             {isExpired ? <Clock size={20} /> : isScheduled ? <CalendarPlus size={20} /> : <Utensils size={20} />}
@@ -535,81 +535,135 @@ function KuponCard({
           </button>
         ) : isScanned ? (
           /* ── REDEEMED STATE ── */
-          <div className="rounded-2xl p-6 bg-primary-50/40 dark:bg-primary/10 border-2 border-primary/20 dark:border-primary/30">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-14 h-14 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-1">
-                <CheckCircle size={30} className="text-primary" />
+          <div className="rounded-2xl p-5 bg-primary-50/40 dark:bg-primary/10 border-2 border-primary/20 dark:border-primary/30">
+            <div className="flex items-center justify-center gap-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-primary/10 border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <CheckCircle size={14} /> {t.redeemedTitle}
+              </span>
+              <button className="text-primary p-1 rounded-full transition-colors">
+                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+            </div>
+            <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4 border-t border-primary/10" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className="overflow-hidden">
+                <div className="pt-4 flex flex-col items-center gap-2">
+                  <p className="text-sm text-text-secondary text-center">
+                    {t.redeemedMsg(event.name)}
+                  </p>
+                </div>
               </div>
-              <p className="font-bold text-primary text-base">{t.redeemedTitle}</p>
-              <p className="text-sm text-text-secondary text-center">
-                {t.redeemedMsg(event.name)}
-              </p>
             </div>
           </div>
         ) : isScheduled ? (
           /* ── RESERVED (claimed but event not active yet) ── */
-          <div className="rounded-2xl overflow-hidden border border-border dark:border-border shadow-sm">
-            {/* Header */}
-            <div className="hero-gradient px-5 pt-5 pb-5 flex flex-col items-center gap-2 text-center relative overflow-hidden">
-              <div className="pattern-bg absolute inset-0 opacity-20" />
-              <div className="relative z-10 flex flex-col items-center gap-2.5">
-                <div className="w-12 h-12 rounded-2xl bg-gold/20 border border-gold/40 backdrop-blur-sm flex items-center justify-center">
-                  <Clock size={22} className="text-gold-light" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gold-light/90 bg-gold/15 border border-gold/30 px-3 py-0.5 rounded-full">{t.reservedTitle}</span>
-              </div>
+          <div className="rounded-2xl border-2 border-dashed border-amber-300 dark:border-amber-700/50 p-5 bg-transparent">
+            {/* Header / Badge */}
+            <div className="flex items-center justify-center gap-2 cursor-pointer mb-2" onClick={() => setIsExpanded(!isExpanded)}>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#4a3b32] dark:text-amber-400 bg-white dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-3 py-1 rounded-full">{t.reservedTitle}</span>
+              <button className="text-[#4a3b32] dark:text-amber-400 p-1 rounded-full transition-colors">
+                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
             </div>
-            {/* Body */}
-            <div className="bg-surface px-5 py-4 text-center">
-              <p className="text-sm font-medium text-primary dark:text-primary-light leading-relaxed">
-                {t.reservedMsg(
-                  new Date(event.event_date).toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' }),
-                  event.start_time?.slice(0, 5)
-                )}
-              </p>
-              <p className="font-mono text-xs font-semibold text-text-secondary mt-3 bg-surface-alt rounded-lg px-3 py-1.5 inline-block border border-border">ID: {claimId ? claimId.split("-")[0] : "..."}</p>
+            
+            <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4 border-t border-border" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className="overflow-hidden">
+                <div className="pt-4">
+                  {/* Body */}
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-amber-600 dark:text-amber-400 leading-relaxed">
+                      {t.reservedMsg(
+                        new Date(event.event_date).toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' }),
+                        event.start_time?.slice(0, 5)
+                      )}
+                    </p>
+                    <p className="font-mono text-xs font-semibold text-text-secondary mt-3 bg-surface rounded-lg px-3 py-1.5 inline-block border border-border">ID: {claimId ? claimId.split("-")[0] : "..."}</p>
+                  </div>
+                  {/* Cancel Actions */}
+                  <div className="mt-5 border-t border-border pt-4 flex justify-center">
+                    {confirmDeclaim ? (
+                      <div className="flex flex-col items-center gap-3 w-full">
+                        <p className="text-xs text-text-secondary text-center">{t.cancelConfirmMsg}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmDeclaim(false)}
+                            className="text-xs font-semibold text-text-secondary border border-border bg-surface hover:bg-surface-muted rounded-lg px-4 py-2 transition-all"
+                          >
+                            {t.keep}
+                          </button>
+                          <button
+                            onClick={handleDeclaim}
+                            disabled={isDeclaiming}
+                            className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 transition-all"
+                          >
+                            {isDeclaiming ? t.canceling : t.yesCancel}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeclaim(true)}
+                        disabled={isDeclaiming}
+                        className="text-xs font-bold text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 bg-white hover:bg-red-50 dark:bg-surface dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40 rounded-lg px-4 py-2.5 transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <X size={13} />{t.cancelClaim}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="border-2 border-dashed border-primary/20 dark:border-primary/30 rounded-2xl p-6 bg-primary-50/30 dark:bg-primary/5">
-            <div className="flex items-center justify-center gap-2 mb-5">
-              <CheckCircle size={18} className="text-primary" />
-              <span className="font-bold text-primary">{t.claimedTitle}</span>
+          <div className="border-2 border-dashed border-primary/20 dark:border-primary/30 rounded-2xl p-5 bg-primary-50/30 dark:bg-primary/5">
+            <div className="flex items-center justify-center gap-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-primary/10 border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <CheckCircle size={14} /> {t.claimedTitle}
+              </span>
+              <button className="text-primary p-1 rounded-full transition-colors">
+                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
             </div>
-            <div className="bg-surface dark:bg-white p-5 rounded-xl shadow-sm mx-auto w-fit">
-              <QRCode value={`makmur-kupon:${claimId ?? ""}`} size={180} level="H" fgColor="#1B6B4A" />
-            </div>
-            <p className="text-sm text-text-secondary mt-5 text-center">{t.showQrMsg}</p>
-            <p className="font-mono text-xs text-text-muted text-center mt-1">ID: {claimId ? claimId.split("-")[0] : "..."}</p>
-            <div className="mt-4 border-t border-border pt-4 flex justify-center">
-              {confirmDeclaim ? (
-                <div className="flex flex-col items-center gap-3 w-full">
-                  <p className="text-xs text-text-secondary text-center">{t.cancelConfirmMsg}</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setConfirmDeclaim(false)}
-                      className="text-xs font-semibold text-text-secondary border border-border bg-surface hover:bg-surface-muted rounded-lg px-4 py-2 transition-all"
-                    >
-                      {t.keep}
-                    </button>
-                    <button
-                      onClick={handleDeclaim}
-                      disabled={isDeclaiming}
-                      className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 transition-all"
-                    >
-                      {isDeclaiming ? t.canceling : t.yesCancel}
-                    </button>
+            
+            <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4 border-t border-primary/10" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className="overflow-hidden">
+                <div className="pt-5">
+                  <div className="bg-surface dark:bg-white p-5 rounded-xl shadow-sm mx-auto w-fit">
+                    <QRCode value={`makmur-kupon:${claimId ?? ""}`} size={180} level="H" fgColor="#1B6B4A" />
+                  </div>
+                  <p className="text-sm text-text-secondary mt-5 text-center">{t.showQrMsg}</p>
+                  <p className="font-mono text-xs text-text-muted text-center mt-1">ID: {claimId ? claimId.split("-")[0] : "..."}</p>
+                  <div className="mt-4 border-t border-border pt-4 flex justify-center">
+                    {confirmDeclaim ? (
+                      <div className="flex flex-col items-center gap-3 w-full">
+                        <p className="text-xs text-text-secondary text-center">{t.cancelConfirmMsg}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmDeclaim(false)}
+                            className="text-xs font-semibold text-text-secondary border border-border bg-surface hover:bg-surface-muted rounded-lg px-4 py-2 transition-all"
+                          >
+                            {t.keep}
+                          </button>
+                          <button
+                            onClick={handleDeclaim}
+                            disabled={isDeclaiming}
+                            className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 transition-all"
+                          >
+                            {isDeclaiming ? t.canceling : t.yesCancel}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeclaim(true)}
+                        disabled={isDeclaiming}
+                        className="text-xs font-bold text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 bg-white hover:bg-red-50 dark:bg-surface dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40 rounded-lg px-4 py-2.5 transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <X size={13} />{t.cancelClaim}
+                      </button>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmDeclaim(true)}
-                  disabled={isDeclaiming}
-                  className="text-xs font-bold text-red-700 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 border-2 border-red-400 dark:border-red-700 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg px-4 py-2.5 transition-all shadow-sm flex items-center gap-1.5"
-                >
-                  <X size={13} />{t.cancelClaim}
-                </button>
-              )}
+              </div>
             </div>
           </div>
         )}

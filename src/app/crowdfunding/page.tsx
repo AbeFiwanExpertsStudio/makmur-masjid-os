@@ -112,7 +112,7 @@ export default function CrowdfundingPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          campaignId: activeCampaign.id,
+          campaignId: activeCampaign?.id,
           amount: donationAmount,
           donorName: donorName || "Anonymous",
           donorEmail: donorEmail || "",
@@ -130,7 +130,7 @@ export default function CrowdfundingPage() {
         // Save phone number for future autofill if user is logged in
         if (user && donorPhone.trim()) {
           const supabase = createClient();
-          supabase.from("profiles").update({ phone: donorPhone.trim() }).eq("id", user.id);
+          supabase.from("profiles").update({ phone: donorPhone.trim() }).eq("id", user!.id);
         }
         // Redirect to ToyyibPay checkout page
         window.location.href = data.url;

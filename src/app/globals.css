@@ -144,6 +144,17 @@
   /* Emerald Glow */
 }
 
+/* Override for scheduled cards */
+.card-scheduled:hover {
+  border-color: var(--gold-light);
+  box-shadow: 0 10px 40px -12px rgba(217, 119, 6, 0.12);
+}
+
+.dark .card-scheduled:hover {
+  border-color: var(--gold);
+  box-shadow: 0 10px 40px -12px rgba(217, 119, 6, 0.15);
+}
+
 /* Icon container (circular) */
 .icon-box {
   width: 48px;

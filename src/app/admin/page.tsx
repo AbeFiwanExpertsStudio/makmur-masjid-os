@@ -1,11 +1,13 @@
 ﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/providers/LanguageContext";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 // ── Sub-components (split from the original monolithic page) ──
 import FinancialsCard from "@/components/admin/FinancialsCard";
@@ -18,9 +20,26 @@ import SkrinMasjidEditor from "@/components/admin/SkrinMasjidEditor";
 import BroadcastTicker from "@/components/layout/BroadcastTicker";
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user, isAdmin, isLoading } = useAuth();
   const { t } = useLanguage();
   const settings = useSystemSettings();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      toast.error("Access Denied: Admin Privileges Required");
+      router.push("/");
+    }
+  }, [isLoading, isAdmin, router]);
+
+  if (isLoading || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] gap-3 text-text-muted">
+        <Loader2 className="animate-spin" size={24} />
+        <span>Verifying access...</span>
+      </div>
+    );
+  }
 
   // ── Data state ────────────────────────────────────────────
   const [usersList, setUsersList] = useState<UserEntry[]>([]);
