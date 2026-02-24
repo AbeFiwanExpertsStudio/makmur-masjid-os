@@ -537,7 +537,7 @@ function KuponCard({
           /* ── REDEEMED STATE ── */
           <div className="rounded-2xl p-5 bg-primary-50/40 dark:bg-primary/10 border-2 border-primary/20 dark:border-primary/30">
             <div className="flex items-center justify-center gap-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-primary/10 border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-transparent border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
                 <CheckCircle size={14} /> {t.redeemedTitle}
               </span>
               <button className="text-primary p-1 rounded-full transition-colors">
@@ -557,9 +557,8 @@ function KuponCard({
         ) : isScheduled ? (
           /* ── RESERVED (claimed but event not active yet) ── */
           <div className="rounded-2xl border-2 border-dashed border-amber-300 dark:border-amber-700/50 p-5 bg-transparent">
-            {/* Header / Badge */}
             <div className="flex items-center justify-center gap-2 cursor-pointer mb-2" onClick={() => setIsExpanded(!isExpanded)}>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#4a3b32] dark:text-amber-400 bg-white dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-3 py-1 rounded-full">{t.reservedTitle}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#4a3b32] dark:text-amber-400 bg-transparent dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 px-3 py-1 rounded-full">{t.reservedTitle}</span>
               <button className="text-[#4a3b32] dark:text-amber-400 p-1 rounded-full transition-colors">
                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
@@ -616,7 +615,7 @@ function KuponCard({
         ) : (
           <div className="border-2 border-dashed border-primary/20 dark:border-primary/30 rounded-2xl p-5 bg-primary-50/30 dark:bg-primary/5">
             <div className="flex items-center justify-center gap-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-primary/10 border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary-dark dark:text-primary-light bg-transparent border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1.5">
                 <CheckCircle size={14} /> {t.claimedTitle}
               </span>
               <button className="text-primary p-1 rounded-full transition-colors">
