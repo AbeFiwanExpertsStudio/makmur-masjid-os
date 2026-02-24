@@ -39,6 +39,7 @@ export default function GigsPage() {
   const { t, language } = useLanguage();
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [loadingGigs, setLoadingGigs] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -79,8 +80,10 @@ export default function GigsPage() {
 
       if (error) {
         console.warn("Could not load gigs:", error.message);
+        setFetchError(error.message);
         setGigs([]);
       } else {
+        setFetchError(null);
         // Map DB rows to Gig type
         const mapped: Gig[] = (data ?? []).map((row: any) => ({
           id: row.id,
@@ -203,7 +206,7 @@ export default function GigsPage() {
             <p className="text-2xl font-bold text-text">{myPoints.toLocaleString()} <span className="text-sm font-normal text-text-muted">pts</span></p>
           </div>
           <div className="ml-auto text-xs text-text-muted max-w-[140px] text-right">
-            Earn 100 points per completed gig!
+            {t.gigsPointsDesc}
           </div>
         </div>
       )}
@@ -212,7 +215,7 @@ export default function GigsPage() {
       {isAnonymous && (
         <div className="card p-4 mb-6 flex items-center gap-3 border-l-4 border-l-primary">
           <div className="text-primary"><LogIn size={24} strokeWidth={2.5} /></div>
-          <p className="text-sm text-text-secondary"><strong className="text-text">Sign in required</strong> to claim gigs — the AJK needs to know who is coming!</p>
+          <p className="text-sm text-text-secondary">{t.gigsLoginNotice}</p>
         </div>
       )}
 
@@ -220,7 +223,17 @@ export default function GigsPage() {
       {loadingGigs && (
         <div className="flex items-center justify-center py-12 gap-3 text-text-muted">
           <Loader2 size={20} className="animate-spin" />
-          <span className="text-sm">Loading gigs…</span>
+          <span className="text-sm">{t.loading}</span>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loadingGigs && fetchError && (
+        <div className="card p-8 text-center">
+          <AlertTriangle size={32} className="text-red-400 mx-auto mb-3" />
+          <p className="font-semibold text-text mb-1">{t.loadFailed ?? "Failed to load"}</p>
+          <p className="text-sm text-text-muted mb-4">{fetchError}</p>
+          <button onClick={fetchGigs} className="px-5 py-2 btn-primary text-sm">{t.retry ?? "Retry"}</button>
         </div>
       )}
 
@@ -237,22 +250,19 @@ export default function GigsPage() {
         if (isEmpty || allClaimed) {
           return (
             <div className="card p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} className="text-amber-500" />
+              <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle size={32} className="text-primary" />
               </div>
               <h3 className="font-bold text-text text-lg mb-2">
-                {allClaimed ? "All Volunteer Slots Have Been Claimed! 🎉" : "No Gigs Available"}
+                {allClaimed ? t.gigsAllClaimed : t.gigsNoAvailable}
               </h3>
               <p className="text-sm text-text-muted max-w-xs mx-auto">
                 {allClaimed
-                  ? "MasyaAllah! Every volunteer slot is filled. Jazakallahu khairan to all our volunteers."
+                  ? t.gigsAllClaimedDesc
                   : isAdmin
-                    ? "No volunteer tasks yet. Click \"Add Gig\" to create the first one."
-                    : "Check back soon — new volunteer tasks will be posted here."}
+                    ? t.gigsNoAvailableAdmin
+                    : t.gigsNoAvailableUser}
               </p>
-              {allClaimed && isAdmin && (
-                <p className="text-xs text-text-muted mt-3">You can still add more gigs using the \"Add Gig\" button above.</p>
-              )}
             </div>
           );
         }
@@ -311,7 +321,7 @@ export default function GigsPage() {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-text pr-2">{gig.title}</h3>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`badge ${isFull ? "bg-amber-100 text-amber-700" : "bg-primary-50 text-primary"}`}>
+                      <span className={`badge ${isFull ? "bg-gold-light/40 text-gold-dark dark:bg-surface-muted dark:text-gold" : "bg-primary-50 dark:bg-primary/10 text-primary"}`}>
                         <Users size={12} /> {gig.claimed}/{gig.required_pax}
                       </span>
                       {isAdmin && (
@@ -339,7 +349,7 @@ export default function GigsPage() {
                   <div className="flex items-center gap-2 text-xs text-text-muted mb-3">
                     <Clock size={13} /> {new Date(gig.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} · {gig.start_time?.slice(0,5)} – {gig.end_time?.slice(0,5)}
                     {countdownLabel && (
-                      <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${isOngoing ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : "bg-primary-50 text-primary"}`}>
+                      <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${isOngoing ? "bg-gold-light/40 text-gold-dark dark:bg-surface-muted dark:text-gold" : "bg-primary-50 dark:bg-primary/10 text-primary"}`}>
                         {countdownLabel}
                       </span>
                     )}
@@ -355,8 +365,8 @@ export default function GigsPage() {
                         <CheckCircle size={15} /> Claimed ✓
                       </div>
                       {isOngoing ? (
-                        <span className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0" title="In Progress">
-                          <Clock size={16} className="text-amber-700 dark:text-amber-400" />
+                        <span className="w-10 h-10 rounded-xl bg-gold-light/40 dark:bg-surface-muted flex items-center justify-center shrink-0" title="In Progress">
+                          <Clock size={16} className="text-gold-dark dark:text-gold" />
                         </span>
                       ) : cancelConfirmId === gig.id ? null : (
                         <button
@@ -374,7 +384,7 @@ export default function GigsPage() {
                       disabled={isFull || isConflict}
                       className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-semibold transition-all ${
                         isConflict
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                          ? 'bg-gold-light/20 text-gold-dark border border-gold/30 cursor-not-allowed dark:bg-surface-muted dark:text-gold dark:border-gold/20'
                           : 'btn-primary'
                       }`}
                       title={isConflict ? `Overlaps with "${conflictingGig?.title}"` : undefined}
@@ -598,6 +608,7 @@ function GigFormModal({
                   <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">{t.gigFieldDate}</label>
                   <input
                     type="date" value={gigDate} onChange={(e) => setGigDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                     className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
                   />
                 </div>
@@ -721,15 +732,15 @@ function CancelClaimModal({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-amber-50 dark:bg-amber-950 border-b border-amber-100 dark:border-amber-900 p-5 flex items-center justify-between">
+        <div className="bg-gold-light/20 dark:bg-surface-muted border-b border-gold/20 dark:border-gold/10 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
-            <AlertTriangle className="text-amber-500" />
+            <AlertTriangle className="text-gold-dark dark:text-gold" />
             <div>
-              <h2 className="font-bold text-amber-900 dark:text-amber-200">{t.gigCancelTitle}</h2>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">{t.gigCancelSubtitle}</p>
+              <h2 className="font-bold text-text">{t.gigCancelTitle}</h2>
+              <p className="text-xs text-text-secondary mt-0.5">{t.gigCancelSubtitle}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-amber-500 hover:text-amber-700 bg-amber-100 dark:bg-amber-900 p-1 rounded-md"><X size={18} /></button>
+          <button onClick={onClose} className="text-gold-dark dark:text-gold hover:text-gold bg-gold-light/30 dark:bg-surface-alt p-1 rounded-md"><X size={18} /></button>
         </div>
         <div className="p-6">
           <p className="text-sm text-text-secondary mb-1">{t.gigCancelPrefix}</p>

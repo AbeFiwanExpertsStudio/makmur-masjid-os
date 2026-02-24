@@ -18,6 +18,8 @@ const translations = {
     saving: "Saving…",
     deleting: "Deleting…",
     creating: "Creating…",
+    retry: "Retry",
+    loadFailed: "Failed to load",
     admin: "Admin",
     adminPanel: "Admin Panel",
     yes: "Yes",
@@ -35,19 +37,20 @@ const translations = {
     navDashboard: "Dashboard",
     navVolunteer: "Volunteer",
     navCrowdfunding: "Crowdfunding",
-    navEKupon: "E-Kupon",
+    navEKupon: "E-Coupon",
     navZakat: "Zakat Locator",
-    navWaktuSolat: "Waktu Solat",
+    navWaktuSolat: "Prayer Times",
     navAdminPanel: "Admin Panel",
     notifications: "Notifications",
     noNotifications: "No notifications yet",
     allRead: "All read",
+    siaran: "Broadcast",
 
     // ── Bottom Nav ─────────────────────────────────────────
     bnHome: "Home",
     bnGigs: "Gigs",
     bnFund: "Fund",
-    bnKupon: "Kupon",
+    bnKupon: "Coupon",
     bnZakat: "Zakat",
 
     // ── Home page ────────────────────────────────────────────
@@ -55,7 +58,7 @@ const translations = {
     heroSubtitle: "Manage crowds, resources, volunteers, and zakat — all from one beautiful, intelligent platform.",
     openDashboard: "Open Dashboard",
     ajkAdminPanel: "AJK Admin Panel",
-    claimEKupon: "Claim E-Kupon",
+    claimEKupon: "Claim E-Coupon",
     volunteerGigs: "Volunteer Gigs",
     whatWeOffer: "What We Offer",
     everythingYourMosqueNeeds: "Everything Your Mosque Needs",
@@ -73,9 +76,9 @@ const translations = {
     featureAdminDesc: "Manage operations, scan kupons, and broadcast messages.",
 
     // ── E-Kupon page ─────────────────────────────────────────
-    ekuponTitle: "E-Kupon Iftar",
+    ekuponTitle: "E-Coupon Iftar",
     ekuponSubtitle: "Claim your digital coupon for food distribution",
-    addEKupon: "Add E-Kupon",
+    addEKupon: "Add E-Coupon",
     noEventsTitle: "No Events Available",
     noEventsExpired: "All events have expired. Add a new E-Kupon above to activate distribution.",
     noEventsEmpty: "There are no food distributions active right now.",
@@ -89,7 +92,6 @@ const translations = {
     reserveSpot: "Reserve My Spot",
     claiming: "Claiming…",
     claimNow: "Claim Now",
-    redeemedTitle: "Food Successfully Redeemed",
     redeemedMsg: (name: string) =>
       `Alhamdulillah! Your Iftar pack for ${name} has been collected. Enjoy your meal!`,
     reservedTitle: "Kupon Reserved",
@@ -104,12 +106,12 @@ const translations = {
     canceling: "Canceling...",
 
     // E-Kupon Form Modal
-    modalEditTitle: "Edit E-Kupon",
-    modalAddTitle: "Add New E-Kupon",
+    modalEditTitle: "Edit E-Coupon",
+    modalAddTitle: "Add New E-Coupon",
     modalEditSubtitle: "Update the food distribution event details",
     modalAddSubtitle: "Set up a new food distribution event",
     eventUpdated: "Event Updated!",
-    ekuponCreated: "E-Kupon Created!",
+    ekuponCreated: "E-Coupon Created!",
     changesSaved: "Changes saved successfully.",
     usersCanClaim: "Users can now claim this kupon.",
     fieldFoodName: "Food Name *",
@@ -119,10 +121,10 @@ const translations = {
     fieldStartTime: "Start Time",
     fieldEndTime: "End Time",
     saveChanges: "Save Changes",
-    createEKupon: "Create E-Kupon Event",
+    createEKupon: "Create E-Coupon Event",
 
     // Delete Modal
-    deleteEKuponTitle: "Delete E-Kupon?",
+    deleteEKuponTitle: "Delete E-Coupon?",
     deleteConfirmPrefix: "You are about to permanently delete:",
     deleteEvent: "Delete Event",
 
@@ -139,6 +141,13 @@ const translations = {
     gigsSpots: (claimed: number, total: number) => `${claimed}/${total} spots filled`,
     gigsLoginRequired: "Please sign in to claim a gig.",
     gigsMyPoints: "My Points",
+    gigsPointsDesc: "Earn 100 points per completed gig!",
+    gigsLoginNotice: "Sign in required to claim gigs — the AJK needs to know who's coming!",
+    gigsAllClaimed: "All Volunteer Slots Claimed! 🎉",
+    gigsAllClaimedDesc: "MasyaAllah! Every volunteer slot is filled. Jazakallahu khairan to all our volunteers.",
+    gigsNoAvailable: "No Gigs Available",
+    gigsNoAvailableAdmin: "No volunteer tasks yet. Click \"Add Gig\" to create the first one.",
+    gigsNoAvailableUser: "Check back soon — new volunteer tasks will be posted here.",
 
     // ── Crowdfunding page ─────────────────────────────────────
     crowdfundTitle: "Crowdfunding",
@@ -187,6 +196,12 @@ const translations = {
     authCreating: "Creating account…",
     authContinueGuest: "Continue as Guest",
     authGuestNote: "Guest mode is limited — sign in to claim gigs & kupons.",
+    authForgotPassword: "Forgot password?",
+    authForgotPasswordSubtitle: "Enter your email and we'll send a reset link.",
+    authForgotSend: "Send Reset Link",
+    authForgotSending: "Sending…",
+    authForgotSent: "Reset link sent! Check your inbox.",
+    authBackToLogin: "Back to login",
 
     // ── Pagination ─────────────────────────────────────────────
     pagePrev: "Previous",
@@ -219,7 +234,7 @@ const translations = {
     adminTitle: "AJK Admin Panel",
     adminSubtitle: "Manage operations and community",
     adminFinancials: "Financials Overview",
-    adminTotalCollected: "Total Collected (Stripe)",
+    adminTotalCollected: "Total Collected (ToyyibPay)",
     adminBroadcast: "Community Broadcast",
     adminBroadcastDesc: "Send a notification to all users.",
     adminBlastMsg: "Blast Message",
@@ -235,7 +250,8 @@ const translations = {
     adminUnclaimedKupons: "Unclaimed Kupons",
     adminHide: "hide",
     adminShow: "show",
-    adminAllScanned: "All kupons have been scanned 🎉",
+    adminAllScanned: "All kupons have been scanned",
+    adminAllScannedSub: "No unclaimed kupons remaining.",
     adminGuest: "Guest",
     adminSessionHistory: "Session History",
     adminGigCompletion: "Gig Completion",
@@ -322,7 +338,7 @@ const translations = {
 
     // ── Screen Display (Paparan Skrin Masjid) ─────────────────────────────
     skrinTitle: "Mosque Screen Display",
-    skrinDesc: "Configure what appears on the mosque TV / kiosk screen. Changes apply live.",
+    skrinDesc: "Manage what is displayed on the mosque TV or kiosk screen. Changes take effect immediately.",
     skrinOpenDisplay: "Open Display Screen",
     skrinZone: "Prayer Time Zone",
     skrinGambar: "Mosque Background Photo",
@@ -363,6 +379,8 @@ const translations = {
     saving: "Menyimpan…",
     deleting: "Memadam…",
     creating: "Mencipta…",
+    retry: "Cuba Lagi",
+    loadFailed: "Gagal memuatkan",
     admin: "Admin",
     adminPanel: "Panel Admin",
     yes: "Ya",
@@ -387,6 +405,7 @@ const translations = {
     notifications: "Pemberitahuan",
     noNotifications: "Tiada pemberitahuan",
     allRead: "Semua dibaca",
+    siaran: "Siaran",
 
     // ── Bottom Nav ─────────────────────────────────────────
     bnHome: "Utama",
@@ -434,7 +453,6 @@ const translations = {
     reserveSpot: "Tempah Tempat Saya",
     claiming: "Menuntut…",
     claimNow: "Tuntut Sekarang",
-    redeemedTitle: "Makanan Berjaya Ditebus",
     redeemedMsg: (name: string) =>
       `Alhamdulillah! Pakej Iftar anda untuk ${name} telah diambil. Selamat menikmati!`,
     reservedTitle: "Kupon Ditempah",
@@ -484,6 +502,13 @@ const translations = {
     gigsSpots: (claimed: number, total: number) => `${claimed}/${total} tempat diisi`,
     gigsLoginRequired: "Sila log masuk untuk menuntut gig.",
     gigsMyPoints: "Mata Saya",
+    gigsPointsDesc: "Dapat 100 mata setiap gig selesai!",
+    gigsLoginNotice: "Log masuk diperlukan untuk menuntut gig — AJK perlu tahu siapa yang datang!",
+    gigsAllClaimed: "Semua Slot Sukarelawan Dituntut! 🎉",
+    gigsAllClaimedDesc: "MasyaAllah! Semua slot sukarelawan telah dipenuhi. Jazakallahu khairan kepada semua sukarelawan kami.",
+    gigsNoAvailable: "Tiada Gig Tersedia",
+    gigsNoAvailableAdmin: "Tiada tugas sukarelawan lagi. Klik \"Tambah Gig\" untuk mencipta yang pertama.",
+    gigsNoAvailableUser: "Semak semula nanti — tugas sukarelawan baru akan disiarkan di sini.",
 
     // ── Crowdfunding page ─────────────────────────────────────
     crowdfundTitle: "Tabung Masjid",
@@ -532,6 +557,12 @@ const translations = {
     authCreating: "Sedang mencipta akaun…",
     authContinueGuest: "Teruskan sebagai Tetamu",
     authGuestNote: "Mod tetamu terhad — log masuk untuk tuntut gigs & kupon.",
+    authForgotPassword: "Lupa kata laluan?",
+    authForgotPasswordSubtitle: "Masukkan e-mel anda dan kami akan hantar pautan set semula.",
+    authForgotSend: "Hantar Pautan Set Semula",
+    authForgotSending: "Menghantar…",
+    authForgotSent: "Pautan set semula dihantar! Semak peti masuk anda.",
+    authBackToLogin: "Kembali ke log masuk",
 
     // ── Pagination ─────────────────────────────────────────────
     pagePrev: "Sebelumnya",
@@ -564,7 +595,7 @@ const translations = {
     adminTitle: "Panel AJK Admin",
     adminSubtitle: "Urus operasi dan komuniti",
     adminFinancials: "Ringkasan Kewangan",
-    adminTotalCollected: "Jumlah Terkumpul (Stripe)",
+    adminTotalCollected: "Jumlah Terkumpul (ToyyibPay)",
     adminBroadcast: "Siaran Komuniti",
     adminBroadcastDesc: "Hantar pemberitahuan kepada semua pengguna.",
     adminBlastMsg: "Hantar Mesej",
@@ -580,7 +611,8 @@ const translations = {
     adminUnclaimedKupons: "Kupon Belum Diimbas",
     adminHide: "sembunyikan",
     adminShow: "tunjuk",
-    adminAllScanned: "Semua kupon telah diimbas 🎉",
+    adminAllScanned: "Semua kupon telah diimbas",
+    adminAllScannedSub: "Tiada kupon yang belum diimbas.",
     adminGuest: "Tetamu",
     adminSessionHistory: "Sejarah Sesi",
     adminGigCompletion: "Penyiapan Gig",
@@ -667,7 +699,7 @@ const translations = {
 
     // ── Screen Display (Paparan Skrin Masjid) ─────────────────────────────
     skrinTitle: "Paparan Skrin Masjid",
-    skrinDesc: "Konfigurasi apa yang dipaparkan pada skrin TV / kiosk masjid. Perubahan berkuat kuasa serta-merta.",
+    skrinDesc: "Urus paparan pada skrin TV atau kiosk masjid. Perubahan berkuat kuasa dengan serta-merta.",
     skrinOpenDisplay: "Buka Skrin Paparan",
     skrinZone: "Zon Waktu Solat",
     skrinGambar: "Foto Latar Masjid",

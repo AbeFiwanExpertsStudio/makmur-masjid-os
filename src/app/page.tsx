@@ -19,7 +19,7 @@ export default function HomePage() {
   const { t } = useLanguage();
 
   const publicFeatures = [
-    { href: "/e-kupon", icon: QrCode, title: "E-Kupon", desc: t.featureEKuponDesc, color: "text-primary" },
+    { href: "/e-kupon", icon: QrCode, title: t.navEKupon, desc: t.featureEKuponDesc, color: "text-primary" },
     { href: "/zakat", icon: MapPin, title: t.navZakat, desc: t.featureZakatDesc, color: "text-primary" },
     { href: "/gigs", icon: Users, title: t.gigsTitle, desc: t.featureGigsDesc, color: "text-primary" },
     { href: "/crowdfunding", icon: HandHeart, title: t.crowdfundTitle, desc: t.featureCrowdfundDesc, color: "text-primary" },
@@ -88,7 +88,7 @@ export default function HomePage() {
                 <>
                   <Link
                     href="/dashboard"
-                    className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-text font-bold rounded-xl text-sm transition-all shadow-lg shadow-[#D4A843]/20 flex items-center justify-center gap-2"
+                    className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-[#111827] font-bold rounded-xl text-sm transition-all shadow-lg shadow-gold/20 hover:shadow-gold/30 flex items-center justify-center gap-2"
                   >
                     {t.openDashboard} <ArrowRight size={16} />
                   </Link>
@@ -103,7 +103,7 @@ export default function HomePage() {
                 <>
                   <Link
                     href="/e-kupon"
-                    className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-text font-bold rounded-xl text-sm transition-all shadow-lg shadow-[#D4A843]/20 flex items-center justify-center gap-2"
+                    className="px-8 py-3.5 bg-gold hover:bg-gold-dark text-[#111827] font-bold rounded-xl text-sm transition-all shadow-lg shadow-gold/20 hover:shadow-gold/30 flex items-center justify-center gap-2"
                   >
                     {t.claimEKupon} <ArrowRight size={16} />
                   </Link>
@@ -129,9 +129,9 @@ export default function HomePage() {
 
       {/* ═══ STATS BAR ═══ */}
       <section className="container mx-auto px-4 -mt-2 mb-12">
-        <div className="bg-surface rounded-2xl shadow-lg border border-border p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="bg-surface rounded-2xl shadow-lg border border-border p-6 grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border">
           {statDisplay.map((s) => (
-            <div key={s.label} className="text-center">
+            <div key={s.label} className="text-center py-4 md:py-0 md:px-6">
               <p className={`text-2xl md:text-3xl font-bold text-primary transition-all ${stats.isLoading ? "opacity-40" : ""}`}>
                 {s.value}
               </p>
@@ -152,12 +152,15 @@ export default function HomePage() {
           {features.map((f) => {
             const Icon = f.icon;
             return (
-              <Link key={f.href} href={f.href} className="card p-6 group">
-                <div className={`mb-4 group-hover:scale-110 transition-transform ${f.color}`}>
-                  <Icon size={28} strokeWidth={2.5} />
+              <Link key={f.href} href={f.href} className="card p-6 group flex flex-col">
+                <div className="mb-4 w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 group-hover:bg-primary/15 dark:group-hover:bg-primary/20 transition-all">
+                  <Icon size={22} strokeWidth={2.5} />
                 </div>
-                <h3 className="font-bold text-text text-lg mb-2">{f.title}</h3>
-                <p className="text-sm text-text-secondary leading-relaxed">{f.desc}</p>
+                <h3 className="font-bold text-text text-lg mb-1.5">{f.title}</h3>
+                <p className="text-sm text-text-secondary leading-relaxed flex-1">{f.desc}</p>
+                <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all">
+                  Open <ArrowRight size={12} />
+                </div>
               </Link>
             );
           })}

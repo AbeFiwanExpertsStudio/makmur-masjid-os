@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Menu, X, LogOut, Shield, Sun, Moon, Check } from 'lucide-react';
+import { Bell, Menu, X, LogOut, Shield, Sun, Moon, Check, KeyRound, Radio } from 'lucide-react';
+import ChangePasswordModal from '@/components/auth/ChangePasswordModal';
 import { useAuth } from '@/components/providers/AuthContext';
 import { useTheme } from 'next-themes';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -34,6 +35,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   
@@ -90,11 +92,52 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetch notifications on mount and periodically
+  // Fetch on mount + subscribe to Realtime changes
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 5000); // poll every 5s
-    return () => clearInterval(interval);
+
+    const supabase = createClient();
+
+    // For INSERT: prepend directly to avoid a round-trip query.
+    // For UPDATE/DELETE: re-fetch since dedup/ordering must be recomputed.
+    const channel = supabase
+      .channel("navbar-broadcasts")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "system_broadcasts" },
+        (payload) => {
+          const n = payload.new as Notification;
+          setNotifications((prev) => [n, ...prev].slice(0, 20));
+          const lastSeen = localStorage.getItem("lastSeenBroadcast") ?? "1970-01-01";
+          if (n.created_at > lastSeen) {
+            setUnreadCount((c) => c + 1);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "system_broadcasts" },
+        fetchNotifications
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "system_broadcasts" },
+        fetchNotifications
+      )
+      .subscribe();
+
+    // Listen for same-tab admin broadcast events (instant, no WebSocket needed)
+    const onBroadcastSent = () => fetchNotifications();
+    window.addEventListener("makmur:broadcast-sent", onBroadcastSent);
+
+    // 30-second poll as a safety net in case the WebSocket misses an event
+    const poll = setInterval(fetchNotifications, 30_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("makmur:broadcast-sent", onBroadcastSent);
+      clearInterval(poll);
+    };
   }, [fetchNotifications]);
 
   // When notification dropdown opens, mark all as read
@@ -120,7 +163,8 @@ export function Navbar() {
   };
 
   return (
-    <header className="bg-surface border-b border-border sticky top-0 z-50 transition-colors duration-300">
+    <>
+    <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 hero-gradient rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🌙</div>
@@ -200,27 +244,48 @@ export function Navbar() {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 top-12 w-80 bg-surface rounded-xl shadow-2xl border border-border overflow-hidden z-50">
-                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-text">{t.notifications}</h3>
+              <div className="absolute right-0 top-12 w-96 bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden z-50">
+                {/* Gradient header */}
+                <div className="hero-gradient px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-white/15 border border-white/20 rounded-lg flex items-center justify-center shrink-0">
+                      <Bell size={13} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-white leading-none">{t.notifications}</h3>
+                      <p className="text-[10px] text-white/60 mt-0.5 leading-none">Last 24 hours</p>
+                    </div>
+                  </div>
                   {notifications.length > 0 && (
-                    <span className="badge bg-primary-50 text-primary text-xs flex items-center gap-1">
-                          <Check size={10} /> {t.allRead}
-                        </span>
+                    <span className="shrink-0 text-[10px] font-bold bg-white/15 text-white/90 border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Check size={9} /> {t.allRead}
+                    </span>
                   )}
                 </div>
-                <div className="max-h-72 overflow-y-auto">
+
+                {/* Notification list */}
+                <div className="max-h-80 overflow-y-auto overscroll-contain">
                   {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <div key={n.id} className="px-4 py-3 border-b border-surface-muted last:border-0">
-                        <p className="text-sm text-text">{n.message}</p>
-                        <p className="text-xs text-text-muted mt-1">{timeAgo(n.created_at, t)}</p>
-                      </div>
-                    ))
+                    <div className="divide-y divide-border/50">
+                      {notifications.map((n) => (
+                        <div key={n.id} className="flex gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-colors">
+                          <div className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-primary-50 dark:bg-primary/10 border border-primary/10 dark:border-primary/20 flex items-center justify-center">
+                            <Radio size={12} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-text leading-snug break-words">{n.message}</p>
+                            <p className="text-[11px] text-text-muted mt-1 font-medium">{timeAgo(n.created_at, t)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <div className="px-4 py-8 text-center">
-                      <Bell size={24} className="mx-auto text-text-muted/30 mb-2" />
-                      <p className="text-sm text-text-muted">{t.noNotifications}</p>
+                    <div className="px-4 py-12 text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-surface-muted border border-border flex items-center justify-center mx-auto mb-3">
+                        <Bell size={24} className="text-text-muted/40" />
+                      </div>
+                      <p className="text-sm font-semibold text-text-muted">{t.noNotifications}</p>
+                      <p className="text-xs text-text-muted/60 mt-1">Broadcasts from admins will appear here</p>
                     </div>
                   )}
                 </div>
@@ -253,8 +318,14 @@ export function Navbar() {
                     <p className="text-xs text-text-muted truncate">{user?.email}</p>
                   </div>
                   <button
+                    onClick={() => { setShowChangePassword(true); setProfileOpen(false); }}
+                    className="w-full px-4 py-3 text-left text-sm text-text-secondary hover:bg-surface-muted flex items-center gap-2 transition"
+                  >
+                    <KeyRound size={15} /> Reset Password
+                  </button>
+                  <button
                     onClick={handleSignOut}
-                    className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition"
+                    className="w-full px-4 py-3 text-left text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2 transition"
                   >
                     <LogOut size={15} /> {t.signOut}
                   </button>
@@ -290,7 +361,10 @@ export function Navbar() {
                   <Shield size={15} /> {t.adminPanel}
                 </Link>
               )}
-              <button onClick={handleSignOut} className="w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-2 mt-1 border border-red-200">
+              <button onClick={() => { setShowChangePassword(true); setMobileOpen(false); }} className="w-full px-4 py-3 text-sm text-text-secondary hover:bg-surface-muted rounded-xl flex items-center gap-2 mt-1 border border-border">
+                <KeyRound size={15} /> Reset Password
+              </button>
+              <button onClick={handleSignOut} className="w-full px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl flex items-center gap-2 mt-1 border border-red-200 dark:border-red-900/60">
                 <LogOut size={15} /> {t.signOut}
               </button>
             </>
@@ -298,5 +372,10 @@ export function Navbar() {
         </div>
       )}
     </header>
+
+    {showChangePassword && (
+      <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+    )}
+  </>
   );
 }

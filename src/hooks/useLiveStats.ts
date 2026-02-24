@@ -98,7 +98,22 @@ export function useLiveStats(): LiveStats {
     };
 
     fetchStats();
-    return () => { mounted = false; };
+
+    // Re-fetch stats on any relevant table change
+    const supabase = createClient();
+    const channel = supabase
+      .channel("live-stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "food_events" }, fetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "kupon_claims" }, fetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, fetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, fetchStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "zakat_counters" }, fetchStats)
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return { ...stats, isLoading };

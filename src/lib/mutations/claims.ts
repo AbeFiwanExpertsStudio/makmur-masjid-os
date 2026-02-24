@@ -19,7 +19,8 @@ const FALLBACK_EVENT_IDS = new Set([
  */
 export async function claimKupon(
   eventId: string,
-  guestUuid: string
+  guestUuid: string,
+  deviceUuid?: string
 ): Promise<ClaimResult & { claimId?: string }> {
   try {
     // If this is a fallback/demo event (no real DB row), allow local claim only.
@@ -31,7 +32,11 @@ export async function claimKupon(
     const supabase = createClient();
 
     const result = await Promise.race([
-      supabase.from("kupon_claims").insert({ event_id: eventId, guest_uuid: guestUuid }).select("id").single().then(r => r),
+      supabase.from("kupon_claims").insert({
+        event_id: eventId,
+        guest_uuid: guestUuid,
+        ...(deviceUuid ? { device_uuid: deviceUuid } : {}),
+      }).select("id").single().then(r => r),
       new Promise<{ data: any, error: { code: string; message: string } | null }>((resolve) =>
         setTimeout(() => resolve({ data: null, error: { code: "TIMEOUT", message: "Request timed out" } }), 5000)
       ),
@@ -39,23 +44,27 @@ export async function claimKupon(
 
     if (result.error) {
       if (result.error.code === "23505") {
-        return { success: false, error: "You have already claimed this kupon." };
+        // Could be either guest_uuid or device_uuid constraint violation
+        return { success: false, error: "A kupon for this event has already been claimed on this device." };
       }
       // Foreign key violation — the event_id doesn't exist in food_events
       if (result.error.code === "23503") {
         return { success: false, error: "This event no longer exists. Please refresh the page." };
       }
-      // RLS or permission error — still allow local claim for demo
-      if (result.error.code === "42501" || result.error.code === "TIMEOUT" || result.error.message?.includes("policy")) {
-        console.warn("Kupon claim blocked/timed out, proceeding with local claim");
-        return { success: true };
+      // Timeout — do NOT silently succeed; ask user to retry
+      if (result.error.code === "TIMEOUT") {
+        return { success: false, error: "Request timed out. Please check your connection and try again." };
+      }
+      // RLS / permission error — return failure (never fake a successful claim)
+      if (result.error.code === "42501" || result.error.message?.includes("policy")) {
+        return { success: false, error: "You are not authorized to claim this kupon." };
       }
       return { success: false, error: result.error.message };
     }
     return { success: true, claimId: result.data?.id };
-  } catch (err) {
-    console.warn("Kupon claim request failed, proceeding with local claim:", err);
-    return { success: true };
+  } catch (err: any) {
+    console.error("Kupon claim request failed:", err);
+    return { success: false, error: err?.message || "Failed to claim kupon. Please try again." };
   }
 }
 

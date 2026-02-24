@@ -14,7 +14,8 @@ export default function CameraScanner({ onScan }: CameraScannerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
-  const lastScanRef = useRef<number>(0); // cooldown timestamp
+  const lastScanRef = useRef<number>(0);  // 2-second cooldown after a successful scan
+  const lastFrameRef = useRef<number>(0); // throttle frame processing to ~10 fps
 
   const [status, setStatus] = useState<"loading" | "active" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -60,6 +61,15 @@ export default function CameraScanner({ onScan }: CameraScannerProps) {
         return;
       }
 
+      // Throttle to ~10 fps — skip jsQR processing on intermediate frames.
+      // Video continues rendering at native refresh rate; only decoding is capped.
+      const now = Date.now();
+      if (now - lastFrameRef.current < 100) {
+        rafRef.current = requestAnimationFrame(scanFrame);
+        return;
+      }
+      lastFrameRef.current = now;
+
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) {
         rafRef.current = requestAnimationFrame(scanFrame);
@@ -75,7 +85,6 @@ export default function CameraScanner({ onScan }: CameraScannerProps) {
         inversionAttempts: "dontInvert",
       });
 
-      const now = Date.now();
       if (code && now - lastScanRef.current > 2000) {
         lastScanRef.current = now;
         onScan(code.data);

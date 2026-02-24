@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Cloud, TrendingUp, BarChart3, Zap, Loader2 } from "lucide-react";
+import { Cloud, TrendingUp, BarChart3, Zap, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getAiCrowdPrediction, CrowdPrediction } from "@/lib/ai/getAiPrediction";
 import { useLanguage } from "@/components/providers/LanguageContext";
+import BroadcastTicker from "@/components/layout/BroadcastTicker";
 
 const attendanceData = [
   { day: "Mon", value: 320 },
@@ -26,11 +27,11 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch latest broadcast from DB
+  // Fetch latest broadcast from DB + subscribe to real-time updates
   const [latestBroadcast, setLatestBroadcast] = useState<string>("");
   useEffect(() => {
+    const supabase = createClient();
     async function fetchBroadcast() {
-      const supabase = createClient();
       const { data } = await supabase
         .from('system_broadcasts')
         .select('message')
@@ -41,6 +42,19 @@ export default function DashboardPage() {
       if (data) setLatestBroadcast(data.message);
     }
     fetchBroadcast();
+
+    const channel = supabase
+      .channel("dashboard-broadcasts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "system_broadcasts" }, fetchBroadcast)
+      .subscribe();
+
+    const onBroadcastSent = () => fetchBroadcast();
+    window.addEventListener("makmur:broadcast-sent", onBroadcastSent);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("makmur:broadcast-sent", onBroadcastSent);
+    };
   }, []);
 
   // Fetch Weather and AI Prediction when date changes
@@ -111,14 +125,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       {/* Broadcast Banner */}
-      {latestBroadcast && (
-        <div className="hero-gradient text-white px-4 py-3 flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full bg-surface/15 flex items-center justify-center shrink-0">
-            <Bell size={12} />
-          </div>
-          <span className="text-sm"><strong>{t.dashboardLatestBroadcast}:</strong> <span className="text-white/70">{latestBroadcast}</span></span>
-        </div>
-      )}
+      {latestBroadcast && <BroadcastTicker message={latestBroadcast} />}
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="flex items-center gap-3 mb-8">
@@ -228,7 +235,7 @@ export default function DashboardPage() {
                     <div key={d.day} className="flex flex-col items-center flex-1 justify-end group" style={{ height: 240 }}>
                       <div className="relative w-full flex justify-center" style={{ height: 220, display: 'flex', alignItems: 'flex-end' }}>
                         {/* Tooltip */}
-                        <div className="absolute left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition whitespace-nowrap font-medium z-10" style={{ top: 220 - barHeight - 28 }}>
+                        <div className="absolute left-1/2 -translate-x-1/2 bg-surface border border-border text-text shadow-md text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition whitespace-nowrap font-medium z-10" style={{ top: 220 - barHeight - 28 }}>
                           {d.value}
                         </div>
                         <div

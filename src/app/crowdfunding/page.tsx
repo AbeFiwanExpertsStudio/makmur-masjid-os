@@ -23,10 +23,11 @@ function waitMs(ms: number): Promise<null> {
 }
 
 export default function CrowdfundingPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { t, language } = useLanguage();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [donateModal, setDonateModal] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState<number>(50);
@@ -50,8 +51,13 @@ export default function CrowdfundingPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) console.error("Crowdfunding fetch error:", error);
-      else setCampaigns(data || []);
+      if (error) {
+        console.error("Crowdfunding fetch error:", error);
+        setFetchError(error.message);
+      } else {
+        setFetchError(null);
+        setCampaigns(data || []);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,9 +81,29 @@ export default function CrowdfundingPage() {
 
   const activeCampaign = campaigns.find((c) => c.id === donateModal);
 
+  // Autofill donor info from logged-in user
+  useEffect(() => {
+    if (!donateModal || !user) return;
+    setDonorEmail(user.email || "");
+    const supabase = createClient();
+    supabase.from("profiles").select("display_name, phone").eq("id", user.id).single()
+      .then(({ data }) => {
+        if (data?.display_name) setDonorName(data.display_name);
+        if (data?.phone) setDonorPhone(data.phone);
+      });
+  }, [donateModal, user?.id]);
+
   const handleDonate = async () => {
     if (!activeCampaign || !donationAmount) return;
-    
+
+    // 🚧 Payment gateway not yet configured — show placeholder
+    toast("Online payment coming soon! Please contact us to donate directly.", {
+      icon: "🚧",
+      duration: 4000,
+    });
+    return;
+
+    // eslint-disable-next-line no-unreachable
     setIsProcessing(true);
     try {
       const response = await fetch("/api/checkout/toyyibpay", {
@@ -101,6 +127,11 @@ export default function CrowdfundingPage() {
       }
 
       if (data.url) {
+        // Save phone number for future autofill if user is logged in
+        if (user && donorPhone.trim()) {
+          const supabase = createClient();
+          supabase.from("profiles").update({ phone: donorPhone.trim() }).eq("id", user.id);
+        }
         // Redirect to ToyyibPay checkout page
         window.location.href = data.url;
       } else {
@@ -138,6 +169,11 @@ export default function CrowdfundingPage() {
       <div className="space-y-4">
         {loading ? (
           <div className="text-center py-10 text-text-muted">{t.loading}</div>
+        ) : fetchError ? (
+          <div className="card p-8 text-center">
+            <div className="text-red-500 dark:text-red-400 text-sm mb-3">{fetchError}</div>
+            <button onClick={fetchCampaigns} className="px-5 py-2 btn-primary text-sm">{t.retry ?? "Retry"}</button>
+          </div>
         ) : campaigns.length === 0 ? (
           <div className="text-center py-10 bg-surface rounded-2xl border border-border shadow-sm">
             <HandHeart size={48} className="mx-auto text-text-muted opacity-30 mb-4" />
@@ -287,6 +323,7 @@ export default function CrowdfundingPage() {
                     value={donorPhone} 
                     onChange={(e) => setDonorPhone(e.target.value)}
                     placeholder="0123456789"
+                    maxLength={15}
                     className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
                   />
                 </div>

@@ -29,69 +29,54 @@
 @layer base {
   :root {
     /* ═══════════════════════════════════════════════════
-       LIGHT MODE (Default)
+       LIGHT MODE (Clean & Modern)
        ═══════════════════════════════════════════════════ */
-    --background: #F8FAF9;
-    --foreground: #1A2E2A;
+    --background: #F9FAFB; /* Gray 50 */
+    --foreground: #111827; /* Gray 900 */
 
-    --primary: #1B6B4A;
-    --primary-light: #2D8F65;
-    --primary-dark: #0F4A33;
-    --primary-100: #EEFBF4;
-    --primary-200: #D5F5E3;
+    --primary: #059669; /* Emerald 600 */
+    --primary-light: #10B981; /* Emerald 500 */
+    --primary-dark: #047857; /* Emerald 700 */
+    --primary-100: #D1FAE5; /* Emerald 100 */
+    --primary-200: #A7F3D0; /* Emerald 200 */
 
-    --gold: #D4A843;
-    --gold-light: #F0DBA8;
-    --gold-dark: #B8922F;
+    --gold: #D97706; /* Amber 600 */
+    --gold-light: #FDE68A; /* Amber 200 */
+    --gold-dark: #B45309; /* Amber 700 */
 
     --surface: #FFFFFF;
-    --surface-alt: #F8FAF9;
-    --surface-muted: #F1F5F3;
-    --border: #E2E8E5;
-    --text: #1A2E2A;
-    --text-secondary: #5A7068;
-    --text-muted: #8FA39B;
+    --surface-alt: #F3F4F6; /* Gray 100 */
+    --surface-muted: #F9FAFB; /* Gray 50 */
+    --border: #E5E7EB; /* Gray 200 */
+    --text: #111827; /* Gray 900 */
+    --text-secondary: #4B5563; /* Gray 600 */
+    --text-muted: #9CA3AF; /* Gray 400 */
   }
 
   .dark {
     /* ═══════════════════════════════════════════════════
-       DARK MODE - Style 1 (Teal/Emerald on Dark Slate)
+       DARK MODE (Deep & Elegant)
        ═══════════════════════════════════════════════════ */
-    --background: #0B1120;
-    /* Very dark slate-teal */
-    --foreground: #F8FAF9;
+    --background: #111827; /* Gray 900 */
+    --foreground: #F9FAFB; /* Gray 50 */
 
-    --primary: #10B981;
-    /* Emerald 500 - Glowing */
-    --primary-light: #34D399;
-    /* Emerald 400 */
-    --primary-dark: #047857;
-    /* Emerald 700 */
-    --primary-100: #064E3B;
-    /* Emerald 900 for dark subtle bg */
-    --primary-200: #065F46;
-    /* Emerald 800 */
+    --primary: #10B981; /* Emerald 500 */
+    --primary-light: #34D399; /* Emerald 400 */
+    --primary-dark: #059669; /* Emerald 600 */
+    --primary-100: #064E3B; /* Emerald 900 */
+    --primary-200: #065F46; /* Emerald 800 */
 
-    --gold: #FCD34D;
-    /* Amber 300 - brighter gold */
-    --gold-light: #FEF08A;
-    /* Yellow 200 */
-    --gold-dark: #D97706;
-    /* Amber 600 */
+    --gold: #FBBF24; /* Amber 400 */
+    --gold-light: #FDE68A; /* Amber 200 */
+    --gold-dark: #D97706; /* Amber 600 */
 
-    --surface: #0F172A;
-    /* Slate 900 for inset depth on cards */
-    --surface-alt: #1E293B;
-    /* Slate 800 */
-    --surface-muted: #1E293B;
-    /* Slate 800 */
-    --border: #1E293B;
-    /* Slate 800 */
-    --text: #F8FAF9;
-    --text-secondary: #94A3B8;
-    /* Slate 400 */
-    --text-muted: #64748B;
-    /* Slate 500 */
+    --surface: #1F2937; /* Gray 800 */
+    --surface-alt: #111827; /* Gray 900 */
+    --surface-muted: #374151; /* Gray 700 */
+    --border: #374151; /* Gray 700 */
+    --text: #F9FAFB; /* Gray 50 */
+    --text-secondary: #9CA3AF; /* Gray 400 */
+    --text-muted: #6B7280; /* Gray 500 */
   }
 
   html {
@@ -123,11 +108,20 @@
   background: linear-gradient(135deg, #D4A843 0%, #B8922F 100%);
 }
 
+/* Warm amber banner gradient — used for e-kupon card headers */
+.gold-banner-gradient {
+  background: linear-gradient(135deg, #9A6E1A 0%, #C8911E 40%, #D4A843 100%);
+}
+
 /* Glass effect */
 .glass {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.90);
 }
 
 /* Premium card styling */
@@ -315,4 +309,22 @@
   white-space: nowrap;
   will-change: transform;
   animation: ticker-scroll 30s linear infinite;
+}
+
+/* Broadcast banner ticker — seamless loop using duplicated text content */
+@keyframes ticker-banner {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker-banner {
+  white-space: nowrap;
+  will-change: transform;
+  /* Use long-form so inline animationDuration style takes effect cleanly */
+  animation-name: ticker-banner;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  /* animation-duration is set via inline style per message length */
+}
+.animate-ticker-banner:hover {
+  animation-play-state: paused;
 }

@@ -11,6 +11,8 @@ export interface FoodEvent {
   event_date: string;
   start_time: string;
   end_time: string;
+  location?: string;
+  background_image?: string | null;
   status?: "active" | "scheduled" | "expired";
 }
 
@@ -96,9 +98,34 @@ export function useLiveFoodEvents() {
 
     fetchEvents();
 
-    // Subscribe to real-time UPDATE events
+    // Subscribe to real-time INSERT and UPDATE events so new events
+    // and capacity changes appear instantly without a page refresh.
     const channel = supabase
       .channel("food_events_realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "food_events" },
+        (payload) => {
+          const newEvent = payload.new as any;
+          // Compute status for newly inserted event using the same logic as fetchEvents
+          const now = new Date();
+          const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+          let computedStatus: "active" | "scheduled" | "expired" = "active";
+          if (newEvent.event_date && newEvent.start_time && newEvent.end_time) {
+            const cleanStart = newEvent.start_time.split('.')[0];
+            const cleanEnd = newEvent.end_time.split('.')[0];
+            if (newEvent.event_date < currentDate) computedStatus = "expired";
+            else if (newEvent.event_date > currentDate) computedStatus = "scheduled";
+            else if (currentTime < cleanStart) computedStatus = "scheduled";
+            else if (currentTime > cleanEnd) computedStatus = "expired";
+            else computedStatus = "active";
+          }
+          if (computedStatus !== "expired") {
+            setEvents((prev) => [...prev, { ...newEvent, status: computedStatus }]);
+          }
+        }
+      )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "food_events" },
@@ -107,6 +134,13 @@ export function useLiveFoodEvents() {
           setEvents((prev) =>
             prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e))
           );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "food_events" },
+        (payload) => {
+          setEvents((prev) => prev.filter((e) => e.id !== payload.old.id));
         }
       )
       .subscribe();

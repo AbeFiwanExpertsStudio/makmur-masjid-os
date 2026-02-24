@@ -263,6 +263,7 @@ CREATE TABLE IF NOT EXISTS public.food_events (
   start_time         time NOT NULL DEFAULT '17:00:00',
   end_time           time NOT NULL DEFAULT '19:00:00',
   location           text,
+  background_image   text,
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
@@ -289,9 +290,11 @@ CREATE TABLE IF NOT EXISTS public.kupon_claims (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id   uuid NOT NULL REFERENCES public.food_events(id) ON DELETE CASCADE,
   guest_uuid uuid NOT NULL DEFAULT auth.uid(),
+  device_uuid text,
   is_scanned boolean NOT NULL DEFAULT false,
   claimed_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (event_id, guest_uuid)
+  UNIQUE (event_id, guest_uuid),
+  UNIQUE (event_id, device_uuid)
 );
 
 ALTER TABLE public.kupon_claims ENABLE ROW LEVEL SECURITY;
@@ -307,13 +310,19 @@ DROP POLICY IF EXISTS "guest_read_own_kupon_claims" ON public.kupon_claims;
 CREATE POLICY "guest_read_own_kupon_claims"
   ON public.kupon_claims
   FOR SELECT
-  USING (auth.uid() = guest_uuid);
+  USING (auth.uid() = guest_uuid OR device_uuid = current_setting('request.headers')::json->>'x-device-uuid');
 
 DROP POLICY IF EXISTS "guest_insert_kupon_claims" ON public.kupon_claims;
 CREATE POLICY "guest_insert_kupon_claims"
   ON public.kupon_claims
   FOR INSERT
-  WITH CHECK (auth.uid() = guest_uuid);
+  WITH CHECK (auth.uid() = guest_uuid OR device_uuid = current_setting('request.headers')::json->>'x-device-uuid');
+
+DROP POLICY IF EXISTS "guest_delete_own_kupon_claims" ON public.kupon_claims;
+CREATE POLICY "guest_delete_own_kupon_claims"
+  ON public.kupon_claims
+  FOR DELETE
+  USING (auth.uid() = guest_uuid);
 
 
 -- ===========================================================
@@ -456,7 +465,39 @@ BEGIN
 END;
 $$;
 
--- Add public read policy for user roles so stats can count volunteers
+-- RPC: Fetch kupon claims by device UUID (SECURITY DEFINER — callable without auth for guest QR restore)
+CREATE OR REPLACE FUNCTION public.get_kupon_claims_by_device(p_device_uuid text)
+RETURNS TABLE (id uuid, event_id uuid, is_scanned boolean)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id, event_id, is_scanned
+  FROM public.kupon_claims
+  WHERE device_uuid = p_device_uuid;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_kupon_claims_by_device(text) TO anon, authenticated;
+
+-- RPC: Cancel a kupon claim (SECURITY DEFINER — bypasses RLS, prevents cancelling after scan)
+CREATE OR REPLACE FUNCTION public.cancel_kupon(p_claim_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.kupon_claims
+  WHERE id = p_claim_id
+    AND is_scanned = false;
+
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'error', 'Kupon not found or already redeemed');
+  END IF;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.cancel_kupon(uuid) TO anon, authenticated;
 DROP POLICY IF EXISTS "guest_read_user_roles" ON public.user_roles;
 CREATE POLICY "guest_read_user_roles"
   ON public.user_roles

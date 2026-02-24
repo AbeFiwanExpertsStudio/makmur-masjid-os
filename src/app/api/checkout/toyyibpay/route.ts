@@ -74,6 +74,13 @@ export async function POST(req: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+    // Append the callback secret to the webhook URL so ToyyibPay includes it
+    // in every callback, allowing the webhook handler to verify the source.
+    const callbackSecret = process.env.TOYYIBPAY_CALLBACK_SECRET;
+    const callbackUrl = callbackSecret
+      ? `${appUrl}/api/webhooks/toyyibpay?secret=${callbackSecret}`
+      : `${appUrl}/api/webhooks/toyyibpay`;
+
     const billPayload = new URLSearchParams({
       userSecretKey: toyyibpaySecretKey,
       categoryCode: toyyibpayCategoryCode,
@@ -83,7 +90,7 @@ export async function POST(req: Request) {
       billPayorInfo: "1", // 1 = Required
       billAmount: (amount * 100).toString(), // Amount in cents
       billReturnUrl: `${appUrl}/crowdfunding?payment=success&donation_id=${donation.id}`,
-      billCallbackUrl: `${appUrl}/api/webhooks/toyyibpay`,
+      billCallbackUrl: callbackUrl,
       billExternalReferenceNo: donation.id,
       billTo: donorName || "Anonymous Donor",
       billEmail: donorEmail || "no-reply@makmur.os",
