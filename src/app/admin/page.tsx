@@ -56,13 +56,23 @@ export default function AdminPage() {
     if (!error && data) setUnclaimedKupons(data as UnclaimedKupon[]);
   }, []);
 
+// Update GigEntry type in the import or local definition if it exists
+// Since it's imported from GigCompletionCard, I'll update it there too.
+
   const fetchGigs = useCallback(async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from("volunteer_gigs")
-      .select("id, title, gig_date, start_time, end_time, is_completed, is_cancelled, completed_at")
+      .select("id, title, gig_date, start_time, end_time, is_completed, is_cancelled, completed_at, gig_claims(count)")
       .order("gig_date", { ascending: false });
-    if (data) setGigs(data);
+    
+    if (data) {
+      const mapped = data.map((row: any) => ({
+        ...row,
+        participant_count: row.gig_claims?.[0]?.count ?? 0
+      }));
+      setGigs(mapped);
+    }
   }, []);
 
   const fetchBroadcasts = useCallback(async () => {

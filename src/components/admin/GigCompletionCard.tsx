@@ -20,6 +20,7 @@ export type GigEntry = {
   is_completed: boolean;
   is_cancelled: boolean;
   completed_at: string | null;
+  participant_count?: number;
 };
 
 interface Props {
@@ -40,8 +41,16 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
   // Derived: filter to past gigs, dedup, sort completed to bottom
   const pastGigs = gigs.filter((g) => {
     if (g.is_cancelled) return false; // Hide cancelled gigs immediately
+    
+    // Explicitly hide ghost gigs (0 participants) that have expired
+    // This provides "immediate" effect before the DB cron runs
     const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
-    return gigEnd < currentTime;
+    const isPast = gigEnd < currentTime;
+    if (isPast && !g.is_completed && (g.participant_count ?? 0) === 0) {
+      return false;
+    }
+    
+    return isPast;
   });
 
   const seen = new Set<string>();

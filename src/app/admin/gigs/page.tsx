@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, ArrowLeft, Loader2, ChevronDown, ChevronRight, CheckCircle, Clock, Users } from "lucide-react";
+import { Shield, ArrowLeft, Loader2, ChevronDown, ChevronRight, CheckCircle, Clock, Users, X } from "lucide-react";
 import { useLanguage } from "@/components/providers/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
@@ -18,6 +18,7 @@ type GigRow = {
   end_time: string;
   is_completed: boolean;
   is_cancelled: boolean;
+  participant_count?: number;
 };
 
 type ParticipantRow = {
@@ -83,7 +84,7 @@ export default function AdminGigsHistoryPage() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("volunteer_gigs")
-      .select("id, title, description, gig_date, start_time, end_time, is_completed, is_cancelled")
+      .select("id, title, description, gig_date, start_time, end_time, is_completed, is_cancelled, gig_claims(count)")
       .order("gig_date", { ascending: false })
       .order("start_time", { ascending: false });
 
@@ -91,7 +92,11 @@ export default function AdminGigsHistoryPage() {
       toast.error("Failed to load gigs history.");
       console.error(error);
     } else {
-      setGigs(data || []);
+      const mapped = (data || []).map((row: any) => ({
+        ...row,
+        participant_count: row.gig_claims?.[0]?.count ?? 0
+      }));
+      setGigs(mapped);
     }
     setLoading(false);
   }
@@ -249,6 +254,7 @@ export default function AdminGigsHistoryPage() {
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
         </div>
@@ -273,8 +279,22 @@ export default function AdminGigsHistoryPage() {
                 }
                 
                 if (filterStatus !== "all") {
-                  const isCompleted = filterStatus === "completed";
-                  filteredGigs = filteredGigs.filter(g => g.is_completed === isCompleted);
+                  const now = new Date();
+                  if (filterStatus === "cancelled") {
+                    filteredGigs = filteredGigs.filter(g => {
+                      const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
+                      const isGhost = !g.is_completed && gigEnd < now && (g.participant_count ?? 0) === 0;
+                      return g.is_cancelled || isGhost;
+                    });
+                  } else {
+                    const isCompleted = filterStatus === "completed";
+                    filteredGigs = filteredGigs.filter(g => {
+                      const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
+                      const isGhost = !g.is_completed && gigEnd < now && (g.participant_count ?? 0) === 0;
+                      if (isGhost || g.is_cancelled) return false;
+                      return g.is_completed === isCompleted;
+                    });
+                  }
                 }
 
                 if (filteredGigs.length === 0 && (searchQuery || filterYear !== "all" || filterStatus !== "all")) {
@@ -299,15 +319,26 @@ export default function AdminGigsHistoryPage() {
                             <h3 className={`font-bold text-lg ${gig.is_completed ? "text-text" : "text-text"}`}>
                               {gig.title}
                             </h3>
-                            {gig.is_cancelled ? (
-                              <span className="badge bg-red-50 text-red-500 text-[10px] px-1.5 py-0.5 whitespace-nowrap">
-                                Cancelled
-                              </span>
-                            ) : gig.is_completed ? (
-                              <span className="badge bg-primary-50 text-primary text-[10px] px-1.5 py-0.5 whitespace-nowrap">
-                                <CheckCircle size={10} className="inline mr-1" /> Awarded
-                              </span>
-                            ) : null}
+                            {(() => {
+                              const now = new Date();
+                              const gigEnd = new Date(`${gig.gig_date}T${gig.end_time}`);
+                              const isActuallyCancelled = gig.is_cancelled || (!gig.is_completed && gigEnd < now && (gig.participant_count ?? 0) === 0);
+                              
+                              if (isActuallyCancelled) {
+                                return (
+                                  <span className="badge badge-cancelled text-[10px] px-2 py-0.5 whitespace-nowrap font-bold flex items-center gap-1">
+                                    <X size={10} /> Cancelled
+                                  </span>
+                                );
+                              } else if (gig.is_completed) {
+                                return (
+                                  <span className="badge bg-primary-50 text-primary text-[10px] px-1.5 py-0.5 whitespace-nowrap">
+                                    <CheckCircle size={10} className="inline mr-1" /> Awarded
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           <div className="flex items-center gap-3 text-sm text-text-muted">
                             <span className="flex items-center gap-1">
