@@ -86,7 +86,7 @@ export default function FacilityBookingPage() {
           ? isAdmin
             ? supabase
                 .from("facility_bookings")
-                .select("*, facilities:facility_id(name)")
+                .select("*, facilities:facility_id(name), profiles:booked_by(display_name)")
                 // Admin: last 90 days OR still-pending (could be older)
                 .or(`booking_date.gte.${since90},status.eq.pending`)
                 .order("booking_date", { ascending: false })
@@ -325,15 +325,21 @@ export default function FacilityBookingPage() {
                 return (
                   <div key={b.id} className={`card p-4 ${b.status === "cancelled" || b.status === "rejected" ? "opacity-60" : ""}`}>
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold text-text text-sm">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-text text-sm truncate">
                           {b.facilities?.name ?? "—"}
                         </h3>
+                        {/* Admin: show who booked */}
+                        {isAdmin && b.profiles?.display_name && (
+                          <p className="text-[11px] text-text-muted mt-0.5 flex items-center gap-1">
+                            <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                            {b.profiles.display_name}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${statusColor(b.status)}`}>
                             {statusLabel(b.status, t)}
                           </span>
-
                         </div>
                       </div>
                     </div>
@@ -353,6 +359,16 @@ export default function FacilityBookingPage() {
 
                     {b.admin_note && (
                       <p className="text-xs text-text-muted mt-1 italic">📝 {b.admin_note}</p>
+                    )}
+
+                    {/* ── Check-in indicator ── */}
+                    {b.checked_in_at && (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        {t.mbCheckedIn} · {new Date(b.checked_in_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                      </div>
                     )}
 
                     {/* ── Entry QR — approved bookings owned by current user ── */}
