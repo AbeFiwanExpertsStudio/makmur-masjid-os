@@ -14,6 +14,7 @@ type Campaign = {
   description: string;
   target_amount: number;
   current_amount: number;
+  donor_count: number;
   images: string[];
 };
 
@@ -173,8 +174,7 @@ export default function CrowdfundingPage() {
             .slice((campaignsPage - 1) * CAMPAIGNS_PER_PAGE, campaignsPage * CAMPAIGNS_PER_PAGE)
             .map((c) => {
             const pct = Math.min(100, Math.round((c.current_amount / c.target_amount) * 100));
-            // Simulate donors count for visual consistency
-            const donorsCount = Math.max(1, Math.floor(c.current_amount / 50));
+            const donorsCount = c.donor_count || 0;
 
             return (
               <div key={c.id} className="card p-6 relative">
