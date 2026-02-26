@@ -9,6 +9,7 @@ import { useLanguage } from "@/components/providers/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import Link from "next/link";
 
 export type GigEntry = {
   id: string;
@@ -77,8 +78,13 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
   };
 
   return (
-    <div className="card p-6">
-      <h2 className="font-bold text-lg text-text mb-2">{t.adminGigCompletion}</h2>
+    <div className="card p-6 relative">
+      <div className="flex justify-between items-start mb-2">
+        <h2 className="font-bold text-lg text-text">{t.adminGigCompletion}</h2>
+        <Link href="/admin/gigs" className="text-xs font-bold text-primary hover:text-primary-dark transition-colors border max-w-fit px-2 py-1 rounded-md border-primary/20 bg-primary/5 hover:bg-primary/10">
+          Gig Details &raquo;
+        </Link>
+      </div>
       <p className="text-sm text-text-muted mb-4">{t.adminGigCompletionDesc}</p>
 
       {visibleGigs.length > 0 ? (

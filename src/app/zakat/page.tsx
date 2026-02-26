@@ -121,7 +121,7 @@ export default function ZakatLocatorPage() {
           name: zc.name,
           lat: zc.latitude,
           lng: zc.longitude,
-          address: zc.address || "Masjid Al-Makmur",
+          address: zc.address || zc.name,
           status: computedStatus,
           start_date: zc.start_date,
           end_date: zc.end_date,
@@ -168,7 +168,8 @@ export default function ZakatLocatorPage() {
         name: newLoc.name,
         latitude: newLoc.lat,
         longitude: newLoc.lng,
-        pic_name: newLoc.pic_name || newLoc.address || "Masjid Al-Makmur Admin",
+        address: newLoc.address,
+        pic_name: newLoc.pic_name || "Makmur Admin",
         start_date: newLoc.start_date,
         end_date: newLoc.end_date,
         start_time: newLoc.start_time,
@@ -186,7 +187,7 @@ export default function ZakatLocatorPage() {
         lat: newLoc.lat,
         lng: newLoc.lng,
         status: newLoc.status,
-        address: newLoc.address || "Masjid Al-Makmur",
+        address: newLoc.address || newLoc.name,
         start_date: newLoc.start_date,
         end_date: newLoc.end_date,
         start_time: newLoc.start_time,
@@ -265,14 +266,34 @@ export default function ZakatLocatorPage() {
                 {(loc.start_date || loc.end_date) && (
                   <div className="flex items-start gap-2 text-text-secondary text-xs">
                     <Calendar size={13} className="mt-0.5 shrink-0" />
-                    <span>{loc.start_date === loc.end_date ? new Date(loc.start_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : `${loc.start_date ? new Date(loc.start_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Unspecified'} to ${loc.end_date ? new Date(loc.end_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Unspecified'}`}</span>
+                    <span>
+                      {(() => {
+                        const sDt = loc.start_date ? new Date(loc.start_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+                        const eDt = loc.end_date ? new Date(loc.end_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+                        
+                        if (loc.start_time && loc.end_time) {
+                          return (
+                            <div className="flex flex-col gap-0.5 mt-[-2px]">
+                              <span className="font-semibold text-primary-dark">{sDt} ({loc.start_time.slice(0, 5)})</span>
+                              <span className="text-[10px] text-text-muted mt-0.5 ml-2 border-l-2 border-border pl-2 border-dashed">until</span>
+                              <span className="font-semibold text-red-600 dark:text-red-400">{eDt} ({loc.end_time.slice(0, 5)})</span>
+                            </div>
+                          );
+                        }
+                        
+                        return loc.start_date === loc.end_date ? sDt : `${sDt || 'Unspecified'} to ${eDt || 'Unspecified'}`;
+                      })()}
+                    </span>
                   </div>
                 )}
-                <div className="flex items-start gap-2 text-text-secondary text-xs">
-                  <Clock size={13} className="mt-0.5 shrink-0" /> {loc.start_time ? `${loc.start_time.slice(0, 5)} - ${loc.end_time?.slice(0, 5) || 'Close'}` : 'Daily'}
-                </div>
+                {/* Only show the compact time band if there are NO dates at all (i.e. 'Daily') */}
+                {!loc.start_date && !loc.end_date && (
+                  <div className="flex items-start gap-2 text-text-secondary text-xs">
+                    <Clock size={13} className="mt-0.5 shrink-0" /> {loc.start_time ? `${loc.start_time.slice(0, 5)} - ${loc.end_time?.slice(0, 5) || 'Close'}` : 'Daily'}
+                  </div>
+                )}
                 <div className="flex items-start gap-2 text-text text-xs font-semibold">
-                  <User size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2 text-text-secondary">{loc.address}</span>
+                  <MapPin size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-2 text-text-secondary">{loc.address}</span>
                 </div>
               </div>
 
@@ -362,7 +383,9 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
     try {
       await Promise.race([
         supabase.from("zakat_counters").update({
-          name, address, start_date: startDate, end_date: endDate,
+          name, address, 
+          start_date: startDate || null, 
+          end_date: endDate || null,
           start_time: startTime ? `${startTime}:00` : null,
           end_time: endTime ? `${endTime}:00` : null
         }).eq("id", counter.id),
@@ -374,7 +397,8 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
       onSave({
         ...counter,
         name, address,
-        start_date: startDate, end_date: endDate,
+        start_date: startDate || undefined, 
+        end_date: endDate || undefined,
         start_time: startTime ? `${startTime}:00` : undefined,
         end_time: endTime ? `${endTime}:00` : undefined
       });
@@ -410,11 +434,11 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-text-secondary uppercase block mb-1">Start Date</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background outline-none focus:border-primary" />
+              <input type="date" min={new Date().toLocaleDateString('en-CA')} value={startDate} onChange={e => { setStartDate(e.target.value); if (endDate < e.target.value) setEndDate(e.target.value); }} className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background outline-none focus:border-primary" />
             </div>
             <div>
               <label className="text-xs font-semibold text-text-secondary uppercase block mb-1">End Date</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background outline-none focus:border-primary" />
+              <input type="date" min={startDate || new Date().toLocaleDateString('en-CA')} value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background outline-none focus:border-primary" />
             </div>
             <div>
               <label className="text-xs font-semibold text-text-secondary uppercase block mb-1">Start Time</label>

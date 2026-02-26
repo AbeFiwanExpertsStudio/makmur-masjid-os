@@ -89,7 +89,9 @@ function MapSearchControl() {
       try {
         // Nominatim API - note: we add '* ' wildcard or rely on the base behaviour. 
         // Nominatim isn't a perfect autocomplete engine, but q=... will try partial matches of words
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=my`);
+        // Appending 'Malaysia' heavily improves local scope results for partial place names like "Masjid Padang Midin"
+        const finalQuery = query.toLowerCase().includes('malaysia') ? query : `${query} Malaysia`;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(finalQuery)}&limit=8&countrycodes=my`);
         const data = await res.json();
         setResults(data);
       } catch (err) {
@@ -159,7 +161,39 @@ function MapSearchControl() {
       </div>
       {searchedPin && (
         <Marker position={[searchedPin.lat, searchedPin.lng]} icon={goldIcon}>
-          <Popup className="text-xs font-bold text-text">{searchedPin.name}</Popup>
+          <Popup className="text-xs font-bold text-text">
+            <div className="flex flex-col gap-2 p-1">
+              <span>{searchedPin.name}</span>
+              <button
+                onClick={() => {
+                  try {
+                    const addBtn = document.getElementById("admin-add-counter-btn");
+                    if (addBtn) addBtn.click();
+                    setTimeout(() => {
+                      const event = new MouseEvent("click", {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: 0,
+                        clientY: 0,
+                      });
+                      // Emulate a map click hook passing these coords if possible,
+                      // or we can invoke a global state.
+                      // Since we can't easily trigger the map hook manually, let's expose a global window function.
+                      if ((window as any).triggerMapAddPin) {
+                        (window as any).triggerMapAddPin(searchedPin.lat, searchedPin.lng, searchedPin.name);
+                      }
+                    }, 50);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="bg-primary hover:bg-primary-dark text-white text-[10px] px-2 py-1.5 rounded transition-colors w-full uppercase tracking-widest font-bold"
+              >
+                Add Counter Here
+              </button>
+            </div>
+          </Popup>
         </Marker>
       )}
     </>
@@ -249,11 +283,23 @@ export default function Map({
   const [addMode, setAddMode] = useState(false);
   const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [formName, setFormName] = useState("");
+  const [formAddress, setFormAddress] = useState("");
   const [formPicName, setFormPicName] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formStartTime, setFormStartTime] = useState("");
   const [formEndTime, setFormEndTime] = useState("");
+
+  useEffect(() => {
+    (window as any).triggerMapAddPin = (lat: number, lng: number, name: string) => {
+      if (!addMode) setAddMode(true);
+      setPinCoords({ lat, lng });
+      setFormAddress(name); // Auto-fill only the address with the formal search metadata
+    };
+    return () => {
+      delete (window as any).triggerMapAddPin;
+    };
+  }, [addMode]);
 
   const handleMapClick = (lat: number, lng: number) => {
     if (!addMode) return;
@@ -263,7 +309,17 @@ export default function Map({
   const handleSubmit = () => {
     if (!pinCoords || !formName.trim() || !formStartDate || !formEndDate || !formStartTime || !formEndTime) return;
     const now = new Date();
-    const isFuture = formStartDate > now.toISOString().split('T')[0] || (formStartDate === now.toISOString().split('T')[0] && formStartTime > `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
+    
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hr = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    
+    const currentDate = `${yyyy}-${mm}-${dd}`;
+    const currentTime = `${hr}:${min}`;
+
+    const isFuture = formStartDate > currentDate || (formStartDate === currentDate && formStartTime > currentTime);
 
     const newLoc: Location = {
       id: `new-${Date.now()}`,
@@ -271,13 +327,18 @@ export default function Map({
       lat: pinCoords.lat,
       lng: pinCoords.lng,
       status: isFuture ? "scheduled" : "active",
-      address: "Removed",
+      address: formAddress || formName, // use typed address, or fallback to name
+      start_date: formStartDate,
+      end_date: formEndDate,
+      start_time: `${formStartTime}:00`,
+      end_time: `${formEndTime}:00`,
     };
     onAddCounter?.(newLoc);
     // Reset form
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
+    setFormAddress("");
     setFormPicName("");
     setFormStartDate("");
     setFormEndDate("");
@@ -289,6 +350,7 @@ export default function Map({
     setAddMode(false);
     setPinCoords(null);
     setFormName("");
+    setFormAddress("");
     setFormPicName("");
     setFormStartDate("");
     setFormEndDate("");
@@ -366,6 +428,7 @@ export default function Map({
         <div className="absolute top-4 right-4 z-[400]">
           {!addMode ? (
             <button
+              id="admin-add-counter-btn"
               onClick={() => setAddMode(true)}
               className="bg-surface text-primary shadow-lg border border-border px-4 py-2 rounded-full font-bold text-sm hover:shadow-xl transition-all flex items-center gap-2"
             >
@@ -383,21 +446,30 @@ export default function Map({
                     ? `📍 ${pinCoords.lat.toFixed(4)}, ${pinCoords.lng.toFixed(4)}`
                     : "👆 Click on the map to place a pin"}
                 </p>
-                <input
-                  type="text"
-                  placeholder="Booth name (e.g., Masjid Al-Falah)"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
-                />
+                <div className="space-y-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Booth name (e.g., Masjid Al-Falah)"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-background"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address / Location Details"
+                    value={formAddress}
+                    onChange={(e) => setFormAddress(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-[13px] bg-background outline-none text-text-secondary"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="text-[10px] text-text-muted uppercase font-bold">Start Date</label>
-                    <input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    <input type="date" min={new Date().toLocaleDateString('en-CA')} value={formStartDate} onChange={e => { setFormStartDate(e.target.value); if (formEndDate < e.target.value) setFormEndDate(e.target.value); }} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] text-text-muted uppercase font-bold">End Date</label>
-                    <input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    <input type="date" min={formStartDate || new Date().toLocaleDateString('en-CA')} value={formEndDate} onChange={e => setFormEndDate(e.target.value)} className="w-full px-2 py-1.5 border border-border rounded-lg text-[13px] bg-background outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] text-text-muted uppercase font-bold">Start Time</label>
