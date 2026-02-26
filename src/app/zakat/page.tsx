@@ -88,10 +88,10 @@ export default function ZakatLocatorPage() {
           const end = new Date(`${zc.end_date}T${zc.end_time.split('.')[0]}`);
           const nowMs = now.getTime();
 
-          if (nowMs < start.getTime()) {
-            computedStatus = "scheduled";
-          } else if (nowMs > end.getTime()) {
+          if (nowMs > end.getTime()) {
             computedStatus = "expired";
+          } else if (nowMs < start.getTime()) {
+            computedStatus = "scheduled";
           } else {
             computedStatus = "active";
           }
@@ -363,6 +363,17 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    // Validation: End must be after start
+    if (startDate && endDate && startTime && endTime) {
+      const startDateTime = new Date(`${startDate}T${startTime.split('.')[0]}`);
+      const endDateTime = new Date(`${endDate}T${endTime.split('.')[0]}`);
+      
+      if (endDateTime <= startDateTime) {
+        toast.error("End date/time must be strictly after start date/time");
+        return;
+      }
+    }
+
     setSaving(true);
     const supabase = createClient();
     try {

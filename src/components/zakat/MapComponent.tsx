@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Navigation, X, Plus, Search, Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const createCustomIcon = (color: string, pulse = false) => {
   const pulseRing = pulse
@@ -308,6 +309,16 @@ export default function Map({
 
   const handleSubmit = () => {
     if (!pinCoords || !formName.trim() || !formStartDate || !formEndDate || !formStartTime || !formEndTime) return;
+    
+    // Validation: End must be after start
+    const startDateTime = new Date(`${formStartDate}T${formStartTime.split('.')[0]}`);
+    const endDateTime = new Date(`${formEndDate}T${formEndTime.split('.')[0]}`);
+    
+    if (endDateTime <= startDateTime) {
+      toast.error("End date/time must be strictly after start date/time");
+      return;
+    }
+
     const now = new Date();
     
     const yyyy = now.getFullYear();
