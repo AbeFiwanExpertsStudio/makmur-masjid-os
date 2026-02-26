@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.notifications (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type       text        NOT NULL,      -- 'booking_approved' | 'booking_rejected'
+  type       text        NOT NULL,      -- 'booking_approved' | 'booking_rejected' | 'booking_cancelled'
   payload    jsonb       NOT NULL DEFAULT '{}',
   is_read    boolean     NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()

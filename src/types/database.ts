@@ -239,7 +239,7 @@ export interface LeaderboardRow {
 }
 
 // ── notifications ──────────────────────────────────────────
-export type NotificationType = "booking_approved" | "booking_rejected";
+export type NotificationType = "booking_approved" | "booking_rejected" | "booking_cancelled";
 
 export interface AppNotification {
   id: string;

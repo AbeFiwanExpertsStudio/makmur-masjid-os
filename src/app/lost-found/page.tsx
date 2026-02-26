@@ -84,9 +84,12 @@ export default function LostFoundPage() {
   const fetchItems = useCallback(async () => {
     try {
       const supabase = createClient();
+      const since60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("lost_found_items")
         .select("*")
+        // Always show open/unclaimed items; show resolved/claimed only within 60 days
+        .or(`status.eq.open,status.eq.unclaimed,created_at.gte.${since60}`)
         .order("created_at", { ascending: false });
 
       if (error) {

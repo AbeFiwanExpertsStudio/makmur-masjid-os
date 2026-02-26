@@ -77,6 +77,9 @@ export default function FacilityBookingPage() {
   const fetchAll = useCallback(async () => {
     try {
       const supabase = createClient();
+      const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
       const [facRes, bookRes] = await Promise.all([
         supabase.from("facilities").select("*").eq("is_active", true).order("name"),
         user && !isAnonymous
@@ -84,11 +87,15 @@ export default function FacilityBookingPage() {
             ? supabase
                 .from("facility_bookings")
                 .select("*, facilities:facility_id(name)")
+                // Admin: last 90 days OR still-pending (could be older)
+                .or(`booking_date.gte.${since90},status.eq.pending`)
                 .order("booking_date", { ascending: false })
             : supabase
                 .from("facility_bookings")
                 .select("*, facilities:facility_id(name)")
                 .eq("booked_by", user.id)
+                // User: last 90 days OR approved (future bookings always visible)
+                .or(`booking_date.gte.${since90},status.eq.approved`)
                 .order("booking_date", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
       ]);
@@ -124,12 +131,16 @@ export default function FacilityBookingPage() {
     if (error) { toast.error(error.message); return; }
 
     // ── Persist notification so the booker sees it even if they were offline ──
-    if (newStatus === "approved" || newStatus === "rejected") {
+    if (newStatus === "approved" || newStatus === "rejected" || (newStatus === "cancelled" && isAdmin)) {
       const booking = bookings.find((b) => b.id === id);
-      if (booking) {
+      if (booking && booking.booked_by !== user?.id) {
+        const notifType =
+          newStatus === "approved" ? "booking_approved" :
+          newStatus === "cancelled" ? "booking_cancelled" :
+          "booking_rejected";
         await supabase.from("notifications").insert({
           user_id: booking.booked_by,
-          type: newStatus === "approved" ? "booking_approved" : "booking_rejected",
+          type: notifType,
           payload: {
             booking_id: id,
             facility_name: booking.facilities?.name ?? "facility",
@@ -388,8 +399,17 @@ export default function FacilityBookingPage() {
                           </button>
                         </>
                       )}
+                      {/* Admin cancel approved booking */}
+                      {isAdmin && b.status === "approved" && (
+                        <button
+                          onClick={() => { if (window.confirm(t.fbCancelConfirm)) handleBookingAction(b.id, "cancelled"); }}
+                          className="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                        >
+                          <XCircle size={13} /> {t.fbAdminCancel}
+                        </button>
+                      )}
                       {/* Owner cancel */}
-                      {isOwner && (b.status === "pending" || b.status === "approved") && (
+                      {isOwner && !isAdmin && (b.status === "pending" || b.status === "approved") && (
                         <button
                           onClick={() => handleBookingAction(b.id, "cancelled")}
                           className="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
@@ -487,6 +507,10 @@ function BookModal({
       toast.error(t.fbEndTimeError);
       return;
     }
+    if (facility.capacity && attendees > facility.capacity) {
+      toast.error(t.fbAttendeesError);
+      return;
+    }
     setSaving(true);
     const supabase = createClient();
     const { error } = await supabase.from("facility_bookings").insert({
@@ -570,13 +594,18 @@ function BookModal({
 
           {/* Attendees */}
           <div>
-            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">{t.fbAttendees}</label>
+            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+              {t.fbAttendees}{facility.capacity ? <span className="ml-1 font-normal normal-case text-text-muted/70">({t.fbCapacity(facility.capacity)})</span> : ""}
+            </label>
             <input
               type="number" value={attendees} min={1}
               max={facility.capacity ?? 999}
               onChange={(e) => setAttendees(Math.max(1, parseInt(e.target.value) || 1))}
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            {facility.capacity && attendees > facility.capacity && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{t.fbAttendeesError}</p>
+            )}
           </div>
 
           {/* Submit */}

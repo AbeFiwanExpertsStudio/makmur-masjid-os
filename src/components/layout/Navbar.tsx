@@ -16,6 +16,7 @@ type Notification = {
   message: string;
   created_at: string;
   notifType?: "broadcast" | "booking";
+  is_read?: boolean;
 };
 
 function timeAgo(dateStr: string, t: any): string {
@@ -52,61 +53,66 @@ export function Navbar() {
 
   // Fetch notifications from DB (broadcasts + personal DB notifications)
   const fetchNotifications = useCallback(async () => {
-    try {
-      const supabase = createClient();
-      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const supabase = createClient();
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Fetch broadcasts
-      const { data: broadcasts } = await supabase
+    // Fetch broadcasts — isolated try/catch so they always work
+    let broadcasts: { id: string; message: string; created_at: string }[] = [];
+    try {
+      const { data } = await supabase
         .from('system_broadcasts')
         .select('id, message, created_at')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(20);
+      broadcasts = data ?? [];
+    } catch { /* fail silently */ }
 
-      // Fetch personal DB notifications — use user from context directly
-      let dbUnread = 0;
-      let personalNotifs: Notification[] = [];
-      if (user && !isAnonymous) {
-        const { data: dbNotifs } = await supabase
+    // Fetch personal DB notifications — isolated try/catch so broadcast still shows
+    let dbUnread = 0;
+    let personalNotifs: Notification[] = [];
+    if (user && !isAnonymous) {
+      try {
+        const { data: dbNotifs, error } = await supabase
           .from('notifications')
           .select('id, type, payload, is_read, created_at')
           .eq('user_id', user.id)
           .gte('created_at', since)
           .order('created_at', { ascending: false })
           .limit(20);
-        if (dbNotifs) {
+        if (!error && dbNotifs) {
           personalNotifs = dbNotifs.map((n) => ({
             id: n.id,
             message:
               n.type === 'booking_approved'
                 ? t.notifBookingApproved((n.payload as Record<string, string>).facility_name ?? '')
+                : n.type === 'booking_cancelled'
+                ? t.notifBookingCancelled((n.payload as Record<string, string>).facility_name ?? '')
                 : t.notifBookingRejected((n.payload as Record<string, string>).facility_name ?? ''),
             created_at: n.created_at,
             notifType: 'booking' as const,
+            is_read: n.is_read,
           }));
           dbUnread = dbNotifs.filter((n) => !n.is_read).length;
         }
-      }
-
-      // Merge + sort by newest-first
-      const broadcastNotifs: Notification[] = (broadcasts ?? []).map((b) => ({
-        id: b.id,
-        message: b.message,
-        created_at: b.created_at,
-        notifType: 'broadcast' as const,
-      }));
-      const merged = [...personalNotifs, ...broadcastNotifs]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, 30);
-
-      setNotifications(merged);
-      const lastSeen = localStorage.getItem('lastSeenBroadcast') ?? '1970-01-01';
-      const broadcastUnread = (broadcasts ?? []).filter((n) => n.created_at > lastSeen).length;
-      setUnreadCount(broadcastUnread + dbUnread);
-    } catch {
-      // Fail silently
+      } catch { /* fail silently — table may not exist yet */ }
     }
+
+    // Merge + sort by newest-first
+    const broadcastNotifs: Notification[] = broadcasts.map((b) => ({
+      id: b.id,
+      message: b.message,
+      created_at: b.created_at,
+      notifType: 'broadcast' as const,
+    }));
+    const merged = [...personalNotifs, ...broadcastNotifs]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 30);
+
+    setNotifications(merged);
+    const lastSeen = localStorage.getItem('lastSeenBroadcast') ?? '1970-01-01';
+    const broadcastUnread = broadcasts.filter((n) => n.created_at > lastSeen).length;
+    setUnreadCount(broadcastUnread + dbUnread);
   }, [t, user, isAnonymous]);
 
   // Mark all as read when dropdown opens (localStorage + DB)
@@ -115,18 +121,17 @@ export function Navbar() {
     localStorage.setItem('lastSeenBroadcast', new Date().toISOString());
     setUnreadCount(0);
     // Mark personal DB notifications as read
-    try {
-      const supabase = createClient();
-      const { data: { user: u } } = await supabase.auth.getUser();
-      if (u) {
+    if (user && !isAnonymous) {
+      try {
+        const supabase = createClient();
         await supabase
           .from('notifications')
           .update({ is_read: true })
-          .eq('user_id', u.id)
+          .eq('user_id', user.id)
           .eq('is_read', false);
-      }
-    } catch { /* silent */ }
-  }, [unreadCount]);
+      } catch { /* silent */ }
+    }
+  }, [unreadCount, user, isAnonymous]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -146,7 +151,8 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetch on mount + subscribe to Realtime changes
+  // Effect 1: Initial fetch + broadcast subscription
+  // Depends only on fetchNotifications — stable after auth resolves
   useEffect(() => {
     fetchNotifications();
 
@@ -193,46 +199,59 @@ export function Navbar() {
     // 30-second poll as a safety net in case the WebSocket misses an event
     const poll = setInterval(fetchNotifications, 30_000);
 
-    // Subscribe to personal notifications table (booking approved/rejected)
-    let bookingChannel: ReturnType<typeof supabase.channel> | null = null;
-    if (user && !isAnonymous) {
-      bookingChannel = supabase
-        .channel("navbar-personal-notifs")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-          (payload) => {
-            const n = payload.new as {
-              id: string;
-              type: string;
-              payload: Record<string, string>;
-              is_read: boolean;
-              created_at: string;
-            };
-            const msg =
-              n.type === "booking_approved"
-                ? t.notifBookingApproved(n.payload.facility_name ?? "")
-                : t.notifBookingRejected(n.payload.facility_name ?? "");
-            const notif: Notification = {
-              id: n.id,
-              message: msg,
-              created_at: n.created_at,
-              notifType: "booking",
-            };
-            setNotifications((prev) => [notif, ...prev].slice(0, 30));
-            setUnreadCount((c) => c + 1);
-          }
-        )
-        .subscribe();
-    }
-
     return () => {
       supabase.removeChannel(channel);
-      if (bookingChannel) supabase.removeChannel(bookingChannel);
       window.removeEventListener("makmur:broadcast-sent", onBroadcastSent);
       clearInterval(poll);
     };
-  }, [fetchNotifications, user, isAnonymous, t]);
+  }, [fetchNotifications]);
+
+  // Effect 2: Personal notification subscription — keyed on user.id only so it
+  // doesn't tear down/rebuild every render cycle when auth state settles.
+  useEffect(() => {
+    if (!user?.id || isAnonymous) return;
+    const supabase = createClient();
+    const userId = user.id;
+
+    const bookingChannel = supabase
+      .channel(`navbar-personal-notifs-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const n = payload.new as {
+            id: string;
+            type: string;
+            payload: Record<string, string>;
+            is_read: boolean;
+            created_at: string;
+          };
+          const msg =
+            n.type === "booking_approved"
+              ? t.notifBookingApproved(n.payload.facility_name ?? "")
+              : n.type === "booking_cancelled"
+              ? t.notifBookingCancelled(n.payload.facility_name ?? "")
+              : t.notifBookingRejected(n.payload.facility_name ?? "");
+          const notif: Notification = {
+            id: n.id,
+            message: msg,
+            created_at: n.created_at,
+            notifType: "booking",
+            is_read: false,
+          };
+          setNotifications((prev) => [notif, ...prev].slice(0, 30));
+          setUnreadCount((c) => c + 1);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(bookingChannel); };
+  }, [user?.id, isAnonymous, t]);
 
   // When notification dropdown opens, mark all as read
   useEffect(() => {
@@ -409,7 +428,10 @@ export function Navbar() {
                   {notifications.length > 0 ? (
                     <div className="divide-y divide-border/50">
                       {notifications.map((n) => (
-                        <div key={n.id} className="flex gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-colors">
+                        <div key={n.id} className={`flex gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-colors relative ${n.is_read === false ? 'bg-primary-50/40 dark:bg-primary/5' : ''}`}>
+                          {n.is_read === false && (
+                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
+                          )}
                           <div className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-primary-50 dark:bg-primary/10 border border-primary/10 dark:border-primary/20 flex items-center justify-center">
                             {n.notifType === "booking"
                               ? <Building2 size={12} className="text-primary" />

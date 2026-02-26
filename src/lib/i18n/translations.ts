@@ -351,6 +351,7 @@ const translations = {
     // ── Notification bell extras ──────────────────────────────────────
     notifBookingApproved: (name: string) => `Your booking for "${name}" was approved!`,
     notifBookingRejected: (name: string) => `Your booking for "${name}" was rejected.`,
+    notifBookingCancelled: (name: string) => `Your booking for "${name}" was cancelled by admin.`,
     notifTypeBooking: "Booking Update",
     notifTypeBroadcast: "Announcement",
 
@@ -514,6 +515,8 @@ const translations = {
     fbCancel: "Cancel Booking",
     fbApprove: "Approve",
     fbReject: "Reject",
+    fbAdminCancel: "Cancel Booking",
+    fbAttendeesError: "Exceeds facility capacity",
     fbCancelConfirm: "Cancel this booking?",
     fbLoginNotice: "Sign in to book facilities.",
     fbCapacity: (n: number) => `Capacity: ${n} pax`,
@@ -952,6 +955,7 @@ const translations = {
     // ── Notification bell extras ──────────────────────────────────────
     notifBookingApproved: (name: string) => `Tempahan anda untuk "${name}" telah diluluskan!`,
     notifBookingRejected: (name: string) => `Tempahan anda untuk "${name}" telah ditolak.`,
+    notifBookingCancelled: (name: string) => `Tempahan anda untuk "${name}" telah dibatalkan oleh admin.`,
     notifTypeBooking: "Kemas Kini Tempahan",
     notifTypeBroadcast: "Pengumuman",
     adminPromoteTitle: "Naikkan ke Admin",
@@ -1118,6 +1122,8 @@ const translations = {
     fbCancel: "Batal Tempahan",
     fbApprove: "Luluskan",
     fbReject: "Tolak",
+    fbAdminCancel: "Batal Tempahan",
+    fbAttendeesError: "Melebihi kapasiti kemudahan",
     fbCancelConfirm: "Batalkan tempahan ini?",
     fbLoginNotice: "Log masuk untuk menempah kemudahan.",
     fbCapacity: (n: number) => `Kapasiti: ${n} orang`,

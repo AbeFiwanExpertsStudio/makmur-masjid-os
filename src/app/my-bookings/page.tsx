@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { FacilityBooking, BookingStatus } from "@/types/database";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import Pagination from "@/components/ui/Pagination";
 import {
   Building2, Users, Loader2, CalendarDays, Clock, ChevronRight,
   LogIn, Briefcase, QrCode,
@@ -59,6 +60,8 @@ interface GigClaim {
 
 type TabKey = "facilities" | "gigs";
 
+const ITEMS_PER_PAGE = 6;
+
 /* ──────────────────────────────────────────────────── */
 
 export default function MyBookingsPage() {
@@ -66,9 +69,18 @@ export default function MyBookingsPage() {
   const { t } = useLanguage();
 
   const [tab, setTab] = useState<TabKey>("facilities");
+  const [bookingPage, setBookingPage] = useState(1);
+  const [gigPage, setGigPage] = useState(1);
   const [bookings, setBookings] = useState<FacilityBooking[]>([]);
   const [gigs, setGigs] = useState<GigClaim[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Reset page when tab changes
+  function switchTab(key: TabKey) {
+    setTab(key);
+    setBookingPage(1);
+    setGigPage(1);
+  }
 
   useEffect(() => {
     if (!user || isAnonymous) { setLoading(false); return; }
@@ -76,16 +88,22 @@ export default function MyBookingsPage() {
 
     async function load() {
       setLoading(true);
+      // Show bookings from the last 90 days (plus any future-dated approved bookings)
+      const since90days = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
       const [bookRes, gigRes] = await Promise.all([
         supabase
           .from("facility_bookings")
           .select("*, facilities(name)")
           .eq("booked_by", user!.id)
+          .or(`booking_date.gte.${since90days},status.eq.approved`)
           .order("booking_date", { ascending: false }),
         supabase
           .from("gig_claims")
           .select("id, joined_at, volunteer_gigs(title, gig_date, start_time, end_time, is_completed, is_cancelled)")
           .eq("guest_uuid", user!.id)
+          .gte("joined_at", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
           .order("joined_at", { ascending: false }),
       ]);
       if (bookRes.data) setBookings(bookRes.data as FacilityBooking[]);
@@ -142,7 +160,7 @@ export default function MyBookingsPage() {
         {tabs.map(tb => (
           <button
             key={tb.key}
-            onClick={() => setTab(tb.key)}
+            onClick={() => switchTab(tb.key)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${
               tab === tb.key
                 ? "bg-primary text-white shadow-sm"
@@ -165,9 +183,9 @@ export default function MyBookingsPage() {
           <Loader2 size={18} className="animate-spin" />
         </div>
       ) : tab === "facilities" ? (
-        <FacilityList bookings={bookings} t={t} />
+        <FacilityList bookings={bookings} t={t} page={bookingPage} onPageChange={setBookingPage} />
       ) : (
-        <GigList gigs={gigs} t={t} />
+        <GigList gigs={gigs} t={t} page={gigPage} onPageChange={setGigPage} />
       )}
     </div>
   );
@@ -175,8 +193,10 @@ export default function MyBookingsPage() {
 
 /* ──────────────────────────────────────────────────── */
 
-function FacilityList({ bookings, t }: { bookings: FacilityBooking[]; t: any }) {
+function FacilityList({ bookings, t, page, onPageChange }: { bookings: FacilityBooking[]; t: any; page: number; onPageChange: (p: number) => void }) {
   const [expandedQR, setExpandedQR] = useState<string | null>(null);
+
+  const paged = bookings.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   if (bookings.length === 0) {
     return (
@@ -194,7 +214,7 @@ function FacilityList({ bookings, t }: { bookings: FacilityBooking[]; t: any }) 
 
   return (
     <div className="space-y-3">
-      {bookings.map(b => (
+      {paged.map(b => (
         <div key={b.id} className="card px-4 py-4">
           <div className="flex items-start justify-between gap-3 mb-2">
             <div>
@@ -252,6 +272,7 @@ function FacilityList({ bookings, t }: { bookings: FacilityBooking[]; t: any }) 
           )}
         </div>
       ))}
+      <Pagination page={page} total={bookings.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
       <div className="text-center pt-2">
         <Link href="/facility-booking" className="text-sm text-primary font-semibold hover:underline flex items-center gap-1 justify-center">
           {t.myBookingsViewAll} <ChevronRight size={14} />
@@ -263,7 +284,7 @@ function FacilityList({ bookings, t }: { bookings: FacilityBooking[]; t: any }) 
 
 /* ──────────────────────────────────────────────────── */
 
-function GigList({ gigs, t }: { gigs: GigClaim[]; t: any }) {
+function GigList({ gigs, t, page, onPageChange }: { gigs: GigClaim[]; t: any; page: number; onPageChange: (p: number) => void }) {
   if (gigs.length === 0) {
     return (
       <div className="text-center py-16">
@@ -280,7 +301,7 @@ function GigList({ gigs, t }: { gigs: GigClaim[]; t: any }) {
 
   return (
     <div className="space-y-3">
-      {gigs.map(c => {
+      {gigs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map(c => {
         const g = c.volunteer_gigs;
         if (!g) return null;
         return (
@@ -308,6 +329,7 @@ function GigList({ gigs, t }: { gigs: GigClaim[]; t: any }) {
           </div>
         );
       })}
+      <Pagination page={page} total={gigs.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
       <div className="text-center pt-2">
         <Link href="/gigs" className="text-sm text-primary font-semibold hover:underline flex items-center gap-1 justify-center">
           {t.navVolunteer} <ChevronRight size={14} />
