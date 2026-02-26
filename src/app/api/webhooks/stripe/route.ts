@@ -11,10 +11,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Stripe requires the raw body bytes for signature verification —
-// Next.js must NOT parse the body before we do here.
-export const config = { api: { bodyParser: false } };
-
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const sig = req.headers.get("stripe-signature");
