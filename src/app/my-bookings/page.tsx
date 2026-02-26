@@ -145,23 +145,23 @@ export default function MyBookingsPage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="container mx-auto px-4 py-6 max-w-2xl">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="text-primary"><Briefcase size={26} strokeWidth={2.5} /></div>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="text-primary"><Briefcase size={24} strokeWidth={2.5} /></div>
         <div>
-          <h1 className="text-2xl font-bold text-text">{t.myBookingsTitle}</h1>
-          <p className="text-sm text-text-muted">{t.myBookingsSubtitle}</p>
+          <h1 className="text-xl font-bold text-text">{t.myBookingsTitle}</h1>
+          <p className="text-xs text-text-muted">{t.myBookingsSubtitle}</p>
         </div>
       </div>
 
-      {/* Tab pills */}
-      <div className="flex gap-2 mb-6">
+      {/* Tab pills — full-width so they look balanced on mobile */}
+      <div className="flex gap-2 mb-5">
         {tabs.map(tb => (
           <button
             key={tb.key}
             onClick={() => switchTab(tb.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
               tab === tb.key
                 ? "bg-primary text-white shadow-sm"
                 : "bg-surface-alt text-text-muted hover:text-text"
@@ -215,10 +215,10 @@ function FacilityList({ bookings, t, page, onPageChange }: { bookings: FacilityB
   return (
     <div className="space-y-3">
       {paged.map(b => (
-        <div key={b.id} className="card px-4 py-4">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div>
-              <p className="font-bold text-text text-base leading-tight">
+        <div key={b.id} className="card px-4 py-3.5">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-text text-[15px] leading-snug truncate">
                 {b.facilities?.name ?? "—"}
               </p>
               {b.purpose && (
@@ -273,11 +273,6 @@ function FacilityList({ bookings, t, page, onPageChange }: { bookings: FacilityB
         </div>
       ))}
       <Pagination page={page} total={bookings.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
-      <div className="text-center pt-2">
-        <Link href="/facility-booking" className="text-sm text-primary font-semibold hover:underline flex items-center gap-1 justify-center">
-          {t.myBookingsViewAll} <ChevronRight size={14} />
-        </Link>
-      </div>
     </div>
   );
 }
@@ -305,9 +300,9 @@ function GigList({ gigs, t, page, onPageChange }: { gigs: GigClaim[]; t: any; pa
         const g = c.volunteer_gigs;
         if (!g) return null;
         return (
-          <div key={c.id} className="card px-4 py-4">
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <p className="font-bold text-text text-base leading-tight">{g.title}</p>
+          <div key={c.id} className="card px-4 py-3.5">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <p className="font-bold text-text text-[15px] leading-snug min-w-0 flex-1 truncate">{g.title}</p>
               <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${
                 g.is_cancelled
                   ? "bg-gray-500 text-white dark:bg-gray-600"
@@ -330,11 +325,6 @@ function GigList({ gigs, t, page, onPageChange }: { gigs: GigClaim[]; t: any; pa
         );
       })}
       <Pagination page={page} total={gigs.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
-      <div className="text-center pt-2">
-        <Link href="/gigs" className="text-sm text-primary font-semibold hover:underline flex items-center gap-1 justify-center">
-          {t.navVolunteer} <ChevronRight size={14} />
-        </Link>
-      </div>
     </div>
   );
 }
