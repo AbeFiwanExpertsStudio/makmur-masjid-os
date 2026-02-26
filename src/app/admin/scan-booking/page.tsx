@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import CameraScanner from "@/components/admin/CameraScanner";
 import {
   ScanLine, CheckCircle2, XCircle, Loader2, ArrowLeft,
-  Building2, Calendar, Clock, Users, Keyboard, Camera, User,
+  Building2, Calendar, Clock, Users, Keyboard, Camera, User, BadgeCheck,
 } from "lucide-react";
 import type { VerifyBookingResult } from "@/types/database";
 
@@ -16,6 +16,8 @@ type ScanState =
   | { phase: "idle" }
   | { phase: "loading" }
   | { phase: "valid"; result: VerifyBookingResult }
+  | { phase: "checking_in"; result: VerifyBookingResult }
+  | { phase: "checked_in"; result: VerifyBookingResult; checkedInAt: string }
   | { phase: "invalid"; reason: string };
 
 function fmtDate(d: string) {
@@ -82,6 +84,22 @@ export default function ScanBookingPage() {
     setScanState({ phase: "valid", result: data });
   }, [t]);
 
+  /* ── Check-in handler ── */
+  const handleCheckIn = useCallback(async (result: VerifyBookingResult) => {
+    setScanState({ phase: "checking_in", result });
+    const supabase = createClient();
+    const { error } = await supabase.rpc("record_booking_checkin", {
+      p_booking_id: result.booking_id,
+    });
+    if (error) {
+      // Fall back to showing the valid card again with an error note
+      setScanState({ phase: "valid", result: { ...result, checked_in_at: result.checked_in_at } });
+      return;
+    }
+    const now = new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    setScanState({ phase: "checked_in", result, checkedInAt: now });
+  }, []);
+
   /* ── Camera scan handler ── */
   const handleCameraScan = useCallback((raw: string) => {
     verify(raw);
@@ -115,7 +133,7 @@ export default function ScanBookingPage() {
       </div>
 
       {/* ── Mode toggle ── */}
-      {scanState.phase !== "valid" && scanState.phase !== "invalid" && (
+      {scanState.phase === "idle" && (
         <div className="flex gap-1.5 p-1 bg-surface-alt rounded-xl border border-border/60 mb-5">
           <button
             onClick={() => setMode("camera")}
@@ -177,8 +195,16 @@ export default function ScanBookingPage() {
         </div>
       )}
 
+      {/* ── Checking-in spinner ── */}
+      {scanState.phase === "checking_in" && (
+        <div className="card p-12 flex flex-col items-center gap-4">
+          <Loader2 size={40} className="animate-spin text-emerald-500" />
+          <p className="font-semibold text-text-muted">{t.scanBookingCheckingIn}</p>
+        </div>
+      )}
+
       {/* ── Valid result ── */}
-      {scanState.phase === "valid" && (
+      {(scanState.phase === "valid" || scanState.phase === "checking_in") && (
         <div className="card overflow-hidden">
           {/* Green header */}
           <div className="bg-emerald-500 px-6 py-5 flex items-center gap-3">
@@ -199,6 +225,17 @@ export default function ScanBookingPage() {
               </p>
             </div>
           )}
+          {/* Already checked in warning */}
+          {scanState.result.checked_in_at && (
+            <div className="mx-5 mt-4 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-600/40 flex items-center gap-2">
+              <BadgeCheck size={15} className="text-emerald-500 shrink-0" />
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                {t.scanBookingCheckedInAt(
+                  new Date(scanState.result.checked_in_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+                )}
+              </p>
+            </div>
+          )}
           {/* Details */}
           <div className="p-5 space-y-3">
             <DetailRow icon={<Building2 size={14} />} label={t.scanBookingFacility} value={scanState.result.facility_name} />
@@ -213,6 +250,44 @@ export default function ScanBookingPage() {
             {scanState.result.purpose && (
               <DetailRow icon={<ScanLine size={14} />} label={t.scanBookingPurpose} value={scanState.result.purpose} />
             )}
+          </div>
+          <div className="px-5 pb-5 flex flex-col gap-2.5">
+            {/* Only show Confirm button if not already checked in */}
+            {!scanState.result.checked_in_at && (
+              <button
+                onClick={() => handleCheckIn(scanState.result)}
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                <BadgeCheck size={16} /> {t.scanBookingCheckIn}
+              </button>
+            )}
+            <button
+              onClick={() => { setScanState({ phase: "idle" }); setManualId(""); }}
+              className="w-full py-3 rounded-xl bg-surface-alt hover:bg-border text-text font-semibold text-sm transition-all"
+            >
+              {t.scanBookingReset}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Check-in success ── */}
+      {scanState.phase === "checked_in" && (
+        <div className="card overflow-hidden">
+          <div className="bg-emerald-600 px-6 py-5 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+              <BadgeCheck size={28} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">{t.scanBookingCheckedInSuccess}</h2>
+              <p className="text-emerald-100 text-sm font-medium">{scanState.result.booked_by_name}</p>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            <DetailRow icon={<Building2 size={14} />} label={t.scanBookingFacility} value={scanState.result.facility_name} />
+            <DetailRow icon={<User size={14} />} label={t.scanBookingGuest} value={scanState.result.booked_by_name} />
+            <DetailRow icon={<Users size={14} />} label={t.scanBookingAttendees} value={String(scanState.result.attendees)} />
+            <DetailRow icon={<Clock size={14} />} label={t.scanBookingCheckIn} value={scanState.checkedInAt} />
           </div>
           <div className="px-5 pb-5">
             <button

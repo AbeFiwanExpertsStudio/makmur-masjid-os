@@ -185,6 +185,7 @@ export interface FacilityBooking {
   attendees: number;
   status: BookingStatus;
   admin_note: string | null;
+  checked_in_at: string | null;  // set when admin confirms check-in
   created_at: string;
   updated_at: string | null;
   // joined fields
@@ -252,6 +253,7 @@ export interface AppNotification {
 
 // ── verify_booking_token RPC row ───────────────────────────
 export interface VerifyBookingResult {
+  booking_id: string;        // UUID of the facility_booking row
   valid: boolean;
   is_today: boolean;         // true when booking_date = today
   booking_status: string;
@@ -262,4 +264,5 @@ export interface VerifyBookingResult {
   end_time: string;          // "HH:MM:SS"
   booked_by_name: string;
   attendees: number;
+  checked_in_at: string | null;  // set once admin confirms check-in
 }

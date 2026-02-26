@@ -246,6 +246,16 @@ function FacilityList({ bookings, t, page, onPageChange }: { bookings: FacilityB
             </p>
           )}
 
+          {/* ── Checked-in indicator ── */}
+          {b.checked_in_at && (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              {t.mbCheckedIn} · {new Date(b.checked_in_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          )}
+
           {/* ── Entry QR — approved bookings only ── */}
           {b.status === "approved" && (
             <div className="mt-3 border-t border-border/40 pt-3">

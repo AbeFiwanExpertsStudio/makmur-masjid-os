@@ -610,6 +610,12 @@ const translations = {
     scanBookingAttendees: "Attendees",
     scanBookingReset: "Scan another",
     scanBookingNotToday: "This booking is not for today",
+    scanBookingCheckIn: "Confirm Check-In",
+    scanBookingCheckingIn: "Recording check-in\u2026",
+    scanBookingCheckedInSuccess: "Check-in Recorded!",
+    scanBookingCheckedInAt: (time: string) => `Checked in at ${time}`,
+    scanBookingAlreadyCheckedIn: "Already checked in",
+    mbCheckedIn: "Checked In",
   },
 
   ms: {
@@ -1217,6 +1223,12 @@ const translations = {
     scanBookingAttendees: "Peserta",
     scanBookingReset: "Imbas yang lain",
     scanBookingNotToday: "Tempahan ini bukan untuk hari ini",
+    scanBookingCheckIn: "Sahkan Daftar Masuk",
+    scanBookingCheckingIn: "Merekod daftar masuk\u2026",
+    scanBookingCheckedInSuccess: "Daftar Masuk Direkod!",
+    scanBookingCheckedInAt: (time: string) => `Daftar masuk pada ${time}`,
+    scanBookingAlreadyCheckedIn: "Sudah daftar masuk",
+    mbCheckedIn: "Daftar Masuk",
   },
 } as const;
 
