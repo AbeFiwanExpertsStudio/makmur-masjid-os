@@ -21,7 +21,7 @@ function waitMs(ms: number): Promise<null> {
 }
 
 export default function EKuponPage() {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isAnonymous, isLoading: authLoading } = useAuth();
   const { events, isLoading: eventsLoading } = useLiveFoodEvents();
   const { t } = useLanguage();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -225,14 +225,16 @@ export default function EKuponPage() {
                     setClaimedIds(prev => new Set(prev).add(event.id));
                     if (newClaimId) {
                       setClaimMap(prev => new Map(prev).set(event.id, newClaimId));
-                      // Always persist: by the time this fires, signInAnonymously() has already
-                      // set user in AuthContext, so checking !user would always be false.
-                      try {
-                        const stored = localStorage.getItem("makmur_guest_claims");
-                        const existing: Record<string, string> = stored ? JSON.parse(stored) : {};
-                        existing[event.id] = newClaimId;
-                        localStorage.setItem("makmur_guest_claims", JSON.stringify(existing));
-                      } catch { /* ignore */ }
+                      // PERSISTENCE: ONLY save to device localStorage if the user is anonymous (Guest).
+                      // Registered members (Members/Admins) ignore device storage context.
+                      if (isAnonymous || !user?.email) {
+                        try {
+                          const stored = localStorage.getItem("makmur_guest_claims");
+                          const existing: Record<string, string> = stored ? JSON.parse(stored) : {};
+                          existing[event.id] = newClaimId;
+                          localStorage.setItem("makmur_guest_claims", JSON.stringify(existing));
+                        } catch { /* ignore */ }
+                      }
                     }
                   }}
                   onDeclaimSuccess={() => {
