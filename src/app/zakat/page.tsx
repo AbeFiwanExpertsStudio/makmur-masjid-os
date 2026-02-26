@@ -79,6 +79,7 @@ export default function ZakatLocatorPage() {
       const { data, error } = await supabase.from("zakat_counters").select("*");
       if (error || !data) return;
 
+      const now = new Date();
       const parsedLocations = data.map(zc => {
         let computedStatus: CounterStatus = "active";
 
