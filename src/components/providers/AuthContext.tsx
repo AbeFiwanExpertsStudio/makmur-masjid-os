@@ -12,6 +12,9 @@ interface AuthContextType {
   isLoading: boolean;
   isAnonymous: boolean;
   isAdmin: boolean;
+  displayName: string | null;
+  avatarUrl: string | null;
+  refreshProfile: () => Promise<void>;
   showLoginModal: boolean;
   setShowLoginModal: (v: boolean) => void;
   signInWithEmail: (email: string, password: string) => Promise<string | null>;
@@ -24,6 +27,9 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAnonymous: true,
   isAdmin: false,
+  displayName: null,
+  avatarUrl: null,
+  refreshProfile: async () => {},
   showLoginModal: false,
   setShowLoginModal: () => { },
   signInWithEmail: async () => null,
@@ -38,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Use email presence to definitively detect anonymous vs registered users
   const isAnonymous = user ? (!user.email) : true;
@@ -86,6 +94,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /* ── Fetch profile (display name + avatar) ── */
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", userId)
+        .single();
+      if (data) {
+        setDisplayName(data.display_name ?? null);
+        setAvatarUrl(data.avatar_url ?? null);
+      }
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  /* ── Public refresh so profile page can push changes live ── */
+  const refreshProfile = useCallback(async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) await fetchProfile(session.user.id);
+  }, [fetchProfile]);
+
   /* ──────────────────────────────────────────
      Bootstrap: runs once on mount.
      1. Restore existing non-anonymous session if present
@@ -107,8 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (mounted && session?.user && session.user.email) {
             // Real authenticated user — restore session
+            // Must await both before returning so isAdmin is set before
+            // setIsLoading(false) fires in the finally block.
             setUser(session.user);
-            checkAdminRole(session.user.id);
+            await Promise.all([
+              checkAdminRole(session.user.id),
+              fetchProfile(session.user.id),
+            ]);
             return;
           }
 
@@ -165,8 +203,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (newUser && newUser.email) {
           checkAdminRole(newUser.id);
+          fetchProfile(newUser.id);
         } else {
           setIsAdmin(false);
+          setDisplayName(null);
+          setAvatarUrl(null);
         }
       }
     );
@@ -176,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearInterval(banPollInterval);
       subscription.unsubscribe();
     };
-  }, [checkAdminRole]);
+  }, [checkAdminRole, fetchProfile]);
 
   /* ── Sign In ── */
   const signInWithEmail = useCallback(
@@ -216,12 +257,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         const admin = roleData?.role === "admin";
         setIsAdmin(admin);
+        fetchProfile(data.user.id);
       }
 
       setShowLoginModal(false);
       return null;
     },
-    [] // no external deps needed — all refs are stable supabase client calls
+    [fetchProfile] // fetchProfile is stable (useCallback [])
   );
 
   /* ── Sign Up ── */
@@ -246,6 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     localStorage.setItem(SIGNED_OUT_KEY, "true");
     setIsAdmin(false);
+    setDisplayName(null);
+    setAvatarUrl(null);
     setUser(null);
     await supabase.auth.signOut();
     window.location.href = "/";
@@ -253,7 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAnonymous, isAdmin, showLoginModal, setShowLoginModal, signInWithEmail, signUp, signOut }}
+      value={{ user, isLoading, isAnonymous, isAdmin, displayName, avatarUrl, refreshProfile, showLoginModal, setShowLoginModal, signInWithEmail, signUp, signOut }}
     >
       {children}
     </AuthContext.Provider>

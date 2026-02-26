@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Shield } from "lucide-react";
+import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Shield, PackageSearch, Building2, CalendarDays } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
@@ -23,6 +23,9 @@ export default function HomePage() {
     { href: "/zakat", icon: MapPin, title: t.navZakat, desc: t.featureZakatDesc, color: "text-primary" },
     { href: "/gigs", icon: Users, title: t.gigsTitle, desc: t.featureGigsDesc, color: "text-primary" },
     { href: "/crowdfunding", icon: HandHeart, title: t.crowdfundTitle, desc: t.featureCrowdfundDesc, color: "text-primary" },
+    { href: "/mosque-programs", icon: CalendarDays, title: t.navMosquePrograms, desc: t.featureProgramsDesc, color: "text-primary" },
+    { href: "/lost-found", icon: PackageSearch, title: t.navLostFound, desc: t.featureLostFoundDesc, color: "text-primary" },
+    { href: "/facility-booking", icon: Building2, title: t.navFacilityBooking, desc: t.featureFacilityDesc, color: "text-primary" },
   ];
 
   const adminFeatures = [

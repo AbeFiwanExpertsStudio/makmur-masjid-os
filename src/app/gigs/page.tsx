@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import React, { useEffect, useState } from "react";
 import {
   Users, Clock, CheckCircle, AlertCircle, LogIn,
-  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star,
+  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star, Trophy,
 } from "lucide-react";
+import type { LeaderboardRow } from "@/types/database"
 import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
 import { useLanguage } from "@/components/providers/LanguageContext";
@@ -47,6 +48,7 @@ export default function GigsPage() {
   const [deletingGig, setDeletingGig] = useState<Gig | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [myPoints, setMyPoints] = useState(0);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -107,15 +109,23 @@ export default function GigsPage() {
 
   useEffect(() => {
     fetchGigs();
+
+    // Fetch leaderboard (public — no auth needed)
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.rpc("get_volunteer_leaderboard");
+      if (data) setLeaderboard(data as LeaderboardRow[]);
+    })();
+
     if (user && !user.is_anonymous) {
       fetchMyClaims(user.id);
-      // Fetch user points
+      // Fetch user points — uses user_roles.total_points updated by complete_gig RPC
       (async () => {
         const supabase = createClient();
         const { data } = await supabase
-          .from('user_roles')
-          .select('total_points')
-          .eq('user_id', user.id)
+          .from("user_roles")
+          .select("total_points")
+          .eq("user_id", user.id)
           .single();
         if (data) setMyPoints(data.total_points ?? 0);
       })();
@@ -217,6 +227,44 @@ export default function GigsPage() {
         <div className="card p-4 mb-6 flex items-center gap-3 border-l-4 border-l-primary">
           <div className="text-primary"><LogIn size={24} strokeWidth={2.5} /></div>
           <p className="text-sm text-text-secondary">{t.gigsLoginNotice}</p>
+        </div>
+      )}
+
+      {/* Volunteer Leaderboard */}
+      {leaderboard.length > 0 && (
+        <div className="card p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy size={16} className="text-gold" />
+            <h2 className="font-bold text-text text-sm">{t.leaderboardTitle}</h2>
+            <span className="text-xs text-text-muted ml-auto">{t.leaderboardSubtitle}</span>
+          </div>
+          <div className="space-y-1.5">
+            {leaderboard.map((row) => {
+              const isMe = user && row.user_id === user.id;
+              const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null;
+              return (
+                <div
+                  key={row.user_id}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
+                    isMe
+                      ? "bg-primary/8 border border-primary/20"
+                      : "hover:bg-background"
+                  }`}
+                >
+                  <span className="w-6 text-center text-sm">
+                    {medal ?? <span className="text-xs text-text-muted font-mono">#{row.rank}</span>}
+                  </span>
+                  <span className={`flex-1 text-sm truncate ${isMe ? "font-bold text-primary" : "text-text"}`}>
+                    {row.display_name}
+                    {isMe && <span className="ml-1.5 text-[10px] font-normal bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">{t.leaderboardYou}</span>}
+                  </span>
+                  <span className="text-xs font-bold text-gold tabular-nums">
+                    {row.total_points.toLocaleString()} pts
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

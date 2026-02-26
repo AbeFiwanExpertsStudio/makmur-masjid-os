@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield, Loader2 } from "lucide-react";
+import { Shield, Loader2, ScanLine } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/components/providers/AuthContext";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
@@ -17,29 +18,15 @@ import GigCompletionCard, { type GigEntry } from "@/components/admin/GigCompleti
 import UserManagementSection, { type UserEntry } from "@/components/admin/UserManagementSection";
 import SystemSettingsEditor from "@/components/admin/SystemSettingsEditor";
 import SkrinMasjidEditor from "@/components/admin/SkrinMasjidEditor";
+import ProgramsManagementCard from "@/components/admin/ProgramsManagementCard";
 import BroadcastTicker from "@/components/layout/BroadcastTicker";
+import type { MosqueProgram } from "@/types/database";
 
 export default function AdminPage() {
   const { user, isAdmin, isLoading } = useAuth();
   const { t } = useLanguage();
   const settings = useSystemSettings();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !isAdmin) {
-      toast.error("Access Denied: Admin Privileges Required");
-      router.push("/");
-    }
-  }, [isLoading, isAdmin, router]);
-
-  if (isLoading || !isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] gap-3 text-text-muted">
-        <Loader2 className="animate-spin" size={24} />
-        <span>Verifying access...</span>
-      </div>
-    );
-  }
 
   // ── Data state ────────────────────────────────────────────
   const [usersList, setUsersList] = useState<UserEntry[]>([]);
@@ -48,6 +35,7 @@ export default function AdminPage() {
   const [gigs, setGigs] = useState<GigEntry[]>([]);
   const [broadcasts, setBroadcasts] = useState<BroadcastEntry[]>([]);
   const [unclaimedKupons, setUnclaimedKupons] = useState<UnclaimedKupon[]>([]);
+  const [programs, setPrograms] = useState<MosqueProgram[]>([]);
 
   // ── Fetchers ──────────────────────────────────────────────
   const fetchUnclaimedKupons = useCallback(async () => {
@@ -56,16 +44,13 @@ export default function AdminPage() {
     if (!error && data) setUnclaimedKupons(data as UnclaimedKupon[]);
   }, []);
 
-// Update GigEntry type in the import or local definition if it exists
-// Since it's imported from GigCompletionCard, I'll update it there too.
-
   const fetchGigs = useCallback(async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from("volunteer_gigs")
       .select("id, title, gig_date, start_time, end_time, is_completed, is_cancelled, completed_at, gig_claims(count)")
       .order("gig_date", { ascending: false });
-    
+
     if (data) {
       const mapped = data.map((row: any) => ({
         ...row,
@@ -73,6 +58,16 @@ export default function AdminPage() {
       }));
       setGigs(mapped);
     }
+  }, []);
+
+  const fetchPrograms = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("mosque_programs")
+      .select("*")
+      .order("program_date", { ascending: true })
+      .order("start_time", { ascending: true });
+    if (data) setPrograms(data as MosqueProgram[]);
   }, []);
 
   const fetchBroadcasts = useCallback(async () => {
@@ -96,11 +91,21 @@ export default function AdminPage() {
     }
   }, []);
 
+  // ── Guard: redirect non-admins ────────────────────────────
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      toast.error("Access Denied: Admin Privileges Required");
+      router.push("/");
+    }
+  }, [isLoading, isAdmin, router]);
+
   // ── Initial fetch + real-time subscriptions ───────────────
   useEffect(() => {
+    if (!isAdmin) return;
     fetchUnclaimedKupons();
     fetchGigs();
     fetchBroadcasts();
+    fetchPrograms();
 
     const supabase = createClient();
 
@@ -123,12 +128,19 @@ export default function AdminPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "system_broadcasts" }, fetchBroadcasts)
       .subscribe();
 
+    // Programs: re-fetch on mosque_programs change
+    const programsChannel = supabase
+      .channel("admin-mosque-programs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "mosque_programs" }, fetchPrograms)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(kuponChannel);
       supabase.removeChannel(gigsChannel);
       supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(programsChannel);
     };
-  }, [fetchUnclaimedKupons, fetchGigs, fetchBroadcasts]);
+  }, [fetchUnclaimedKupons, fetchGigs, fetchBroadcasts, fetchPrograms]);
 
   useEffect(() => {
     async function fetchUsers() {
@@ -139,6 +151,15 @@ export default function AdminPage() {
     }
     fetchUsers();
   }, [usersRefreshKey]);
+
+  if (isLoading || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] gap-3 text-text-muted">
+        <Loader2 className="animate-spin" size={24} />
+        <span>Verifying access...</span>
+      </div>
+    );
+  }
 
   const latestBroadcast = broadcasts.find((b) => b.is_active)?.message ?? "";
 
@@ -165,9 +186,29 @@ export default function AdminPage() {
             unclaimedKupons={unclaimedKupons}
             onRefresh={fetchUnclaimedKupons}
           />
+          {/* ── Facility Booking Scanner quick-link ── */}
+          <div className="card p-5 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="icon-box icon-box-primary"><ScanLine size={18} /></div>
+              <div>
+                <h2 className="text-base font-bold text-text">{t.scanBookingTitle}</h2>
+                <p className="text-xs text-text-muted">{t.scanBookingSubtitle}</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/scan-booking"
+              className="mt-auto w-full py-2.5 px-4 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold text-sm text-center transition-all shadow-md"
+            >
+              {t.scanBookingTitle}
+            </Link>
+          </div>
           <GigCompletionCard
             gigs={gigs}
             onRefresh={fetchGigs}
+          />
+          <ProgramsManagementCard
+            programs={programs}
+            onRefresh={fetchPrograms}
           />
         </div>
 

@@ -85,6 +85,7 @@ export interface VolunteerGig {
   start_time: string | null;  // "HH:MM:SS"
   end_time: string | null;    // "HH:MM:SS"
   is_completed: boolean;
+  is_cancelled: boolean;
   completed_at: string | null;
   created_at: string;
 }
@@ -137,6 +138,60 @@ export interface ScanKuponResult {
   error?: string;
 }
 
+// ── lost_found_items ───────────────────────────────────────
+export type LostFoundType = "lost" | "found";
+export type LostFoundStatus = "open" | "claimed" | "resolved";
+
+export interface LostFoundItem {
+  id: string;
+  type: LostFoundType;
+  title: string;
+  description: string | null;
+  category: string;
+  location_found: string | null;
+  image_url: string | null;
+  contact_info: string | null;
+  status: LostFoundStatus;
+  posted_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  // joined fields
+  profiles?: { display_name: string | null } | null;
+}
+
+// ── facilities ─────────────────────────────────────────────
+export interface Facility {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  capacity: number | null;
+  image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ── facility_bookings ──────────────────────────────────────
+export type BookingStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface FacilityBooking {
+  id: string;
+  facility_id: string;
+  booked_by: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  purpose: string | null;
+  attendees: number;
+  status: BookingStatus;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string | null;
+  // joined fields
+  facilities?: { name: string } | null;
+  profiles?: { display_name: string | null } | null;
+}
+
 export interface UnclaimedKupon {
   id: string;
   event_id: string;
@@ -153,4 +208,58 @@ export interface GetAllUsersRow {
   role: string;
   is_banned: boolean;
   total_points: number;
+}
+
+// ── mosque_programs ────────────────────────────────────────
+export type ProgramType = "lecture" | "halaqah" | "jumuah" | "other";
+
+export interface MosqueProgram {
+  id: string;
+  title: string;
+  description: string | null;
+  program_type: ProgramType;
+  program_date: string;    // "YYYY-MM-DD"
+  start_time: string;      // "HH:MM:SS"
+  end_time: string;        // "HH:MM:SS"
+  speaker: string | null;
+  location: string | null;
+  is_recurring: boolean;
+  recurrence_note: string | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+// ── volunteer leaderboard RPC row ──────────────────────────
+export interface LeaderboardRow {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  total_points: number;
+}
+
+// ── notifications ──────────────────────────────────────────
+export type NotificationType = "booking_approved" | "booking_rejected";
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  payload: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
+}
+
+// ── verify_booking_token RPC row ───────────────────────────
+export interface VerifyBookingResult {
+  valid: boolean;
+  is_today: boolean;         // true when booking_date = today
+  booking_status: string;
+  purpose: string | null;
+  facility_name: string;
+  booking_date: string;      // "YYYY-MM-DD"
+  start_time: string;        // "HH:MM:SS"
+  end_time: string;          // "HH:MM:SS"
+  booked_by_name: string;
+  attendees: number;
 }
