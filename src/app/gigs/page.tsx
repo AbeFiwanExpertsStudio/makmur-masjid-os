@@ -76,6 +76,7 @@ export default function GigsPage() {
       const { data, error } = await supabase
         .from("volunteer_gigs")
         .select(`id, title, description, required_pax, gig_date, start_time, end_time, created_at, gig_claims(count)`)
+        .eq("is_cancelled", false)
         .order("gig_date", { ascending: true });
 
       if (error) {

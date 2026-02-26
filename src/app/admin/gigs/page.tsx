@@ -17,6 +17,7 @@ type GigRow = {
   start_time: string;
   end_time: string;
   is_completed: boolean;
+  is_cancelled: boolean;
 };
 
 type ParticipantRow = {
@@ -82,7 +83,7 @@ export default function AdminGigsHistoryPage() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("volunteer_gigs")
-      .select("id, title, description, gig_date, start_time, end_time, is_completed")
+      .select("id, title, description, gig_date, start_time, end_time, is_completed, is_cancelled")
       .order("gig_date", { ascending: false })
       .order("start_time", { ascending: false });
 
@@ -298,11 +299,15 @@ export default function AdminGigsHistoryPage() {
                             <h3 className={`font-bold text-lg ${gig.is_completed ? "text-text" : "text-text"}`}>
                               {gig.title}
                             </h3>
-                            {gig.is_completed && (
+                            {gig.is_cancelled ? (
+                              <span className="badge bg-red-50 text-red-500 text-[10px] px-1.5 py-0.5 whitespace-nowrap">
+                                Cancelled
+                              </span>
+                            ) : gig.is_completed ? (
                               <span className="badge bg-primary-50 text-primary text-[10px] px-1.5 py-0.5 whitespace-nowrap">
                                 <CheckCircle size={10} className="inline mr-1" /> Awarded
                               </span>
-                            )}
+                            ) : null}
                           </div>
                           <div className="flex items-center gap-3 text-sm text-text-muted">
                             <span className="flex items-center gap-1">

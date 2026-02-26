@@ -60,7 +60,7 @@ export default function AdminPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("volunteer_gigs")
-      .select("id, title, gig_date, start_time, end_time, is_completed, completed_at")
+      .select("id, title, gig_date, start_time, end_time, is_completed, is_cancelled, completed_at")
       .order("gig_date", { ascending: false });
     if (data) setGigs(data);
   }, []);

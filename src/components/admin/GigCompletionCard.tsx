@@ -18,6 +18,7 @@ export type GigEntry = {
   start_time: string;
   end_time: string;
   is_completed: boolean;
+  is_cancelled: boolean;
   completed_at: string | null;
 };
 
@@ -38,6 +39,7 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
 
   // Derived: filter to past gigs, dedup, sort completed to bottom
   const pastGigs = gigs.filter((g) => {
+    if (g.is_cancelled) return false; // Hide cancelled gigs immediately
     const gigEnd = new Date(`${g.gig_date}T${g.end_time}`);
     return gigEnd < currentTime;
   });
