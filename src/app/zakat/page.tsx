@@ -79,36 +79,20 @@ export default function ZakatLocatorPage() {
       const { data, error } = await supabase.from("zakat_counters").select("*");
       if (error || !data) return;
 
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const hr = String(now.getHours()).padStart(2, '0');
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const sec = String(now.getSeconds()).padStart(2, '0');
-
-      const currentDate = `${yyyy}-${mm}-${dd}`;
-      const currentTime = `${hr}:${min}:${sec}`;
-
       const parsedLocations = data.map(zc => {
-        let computedStatus: CounterStatus = "active"; // fallback status
+        let computedStatus: CounterStatus = "active";
 
         if (zc.start_date && zc.end_date && zc.start_time && zc.end_time) {
-          const cleanStartTime = zc.start_time.split('.')[0];
-          const cleanEndTime = zc.end_time.split('.')[0];
+          const start = new Date(`${zc.start_date}T${zc.start_time.split('.')[0]}`);
+          const end = new Date(`${zc.end_date}T${zc.end_time.split('.')[0]}`);
+          const nowMs = now.getTime();
 
-          if (currentDate < zc.start_date) {
+          if (nowMs < start.getTime()) {
             computedStatus = "scheduled";
-          } else if (currentDate > zc.end_date) {
+          } else if (nowMs > end.getTime()) {
             computedStatus = "expired";
           } else {
-            if (currentDate === zc.start_date && currentTime < cleanStartTime) {
-              computedStatus = "scheduled";
-            } else if (currentDate === zc.end_date && currentTime > cleanEndTime) {
-              computedStatus = "expired";
-            } else {
-              computedStatus = "active";
-            }
+            computedStatus = "active";
           }
         } else if (!zc.is_active) {
           computedStatus = "expired";
