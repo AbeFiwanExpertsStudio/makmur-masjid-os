@@ -45,9 +45,9 @@ export interface Donation {
   donor_email: string | null;
   donor_phone: string | null;
   status: DonationStatus;
-  payment_gateway: string | null;   // 'toyyibpay' | 'stripe'
-  payment_intent_id: string | null; // billCode from ToyyibPay / session from Stripe
-  stripe_session_id: string | null; // legacy — prefer payment_intent_id
+  payment_gateway: string | null;   // 'stripe'
+  payment_intent_id: string | null; // Stripe payment_intent or session id
+  stripe_session_id: string | null; // legacy
   created_at: string;
   updated_at: string | null;
 }

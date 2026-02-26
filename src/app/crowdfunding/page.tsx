@@ -95,28 +95,22 @@ export default function CrowdfundingPage() {
 
   const handleDonate = async () => {
     if (!activeCampaign || !donationAmount) return;
-
-    // 🚧 Payment gateway not yet configured — show placeholder
-    toast("Online payment coming soon! Please contact us to donate directly.", {
-      icon: "🚧",
-      duration: 4000,
-    });
-    return;
-
-    // eslint-disable-next-line no-unreachable
     setIsProcessing(true);
     try {
-      const response = await fetch("/api/checkout/toyyibpay", {
+      // Save phone number for future autofill if user is logged in
+      if (user && donorPhone.trim()) {
+        const supabase = createClient();
+        supabase.from("profiles").update({ phone: donorPhone.trim() }).eq("id", user.id);
+      }
+
+      const response = await fetch("/api/checkout/stripe", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          campaignId: activeCampaign?.id,
+          campaignId: activeCampaign.id,
           amount: donationAmount,
           donorName: donorName || "Anonymous",
           donorEmail: donorEmail || "",
-          donorPhone: donorPhone || "",
         }),
       });
 
@@ -127,12 +121,6 @@ export default function CrowdfundingPage() {
       }
 
       if (data.url) {
-        // Save phone number for future autofill if user is logged in
-        if (user && donorPhone.trim()) {
-          const supabase = createClient();
-          supabase.from("profiles").update({ phone: donorPhone.trim() }).eq("id", user!.id);
-        }
-        // Redirect to ToyyibPay checkout page
         window.location.href = data.url;
       } else {
         throw new Error("No payment URL received");
@@ -340,7 +328,7 @@ export default function CrowdfundingPage() {
                   `Proceed to Pay RM${donationAmount}`
                 )}
               </button>
-              <p className="text-xs text-text-muted text-center mt-3">Secure payment via ToyyibPay (FPX / Card)</p>
+              <p className="text-xs text-text-muted text-center mt-3">Secure payment via Stripe (Test Mode)</p>
             </div>
           </div>
         </div>
