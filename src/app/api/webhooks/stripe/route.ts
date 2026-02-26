@@ -2,9 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-02-25.clover",
-});
+// Initialize Stripe lazily to prevent build-time crashes if keys are missing
+let stripeInstance: Stripe | null = null;
+const getStripe = () => {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is missing");
+    }
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2023-10-16" as any,
+    });
+  }
+  return stripeInstance;
+};
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +34,7 @@ export async function POST(req: NextRequest) {
   // Verify the event came from Stripe
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig ?? "", webhookSecret);
+    event = getStripe().webhooks.constructEvent(rawBody, sig ?? "", webhookSecret);
   } catch (err) {
     console.warn("Stripe webhook signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
