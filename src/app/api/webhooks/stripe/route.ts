@@ -78,17 +78,6 @@ export async function POST(req: NextRequest) {
         .eq("id", donationId)
         .neq("status", "completed");
 
-      // Atomically increment campaign amount
-      if (donation.campaign_id) {
-        const { error: rpcError } = await supabaseAdmin.rpc("increment_campaign_amount", {
-          p_campaign_id: donation.campaign_id,
-          p_amount: donation.amount,
-        });
-        if (rpcError) {
-          console.error("Webhook: failed to increment campaign amount:", rpcError);
-        }
-      }
-
       console.log(`Webhook: donation ${donationId} completed via Stripe`);
     }
 

@@ -89,26 +89,6 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
-
-      // 4. Atomically increment campaign amount on successful payment
-      //    Uses SQL arithmetic (current_amount + X) to avoid the race condition
-      //    that comes from fetch-then-update patterns.
-      if (newStatus === "completed" && donation.campaign_id) {
-        const { error: campaignError } = await supabaseAdmin.rpc(
-          "increment_campaign_amount",
-          {
-            p_campaign_id: donation.campaign_id,
-            p_amount: donation.amount,
-          }
-        );
-
-        if (campaignError) {
-          // Log but don't fail the webhook — donation is already marked completed
-          console.error("Webhook: failed to increment campaign amount:", campaignError);
-        } else {
-          console.log(`Webhook: campaign ${donation.campaign_id} incremented by ${donation.amount}`);
-        }
-      }
     }
 
     return NextResponse.json({ success: true });
