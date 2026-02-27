@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HandHeart, X, Heart, Plus, Pencil, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { HandHeart, X, Heart, Plus, Pencil, Trash2, AlertTriangle, Loader2, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthContext";
 import { toast } from "react-hot-toast";
 import { useLanguage } from "@/components/providers/LanguageContext";
 import Pagination from "@/components/ui/Pagination";
+import DonationReceiptModal from "@/components/modals/DonationReceiptModal";
 
 type Campaign = {
   id: string;
@@ -42,6 +43,7 @@ export default function CrowdfundingPage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState<{ id: string, amount: number } | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -403,11 +405,21 @@ export default function CrowdfundingPage() {
       {/* Success Modal */}
       {showSuccessModal && (
         <DonationSuccessModal 
+          donationId={showSuccessModal.id}
           onClose={() => {
             setShowSuccessModal(null);
             // Clean up URL only when modal is closed
             window.history.replaceState({}, document.title, window.location.pathname);
           }} 
+          onShowReceipt={(id) => setShowReceiptModal(id)}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && (
+        <DonationReceiptModal 
+          donationId={showReceiptModal}
+          onClose={() => setShowReceiptModal(null)}
         />
       )}
     </div>
@@ -418,7 +430,7 @@ export default function CrowdfundingPage() {
 // Success Modal Component
 // -------------------------------------------------------------------------------------------------
 
-function DonationSuccessModal({ onClose }: { onClose: () => void }) {
+function DonationSuccessModal({ onClose, donationId, onShowReceipt }: { onClose: () => void, donationId: string, onShowReceipt: (id: string) => void }) {
   const { t } = useLanguage();
   
   return (
@@ -441,12 +453,21 @@ function DonationSuccessModal({ onClose }: { onClose: () => void }) {
             Thank you for your generous donation. A receipt and confirmation has been sent to your email.
           </p>
           
-          <button 
-            onClick={onClose}
-            className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Done
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={onClose}
+              className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Done
+            </button>
+            <button 
+              onClick={() => onShowReceipt(donationId)}
+              className="w-full py-3 bg-surface-alt border border-border hover:bg-primary/5 hover:border-primary/30 rounded-xl text-xs font-bold text-text-secondary hover:text-primary transition-all flex items-center justify-center gap-2"
+            >
+              <Download size={14} />
+              View Receipt
+            </button>
+          </div>
           
           <p className="text-[10px] text-text-muted mt-4 uppercase tracking-widest font-bold">Project Makmur Crowdfunding</p>
         </div>

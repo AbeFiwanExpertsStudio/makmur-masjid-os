@@ -9,8 +9,9 @@ import React, { useEffect, useState } from "react";
 import Pagination from "@/components/ui/Pagination";
 import {
   Building2, Users, Loader2, CalendarDays, Clock, ChevronRight,
-  LogIn, Briefcase, QrCode,
+  LogIn, Briefcase, QrCode, Download, HandHeart, Printer
 } from "lucide-react";
+import DonationReceiptModal from "@/components/modals/DonationReceiptModal";
 import { QRCodeSVG } from "qrcode.react";
 
 /* ──────────────────────────────────────────────────── */
@@ -58,7 +59,7 @@ interface GigClaim {
   } | null;
 }
 
-type TabKey = "facilities" | "gigs";
+type TabKey = "facilities" | "gigs" | "donations";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -73,6 +74,8 @@ export default function MyBookingsPage() {
   const [gigPage, setGigPage] = useState(1);
   const [bookings, setBookings] = useState<FacilityBooking[]>([]);
   const [gigs, setGigs] = useState<GigClaim[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
+  const [showReceiptModal, setShowReceiptModal] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Reset page when tab changes
@@ -92,7 +95,7 @@ export default function MyBookingsPage() {
       const since90days = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0];
-      const [bookRes, gigRes] = await Promise.all([
+      const [bookRes, gigRes, donRes] = await Promise.all([
         supabase
           .from("facility_bookings")
           .select("*, facilities(name)")
@@ -105,9 +108,16 @@ export default function MyBookingsPage() {
           .eq("guest_uuid", user!.id)
           .gte("joined_at", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
           .order("joined_at", { ascending: false }),
+        supabase
+          .from("donations")
+          .select("*, crowdfund_campaigns(title)")
+          .eq("donor_email", user!.email) // We track by email since donations can be done while guest but linked via email
+          .eq("status", "completed")
+          .order("created_at", { ascending: false }),
       ]);
       if (bookRes.data) setBookings(bookRes.data as FacilityBooking[]);
       if (gigRes.data) setGigs(gigRes.data as unknown as GigClaim[]);
+      if (donRes.data) setDonations(donRes.data);
       setLoading(false);
     }
     load();
@@ -142,6 +152,7 @@ export default function MyBookingsPage() {
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: "facilities", label: t.myBookingsFacilities, count: bookings.length },
     { key: "gigs",       label: t.myBookingsGigs,       count: gigs.length },
+    { key: "donations",  label: "Donations",             count: donations.length },
   ];
 
   return (
@@ -184,8 +195,18 @@ export default function MyBookingsPage() {
         </div>
       ) : tab === "facilities" ? (
         <FacilityList bookings={bookings} t={t} page={bookingPage} onPageChange={setBookingPage} />
-      ) : (
+      ) : tab === "gigs" ? (
         <GigList gigs={gigs} t={t} page={gigPage} onPageChange={setGigPage} />
+      ) : (
+        <DonationList donations={donations} t={t} page={1} onPageChange={() => {}} onShowReceipt={(id) => setShowReceiptModal(id)} />
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && (
+        <DonationReceiptModal 
+          donationId={showReceiptModal}
+          onClose={() => setShowReceiptModal(null)}
+        />
       )}
     </div>
   );
@@ -335,6 +356,65 @@ function GigList({ gigs, t, page, onPageChange }: { gigs: GigClaim[]; t: any; pa
         );
       })}
       <Pagination page={page} total={gigs.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────── */
+
+function DonationList({ donations, t, page, onPageChange, onShowReceipt }: { donations: any[]; t: any; page: number; onPageChange: (p: number) => void, onShowReceipt: (id: string) => void }) {
+  if (donations.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-14 h-14 rounded-2xl bg-surface-alt border border-border flex items-center justify-center mx-auto mb-3 text-text-muted/50">
+          <HandHeart size={24} />
+        </div>
+        <p className="text-sm font-semibold text-text-muted">No donations yet.</p>
+        <Link href="/crowdfunding" className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary font-semibold hover:underline">
+          Browse Campaigns <ChevronRight size={14} />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {donations.map(d => (
+        <div key={d.id} className="card px-4 py-4">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-text text-[15px] leading-snug truncate">
+                {d.crowdfund_campaigns?.title || "General Donation"}
+              </p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {new Date(d.created_at).toLocaleDateString(undefined, {
+                  day: "numeric", month: "short", year: "numeric"
+                })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[15px] font-black text-primary">
+                {new Intl.NumberFormat("en-MY", {
+                  style: "currency",
+                  currency: "MYR",
+                  minimumFractionDigits: 2,
+                }).format(d.amount)}
+              </p>
+              <p className="text-[9px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-bold">Successful</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={() => onShowReceipt(d.id)}
+              className="flex-1 py-2 bg-surface-alt border border-border hover:bg-primary/5 hover:border-primary/30 rounded-xl text-xs font-bold text-text-secondary hover:text-primary transition-all flex items-center justify-center gap-2"
+            >
+              <Printer size={13} />
+              View Receipt
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
