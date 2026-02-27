@@ -68,14 +68,13 @@ export default function DynamicWaktuSolat() {
             async (position) => {
                 try {
                     const { latitude, longitude } = position.coords;
-                    const res = await fetch(`https://api.waktusolat.app/zones/gps?lat=${latitude}&long=${longitude}`);
-                    const gpsZones = await res.json();
+                    const res = await fetch(`https://api.waktusolat.app/zones/${latitude}/${longitude}`);
+                    const data: { zone: string; district: string } = await res.json();
                     
-                    if (gpsZones?.length > 0) {
-                        const detected = gpsZones[0];
-                        setSelectedZone(detected.jakimCode || "WLY01");
+                    if (data.zone) {
+                        setSelectedZone(data.zone);
                         if (!isAuto) {
-                            toast.success(`Location detected: ${detected.daerah || detected.jakimCode}`);
+                            toast.success(`Location detected: ${data.district || data.zone}`);
                         }
                     } else {
                         if (!isAuto) toast.error("Could not find a zone for your location");
