@@ -164,10 +164,15 @@ export default function PaparanMasjidPage() {
           const res = await fetch(
             `https://api.waktusolat.app/zones/${coords.latitude}/${coords.longitude}`
           );
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          const contentType = res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Received non-JSON response from API");
+          }
           const data: { zone: string } = await res.json();
           if (data.zone) setDetectedZone(data.zone);
-        } catch {
-          // silently ignore — admin can set zone manually
+        } catch (err) {
+          console.error("Failed to auto-detect zone:", err);
         } finally {
           setZoneDetecting(false);
         }
@@ -195,27 +200,33 @@ export default function PaparanMasjidPage() {
   const activeZone = config.zone || detectedZone;
   useEffect(() => { activeZoneRef.current = activeZone; }, [activeZone]);
 
-  const fetchPrayers = useCallback((zone: string) => {
+  const fetchPrayers = useCallback(async (zone: string) => {
     if (!zone) return;
-    fetch(`https://api.waktusolat.app/v2/solat/${zone}`)
-      .then(r => r.json())
-      .then((data: { prayers: PrayerDay[] }) => {
-        const today = new Date().getDate();
-        lastFetchedDate.current = today;
-        const dayData = data.prayers.find(p => p.day === today) || data.prayers[0];
-        setPrayers(dayData);
+    try {
+      const r = await fetch(`https://api.waktusolat.app/v2/solat/${zone}`);
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+      const contentType = r.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Received non-JSON response from API");
+      }
+      const data: { prayers: PrayerDay[] } = await r.json();
+      const today = new Date().getDate();
+      lastFetchedDate.current = today;
+      const dayData = data.prayers.find(p => p.day === today) || data.prayers[0];
+      setPrayers(dayData);
 
-        if (dayData?.hijri) {
-          const [y, m, d] = dayData.hijri.split("-");
-          const monthMap: Record<string, string> = {
-            "01": "Muharam", "02": "Safar", "03": "Rabiulawal", "04": "Rabiulakhir",
-            "05": "Jamadilawwal", "06": "Jamadilakhir", "07": "Rejab", "08": "Syaaban",
-            "09": "Ramadan", "10": "Syawal", "11": "Zulkaedah", "12": "Zulhijjah",
-          };
-          setHijriDate(`${parseInt(d)} ${monthMap[m] ?? m} ${y}H`);
-        }
-      })
-      .catch(() => { });
+      if (dayData?.hijri) {
+        const [y, m, d] = dayData.hijri.split("-");
+        const monthMap: Record<string, string> = {
+          "01": "Muharam", "02": "Safar", "03": "Rabiulawal", "04": "Rabiulakhir",
+          "05": "Jamadilawwal", "06": "Jamadilakhir", "07": "Rejab", "08": "Syaaban",
+          "09": "Ramadan", "10": "Syawal", "11": "Zulkaedah", "12": "Zulhijjah",
+        };
+        setHijriDate(`${parseInt(d)} ${monthMap[m] ?? m} ${y}H`);
+      }
+    } catch (err) {
+      console.error("Failed to fetch prayers in PaparanMasjid:", err);
+    }
   }, []);
 
   useEffect(() => {
