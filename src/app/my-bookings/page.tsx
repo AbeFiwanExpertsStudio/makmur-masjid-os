@@ -61,7 +61,7 @@ interface GigClaim {
 
 type TabKey = "facilities" | "gigs" | "donations";
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 5;
 
 /* ──────────────────────────────────────────────────── */
 
@@ -72,6 +72,7 @@ export default function MyBookingsPage() {
   const [tab, setTab] = useState<TabKey>("facilities");
   const [bookingPage, setBookingPage] = useState(1);
   const [gigPage, setGigPage] = useState(1);
+  const [donationPage, setDonationPage] = useState(1);
   const [bookings, setBookings] = useState<FacilityBooking[]>([]);
   const [gigs, setGigs] = useState<GigClaim[]>([]);
   const [donations, setDonations] = useState<any[]>([]);
@@ -83,6 +84,7 @@ export default function MyBookingsPage() {
     setTab(key);
     setBookingPage(1);
     setGigPage(1);
+    setDonationPage(1);
   }
 
   useEffect(() => {
@@ -198,7 +200,13 @@ export default function MyBookingsPage() {
       ) : tab === "gigs" ? (
         <GigList gigs={gigs} t={t} page={gigPage} onPageChange={setGigPage} />
       ) : (
-        <DonationList donations={donations} t={t} page={1} onPageChange={() => {}} onShowReceipt={(id) => setShowReceiptModal(id)} />
+        <DonationList 
+          donations={donations} 
+          t={t} 
+          page={donationPage} 
+          onPageChange={setDonationPage} 
+          onShowReceipt={(id) => setShowReceiptModal(id)} 
+        />
       )}
 
       {/* Receipt Modal */}
@@ -377,9 +385,11 @@ function DonationList({ donations, t, page, onPageChange, onShowReceipt }: { don
     );
   }
 
+  const paged = donations.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-3">
-      {donations.map(d => (
+      {paged.map(d => (
         <div key={d.id} className="card px-4 py-4">
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="min-w-0 flex-1">
@@ -415,6 +425,7 @@ function DonationList({ donations, t, page, onPageChange, onShowReceipt }: { don
           </div>
         </div>
       ))}
+      <Pagination page={page} total={donations.length} perPage={ITEMS_PER_PAGE} onChange={onPageChange} />
     </div>
   );
 }
