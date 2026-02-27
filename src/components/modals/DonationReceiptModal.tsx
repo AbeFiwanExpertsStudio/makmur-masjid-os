@@ -21,6 +21,13 @@ export default function DonationReceiptModal({ donationId, onClose }: DonationRe
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
+    // Check if script is already loaded in global window
+    if (typeof window !== "undefined" && (window as any).html2pdf) {
+      setScriptLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
     async function fetchDonation() {
       try {
         const supabase = createClient();
@@ -48,9 +55,6 @@ export default function DonationReceiptModal({ donationId, onClose }: DonationRe
     fetchDonation();
   }, [donationId]);
 
-  const handlePrint = () => {
-    window.print();
-  };
 
   const handleDownloadPDF = async () => {
     if (!scriptLoaded || !donation) return;
@@ -127,13 +131,6 @@ export default function DonationReceiptModal({ donationId, onClose }: DonationRe
             </div>
             
             <div className="flex items-center gap-2">
-              <button 
-                onClick={handlePrint}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
-                title="Browser Print"
-              >
-                <Printer size={20} />
-              </button>
               <button 
                 onClick={onClose}
                 className="p-2 hover:bg-red-50 hover:text-red-500 rounded-lg text-slate-400 transition-colors"
