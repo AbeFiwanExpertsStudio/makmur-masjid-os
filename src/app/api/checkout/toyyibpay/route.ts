@@ -12,9 +12,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { campaignId, amount, donorName, donorEmail, donorPhone } = body;
 
-    if (!campaignId || !amount) {
+    if (!campaignId || !amount || amount <= 0) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields or invalid amount" },
+        { status: 400 }
+      );
+    }
+
+    if (amount > 100000) {
+      return NextResponse.json(
+        { error: "Donation amount cannot exceed RM100,000" },
         { status: 400 }
       );
     }
@@ -115,7 +122,7 @@ export async function POST(req: Request) {
 
     if (result && result[0] && result[0].BillCode) {
       const billCode = result[0].BillCode;
-      
+
       // Update donation record with bill code
       await supabaseAdmin
         .from("donations")

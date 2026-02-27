@@ -30,6 +30,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    if (amount > 100000) {
+      return NextResponse.json({ error: "Donation amount cannot exceed RM100,000" }, { status: 400 });
+    }
+
     // 1. Fetch campaign details
     const { data: campaign, error: campaignError } = await supabaseAdmin
       .from("crowdfund_campaigns")

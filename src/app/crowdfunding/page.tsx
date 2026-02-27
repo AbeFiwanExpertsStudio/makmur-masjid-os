@@ -81,7 +81,7 @@ export default function CrowdfundingPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     const donationId = urlParams.get('donation_id');
-    
+
     if (paymentStatus === 'success') {
       console.log("SUCESS: Triggering modal for donation:", donationId);
       setShowSuccessModal({ id: donationId || "", amount: 0 });
@@ -190,93 +190,92 @@ export default function CrowdfundingPage() {
             })
             .slice((campaignsPage - 1) * CAMPAIGNS_PER_PAGE, campaignsPage * CAMPAIGNS_PER_PAGE)
             .map((c) => {
-            const pct = Math.min(100, Math.round((c.current_amount / c.target_amount) * 100));
-            const donorsCount = c.donor_count || 0;
-            const isGoalReached = c.current_amount >= c.target_amount;
+              const pct = Math.min(100, Math.round((c.current_amount / c.target_amount) * 100));
+              const donorsCount = c.donor_count || 0;
+              const isGoalReached = c.current_amount >= c.target_amount;
 
-            let countdownText = null;
-            if (c.completed_at) {
-              const remainingMs = (new Date(c.completed_at).getTime() + 30 * 60 * 1000) - currentTime.getTime();
-              if (remainingMs > 0) {
-                const mins = Math.floor(remainingMs / 60000);
-                const secs = Math.floor((remainingMs % 60000) / 1000);
-                countdownText = `${mins}:${secs.toString().padStart(2, '0')}`;
+              let countdownText = null;
+              if (c.completed_at) {
+                const remainingMs = (new Date(c.completed_at).getTime() + 30 * 60 * 1000) - currentTime.getTime();
+                if (remainingMs > 0) {
+                  const mins = Math.floor(remainingMs / 60000);
+                  const secs = Math.floor((remainingMs % 60000) / 1000);
+                  countdownText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
               }
-            }
 
-            return (
-              <div key={c.id} className={`card p-6 relative overflow-hidden ${isGoalReached ? 'grayscale-[0.4] bg-primary-50/10' : ''}`}>
-                {isGoalReached && (
-                  <div className="absolute top-0 left-0 right-0 bg-primary/95 text-white text-[10px] font-bold uppercase tracking-widest py-1 text-center z-10">
-                    Goal Reached {countdownText && `— Delisting in ${countdownText}`}
+              return (
+                <div key={c.id} className={`card p-6 relative overflow-hidden ${isGoalReached ? 'grayscale-[0.4] bg-primary-50/10' : ''}`}>
+                  {isGoalReached && (
+                    <div className="absolute top-0 left-0 right-0 bg-primary/95 text-white text-[10px] font-bold uppercase tracking-widest py-1 text-center z-10">
+                      Goal Reached {countdownText && `— Delisting in ${countdownText}`}
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between mb-2 mt-2">
+                    <h3 className="font-bold text-lg text-text pr-2">{c.title}</h3>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="badge bg-gold-light/20 text-gold">
+                        <Heart size={10} /> {donorsCount} donors
+                      </span>
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => setEditingCampaign(c)}
+                            className="w-7 h-7 rounded bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-primary-50 hover:text-primary"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => setDeletingCampaign(c)}
+                            className="w-7 h-7 rounded bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-red-50 hover:text-red-500"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div className="flex items-start justify-between mb-2 mt-2">
-                  <h3 className="font-bold text-lg text-text pr-2">{c.title}</h3>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="badge bg-gold-light/20 text-gold">
-                      <Heart size={10} /> {donorsCount} donors
+                  <p className="text-sm text-text-secondary mb-4">{c.description}</p>
+
+                  {c.images && c.images.length > 0 && (
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                      {c.images.map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt="Campaign"
+                          className="h-20 w-auto max-w-[120px] rounded-lg object-cover snap-start border border-border"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm mb-2 font-medium">
+                    <span className={`font-bold text-lg ${isGoalReached ? 'text-primary' : 'text-primary'}`}>
+                      RM{c.current_amount.toLocaleString()}
                     </span>
-                    {isAdmin && (
-                      <>
-                        <button
-                          onClick={() => setEditingCampaign(c)}
-                          className="w-7 h-7 rounded bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-primary-50 hover:text-primary"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          onClick={() => setDeletingCampaign(c)}
-                          className="w-7 h-7 rounded bg-background border border-border flex items-center justify-center text-text-secondary hover:bg-red-50 hover:text-red-500"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </>
-                    )}
+                    <span className="text-text-muted">of RM{c.target_amount.toLocaleString()}</span>
                   </div>
-                </div>
-                <p className="text-sm text-text-secondary mb-4">{c.description}</p>
-
-                {c.images && c.images.length > 0 && (
-                  <div className="flex gap-2 mb-4 overflow-x-auto pb-2 snap-x hide-scrollbar">
-                    {c.images.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img}
-                        alt="Campaign"
-                        className="h-20 w-auto max-w-[120px] rounded-lg object-cover snap-start border border-border"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ))}
+                  <div className="progress-bar mb-1">
+                    <div className="progress-fill" style={{ width: `${pct}%` }} />
                   </div>
-                )}
+                  <p className="text-xs text-text-muted mb-5 text-right">{t.progressLabel(pct)}</p>
 
-                <div className="flex justify-between text-sm mb-2 font-medium">
-                  <span className={`font-bold text-lg ${isGoalReached ? 'text-primary' : 'text-primary'}`}>
-                    RM{c.current_amount.toLocaleString()}
-                  </span>
-                  <span className="text-text-muted">of RM{c.target_amount.toLocaleString()}</span>
+                  <button
+                    onClick={() => !isGoalReached && setDonateModal(c.id)}
+                    disabled={isGoalReached}
+                    className={`w-full py-3 text-sm flex justify-center items-center gap-2 rounded-xl font-bold transition-all ${isGoalReached
+                        ? "bg-text-muted/20 text-text-muted border border-border cursor-not-allowed"
+                        : "btn-primary"
+                      }`}
+                  >
+                    <HandHeart size={16} />
+                    {isGoalReached ? "Goal Reached" : t.donateNow}
+                  </button>
                 </div>
-                <div className="progress-bar mb-1">
-                  <div className="progress-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <p className="text-xs text-text-muted mb-5 text-right">{t.progressLabel(pct)}</p>
-
-                <button 
-                  onClick={() => !isGoalReached && setDonateModal(c.id)} 
-                  disabled={isGoalReached}
-                  className={`w-full py-3 text-sm flex justify-center items-center gap-2 rounded-xl font-bold transition-all ${
-                    isGoalReached 
-                      ? "bg-text-muted/20 text-text-muted border border-border cursor-not-allowed" 
-                      : "btn-primary"
-                  }`}
-                >
-                  <HandHeart size={16} /> 
-                  {isGoalReached ? "Goal Reached" : t.donateNow}
-                </button>
-              </div>
-            );
-          })
+              );
+            })
         )}
         <Pagination
           page={campaignsPage}
@@ -302,69 +301,73 @@ export default function CrowdfundingPage() {
               <p className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">Select Amount</p>
               <div className="grid grid-cols-3 gap-3 mb-4">
                 {[20, 50, 100].map((amt) => (
-                  <button 
-                    key={amt} 
+                  <button
+                    key={amt}
                     onClick={() => setDonationAmount(amt)}
-                    className={`py-3 font-bold text-sm rounded-xl border transition-colors ${
-                      donationAmount === amt 
-                        ? "bg-primary text-white border-primary" 
+                    className={`py-3 font-bold text-sm rounded-xl border transition-colors ${donationAmount === amt
+                        ? "bg-primary text-white border-primary"
                         : "bg-background text-primary border-primary hover:bg-primary-50"
-                    }`}
+                      }`}
                   >
                     RM{amt}
                   </button>
                 ))}
               </div>
-              
+
               <div className="mb-4">
                 <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Custom Amount (RM)</label>
-                <input 
-                  type="number" 
-                  value={donationAmount} 
+                <input
+                  type="number"
+                  value={donationAmount}
                   onChange={(e) => setDonationAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                  className={`w-full px-3 py-2 border rounded-xl text-sm outline-none bg-background focus:ring-2 ${donationAmount > 100000 ? "border-red-500 focus:ring-red-500/20" : "border-border focus:border-primary focus:ring-primary/20"
+                    }`}
                   min="1"
+                  max="100000"
                 />
+                {donationAmount > 100000 && (
+                  <p className="text-xs text-red-500 mt-1">Maximum donation amount is RM100,000</p>
+                )}
               </div>
 
               <div className="space-y-3 mb-6">
                 <div>
                   <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Name (Optional)</label>
-                  <input 
-                    type="text" 
-                    value={donorName} 
+                  <input
+                    type="text"
+                    value={donorName}
                     onChange={(e) => setDonorName(e.target.value)}
                     placeholder="Anonymous"
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Email (Optional)</label>
-                  <input 
-                    type="email" 
-                    value={donorEmail} 
+                  <input
+                    type="email"
+                    value={donorEmail}
                     onChange={(e) => setDonorEmail(e.target.value)}
                     placeholder="For receipt"
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-text-secondary uppercase mb-1.5 block">Phone (Optional)</label>
-                  <input 
-                    type="tel" 
-                    value={donorPhone} 
+                  <input
+                    type="tel"
+                    value={donorPhone}
                     onChange={(e) => setDonorPhone(e.target.value)}
                     placeholder="0123456789"
                     maxLength={15}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background" 
+                    className="w-full px-3 py-2 border border-border rounded-xl text-sm outline-none focus:border-primary bg-background"
                   />
                 </div>
               </div>
 
-              <button 
-                onClick={handleDonate} 
-                disabled={isProcessing || !donationAmount || donationAmount <= 0}
-                className="w-full py-3.5 btn-primary text-sm flex justify-center items-center gap-2"
+              <button
+                onClick={handleDonate}
+                disabled={isProcessing || !donationAmount || donationAmount <= 0 || donationAmount > 100000}
+                className="w-full py-3.5 btn-primary text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
@@ -404,20 +407,20 @@ export default function CrowdfundingPage() {
 
       {/* Success Modal */}
       {showSuccessModal && (
-        <DonationSuccessModal 
+        <DonationSuccessModal
           donationId={showSuccessModal.id}
           onClose={() => {
             setShowSuccessModal(null);
             // Clean up URL only when modal is closed
             window.history.replaceState({}, document.title, window.location.pathname);
-          }} 
+          }}
           onShowReceipt={(id) => setShowReceiptModal(id)}
         />
       )}
 
       {/* Receipt Modal */}
       {showReceiptModal && (
-        <DonationReceiptModal 
+        <DonationReceiptModal
           donationId={showReceiptModal}
           onClose={() => setShowReceiptModal(null)}
         />
@@ -432,35 +435,35 @@ export default function CrowdfundingPage() {
 
 function DonationSuccessModal({ onClose, donationId, onShowReceipt }: { onClose: () => void, donationId: string, onShowReceipt: (id: string) => void }) {
   const { t } = useLanguage();
-  
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={onClose}>
       <div className="bg-surface rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.3)] relative overflow-hidden text-center scale-up-center" onClick={(e) => e.stopPropagation()}>
         <div className="hero-gradient py-12 px-6 text-white relative">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mt-20 -mr-20 blur-3xl animate-pulse" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-light/20 rounded-full -mb-16 -ml-16 blur-2xl" />
-          
+
           <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center text-primary shadow-xl mb-6 relative z-10 bounce-in">
             <HandHeart size={40} strokeWidth={2.5} />
           </div>
-          
+
           <h2 className="text-2xl font-black mb-2 tracking-tight relative z-10">{t.donationSuccess}</h2>
           <p className="text-white/80 text-sm font-medium relative z-10">Your contribution makes a huge difference!</p>
         </div>
-        
+
         <div className="p-8">
           <p className="text-text-secondary text-sm leading-relaxed mb-8">
             Thank you for your generous donation. A receipt and confirmation has been sent to your email.
           </p>
-          
+
           <div className="flex flex-col gap-3">
-            <button 
+            <button
               onClick={onClose}
               className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Done
             </button>
-            <button 
+            <button
               onClick={() => onShowReceipt(donationId)}
               className="w-full py-3 bg-surface-alt border border-border hover:bg-primary/5 hover:border-primary/30 rounded-xl text-xs font-bold text-text-secondary hover:text-primary transition-all flex items-center justify-center gap-2"
             >
@@ -468,7 +471,7 @@ function DonationSuccessModal({ onClose, donationId, onShowReceipt }: { onClose:
               View Receipt
             </button>
           </div>
-          
+
           <p className="text-[10px] text-text-muted mt-4 uppercase tracking-widest font-bold">Project Makmur Crowdfunding</p>
         </div>
       </div>
