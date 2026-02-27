@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { format } from "date-fns";
+import { createClient } from "@/lib/supabase/client";
 import { MoonStar, Sunrise, SunMedium, Sun, Sunset, Moon, Settings, Volume2, X, MapPin, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePrayerSettings, THEMES } from "./PrayerSettingsContext";
@@ -50,11 +51,25 @@ export default function DynamicWaktuSolat() {
     }, []);
 
     useEffect(() => {
-        if (!isLoaded) return;
-        if (!selectedZone) { // Only force auto-locate if NO zone was ever saved by user
-            handleLocateMe(true);
-        }
-    }, [isLoaded, selectedZone]);
+        const supabase = createClient();
+        const channel = supabase
+            .channel("system_settings_realtime")
+            .on(
+                "postgres_changes",
+                { event: "UPDATE", schema: "public", table: "system_settings", filter: "id=eq.1" },
+                (payload: { new: { screen_config: any } }) => {
+                    const newConfig = payload.new?.screen_config;
+                    if (newConfig?.zone) {
+                        setSelectedZone(newConfig.zone);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
 
     const handleLocateMe = async (isAuto = false) => {
         if (!("geolocation" in navigator)) {

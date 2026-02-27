@@ -123,6 +123,40 @@ export default function MyBookingsPage() {
       setLoading(false);
     }
     load();
+
+    // ── Realtime Subscriptions ──
+    const bookingsChannel = supabase
+      .channel("my_bookings_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "facility_bookings", filter: `booked_by=eq.${user!.id}` },
+        load
+      )
+      .subscribe();
+
+    const gigsChannel = supabase
+      .channel("my_gigs_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "gig_claims", filter: `guest_uuid=eq.${user!.id}` },
+        load
+      )
+      .subscribe();
+
+    const donationsChannel = supabase
+      .channel("my_donations_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "donations", filter: `donor_email=eq.${user!.email}` },
+        load
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(bookingsChannel);
+      supabase.removeChannel(gigsChannel);
+      supabase.removeChannel(donationsChannel);
+    };
   }, [user, isAnonymous]);
 
   /* ── Guest gate ── */

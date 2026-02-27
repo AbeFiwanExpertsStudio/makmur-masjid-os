@@ -77,6 +77,32 @@ export default function CrowdfundingPage() {
   useEffect(() => {
     fetchCampaigns();
 
+    const supabase = createClient();
+    const channel = supabase
+      .channel("crowdfund_campaigns_realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "crowdfund_campaigns" },
+        (payload) => {
+          setCampaigns((current) =>
+            current.map((c) =>
+              c.id === payload.new.id ? { ...c, ...payload.new } : c
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "crowdfund_campaigns" },
+        fetchCampaigns
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "crowdfund_campaigns" },
+        fetchCampaigns
+      )
+      .subscribe();
+
     // Check for payment success in URL
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
@@ -89,6 +115,10 @@ export default function CrowdfundingPage() {
       toast.error(t.donationFailed);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const activeCampaign = campaigns.find((c) => c.id === donateModal);
