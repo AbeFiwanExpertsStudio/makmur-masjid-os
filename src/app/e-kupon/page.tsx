@@ -728,6 +728,15 @@ function EKuponFormModal({
 
   const handleSave = async () => {
     if (!name.trim() || !date) return;
+
+    // Validation: End must be after start
+    const startDateTime = new Date(`${date}T${startTime}`);
+    const endDateTime = new Date(`${date}T${endTime}`);
+    if (endDateTime <= startDateTime) {
+      toast.error("End time must be strictly after start time");
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     const supabase = createClient();

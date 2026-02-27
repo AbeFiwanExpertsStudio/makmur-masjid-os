@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HandHeart, X, Heart, Plus, Pencil, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { HandHeart, X, Heart, Plus, Pencil, Trash2, AlertTriangle, Loader2, CheckCircle, PartyPopper } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthContext";
 import { toast } from "react-hot-toast";
@@ -40,6 +40,7 @@ export default function CrowdfundingPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const CAMPAIGNS_PER_PAGE = 4;
   const [campaignsPage, setCampaignsPage] = useState(1);
@@ -71,7 +72,7 @@ export default function CrowdfundingPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     if (paymentStatus === 'success') {
-      toast.success(t.donationSuccess);
+      setShowSuccessModal(true);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (paymentStatus === 'failed') {
@@ -357,6 +358,87 @@ export default function CrowdfundingPage() {
           onDelete={(id) => { setCampaigns(campaigns.filter(c => c.id !== id)); }}
         />
       )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <SuccessDonationModal onClose={() => setShowSuccessModal(false)} />
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------------------------------------
+// Success Donation Modal
+// -------------------------------------------------------------------------------------------------
+
+function SuccessDonationModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLanguage();
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000); // 5 seconds auto-close
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[200] flex items-center justify-center p-4 transition-all duration-500 animate-in fade-in">
+      <div className="bg-surface rounded-3xl w-full max-w-sm overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/10 relative transform animate-in zoom-in-95 duration-300">
+        
+        {/* Confetti-like decoration circles */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mt-16 -mr-16 blur-2xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gold/10 rounded-full -mb-12 -ml-12 blur-2xl animate-pulse" />
+        
+        {/* Close button */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 z-20 text-text-muted hover:text-text transition-colors p-1"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="p-8 pb-10 flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 relative group overflow-hidden">
+             <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-10 transition-opacity" />
+             <CheckCircle size={40} className="text-primary animate-in slide-in-from-bottom-2 duration-700" strokeWidth={2.5} />
+          </div>
+          
+          <div className="space-y-2 mb-8">
+            <h2 className="text-2xl font-black text-text tracking-tight">
+              {t.donationSuccessTitle || "Alhamdulillah!"}
+            </h2>
+            <p className="text-text-secondary leading-relaxed px-4">
+              {t.donationSuccess || "Your generous contribution has been received. May Allah reward your kindness."}
+            </p>
+          </div>
+          
+          <div className="w-full h-1.5 bg-background rounded-full overflow-hidden mb-8">
+            <div className="h-full bg-primary animate-progress-shrink w-full origin-left" style={{ animationDuration: '5s', animationTimingFunction: 'linear' }} />
+          </div>
+
+          <button 
+            onClick={onClose}
+            className="w-full py-4 btn-primary text-sm font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+             Continue Exploring
+          </button>
+          
+          <div className="mt-6 flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-[0.2em] opacity-60">
+            <PartyPopper size={12} />
+            <span>Success Donation</span>
+          </div>
+        </div>
+      </div>
+      
+      <style jsx>{`
+        @keyframes progress-shrink {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+        .animate-progress-shrink {
+          animation: progress-shrink linear forwards;
+        }
+      `}</style>
     </div>
   );
 }
