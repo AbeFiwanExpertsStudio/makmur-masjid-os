@@ -16,6 +16,7 @@ type Campaign = {
   current_amount: number;
   donor_count: number;
   images: string[];
+  completed_at: string | null;
 };
 
 // timeout helper
@@ -40,6 +41,13 @@ export default function CrowdfundingPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState<{ id: string, amount: number } | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const CAMPAIGNS_PER_PAGE = 4;
   const [campaignsPage, setCampaignsPage] = useState(1);
@@ -70,10 +78,11 @@ export default function CrowdfundingPage() {
     // Check for payment success in URL
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
+    const donationId = urlParams.get('donation_id');
+    
     if (paymentStatus === 'success') {
-      toast.success(t.donationSuccess);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log("SUCESS: Triggering modal for donation:", donationId);
+      setShowSuccessModal({ id: donationId || "", amount: 0 });
     } else if (paymentStatus === 'failed') {
       toast.error(t.donationFailed);
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -171,14 +180,36 @@ export default function CrowdfundingPage() {
           </div>
         ) : (
           campaigns
+            .filter(c => {
+              if (!c.completed_at) return true;
+              const completedTime = new Date(c.completed_at).getTime();
+              const thirtyMinutes = 30 * 60 * 1000;
+              return currentTime.getTime() - completedTime < thirtyMinutes;
+            })
             .slice((campaignsPage - 1) * CAMPAIGNS_PER_PAGE, campaignsPage * CAMPAIGNS_PER_PAGE)
             .map((c) => {
             const pct = Math.min(100, Math.round((c.current_amount / c.target_amount) * 100));
             const donorsCount = c.donor_count || 0;
+            const isGoalReached = c.current_amount >= c.target_amount;
+
+            let countdownText = null;
+            if (c.completed_at) {
+              const remainingMs = (new Date(c.completed_at).getTime() + 30 * 60 * 1000) - currentTime.getTime();
+              if (remainingMs > 0) {
+                const mins = Math.floor(remainingMs / 60000);
+                const secs = Math.floor((remainingMs % 60000) / 1000);
+                countdownText = `${mins}:${secs.toString().padStart(2, '0')}`;
+              }
+            }
 
             return (
-              <div key={c.id} className="card p-6 relative">
-                <div className="flex items-start justify-between mb-2">
+              <div key={c.id} className={`card p-6 relative overflow-hidden ${isGoalReached ? 'grayscale-[0.4] bg-primary-50/10' : ''}`}>
+                {isGoalReached && (
+                  <div className="absolute top-0 left-0 right-0 bg-primary/95 text-white text-[10px] font-bold uppercase tracking-widest py-1 text-center z-10">
+                    Goal Reached {countdownText && `— Delisting in ${countdownText}`}
+                  </div>
+                )}
+                <div className="flex items-start justify-between mb-2 mt-2">
                   <h3 className="font-bold text-lg text-text pr-2">{c.title}</h3>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="badge bg-gold-light/20 text-gold">
@@ -219,7 +250,9 @@ export default function CrowdfundingPage() {
                 )}
 
                 <div className="flex justify-between text-sm mb-2 font-medium">
-                  <span className="text-primary font-bold text-lg">RM{c.current_amount.toLocaleString()}</span>
+                  <span className={`font-bold text-lg ${isGoalReached ? 'text-primary' : 'text-primary'}`}>
+                    RM{c.current_amount.toLocaleString()}
+                  </span>
                   <span className="text-text-muted">of RM{c.target_amount.toLocaleString()}</span>
                 </div>
                 <div className="progress-bar mb-1">
@@ -227,8 +260,17 @@ export default function CrowdfundingPage() {
                 </div>
                 <p className="text-xs text-text-muted mb-5 text-right">{t.progressLabel(pct)}</p>
 
-                <button onClick={() => setDonateModal(c.id)} className="w-full py-3 btn-primary text-sm flex justify-center items-center gap-2">
-                  <HandHeart size={16} /> {t.donateNow}
+                <button 
+                  onClick={() => !isGoalReached && setDonateModal(c.id)} 
+                  disabled={isGoalReached}
+                  className={`w-full py-3 text-sm flex justify-center items-center gap-2 rounded-xl font-bold transition-all ${
+                    isGoalReached 
+                      ? "bg-text-muted/20 text-text-muted border border-border cursor-not-allowed" 
+                      : "btn-primary"
+                  }`}
+                >
+                  <HandHeart size={16} /> 
+                  {isGoalReached ? "Goal Reached" : t.donateNow}
                 </button>
               </div>
             );
@@ -357,6 +399,58 @@ export default function CrowdfundingPage() {
           onDelete={(id) => { setCampaigns(campaigns.filter(c => c.id !== id)); }}
         />
       )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <DonationSuccessModal 
+          onClose={() => {
+            setShowSuccessModal(null);
+            // Clean up URL only when modal is closed
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }} 
+        />
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------------------------------------
+// Success Modal Component
+// -------------------------------------------------------------------------------------------------
+
+function DonationSuccessModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLanguage();
+  
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-surface rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.3)] relative overflow-hidden text-center scale-up-center" onClick={(e) => e.stopPropagation()}>
+        <div className="hero-gradient py-12 px-6 text-white relative">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mt-20 -mr-20 blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-light/20 rounded-full -mb-16 -ml-16 blur-2xl" />
+          
+          <div className="w-20 h-20 bg-white rounded-full mx-auto flex items-center justify-center text-primary shadow-xl mb-6 relative z-10 bounce-in">
+            <HandHeart size={40} strokeWidth={2.5} />
+          </div>
+          
+          <h2 className="text-2xl font-black mb-2 tracking-tight relative z-10">{t.donationSuccess}</h2>
+          <p className="text-white/80 text-sm font-medium relative z-10">Your contribution makes a huge difference!</p>
+        </div>
+        
+        <div className="p-8">
+          <p className="text-text-secondary text-sm leading-relaxed mb-8">
+            Thank you for your generous donation. A receipt and confirmation has been sent to your email.
+          </p>
+          
+          <button 
+            onClick={onClose}
+            className="w-full py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Done
+          </button>
+          
+          <p className="text-[10px] text-text-muted mt-4 uppercase tracking-widest font-bold">Project Makmur Crowdfunding</p>
+        </div>
+      </div>
     </div>
   );
 }
