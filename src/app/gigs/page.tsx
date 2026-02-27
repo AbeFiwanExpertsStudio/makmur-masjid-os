@@ -6,9 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import React, { useEffect, useState } from "react";
 import {
   Users, Clock, CheckCircle, AlertCircle, LogIn,
-  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star, Trophy,
+  Briefcase, Plus, X, Pencil, Trash2, AlertTriangle, Loader2, Star,
 } from "lucide-react";
-import type { LeaderboardRow } from "@/types/database"
 import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
 import { useLanguage } from "@/components/providers/LanguageContext";
@@ -48,7 +47,6 @@ export default function GigsPage() {
   const [deletingGig, setDeletingGig] = useState<Gig | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [myPoints, setMyPoints] = useState(0);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -109,13 +107,6 @@ export default function GigsPage() {
 
   useEffect(() => {
     fetchGigs();
-
-    // Fetch leaderboard (public — no auth needed)
-    (async () => {
-      const supabase = createClient();
-      const { data } = await supabase.rpc("get_volunteer_leaderboard");
-      if (data) setLeaderboard(data as LeaderboardRow[]);
-    })();
 
     if (user && !user.is_anonymous) {
       fetchMyClaims(user.id);
@@ -230,43 +221,6 @@ export default function GigsPage() {
         </div>
       )}
 
-      {/* Volunteer Leaderboard */}
-      {leaderboard.length > 0 && (
-        <div className="card p-4 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Trophy size={16} className="text-gold" />
-            <h2 className="font-bold text-text text-sm">{t.leaderboardTitle}</h2>
-            <span className="text-xs text-text-muted ml-auto">{t.leaderboardSubtitle}</span>
-          </div>
-          <div className="space-y-1.5">
-            {leaderboard.map((row) => {
-              const isMe = user && row.user_id === user.id;
-              const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null;
-              return (
-                <div
-                  key={row.user_id}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
-                    isMe
-                      ? "bg-primary/8 border border-primary/20"
-                      : "hover:bg-background"
-                  }`}
-                >
-                  <span className="w-6 text-center text-sm">
-                    {medal ?? <span className="text-xs text-text-muted font-mono">#{row.rank}</span>}
-                  </span>
-                  <span className={`flex-1 text-sm truncate ${isMe ? "font-bold text-primary" : "text-text"}`}>
-                    {row.display_name}
-                    {isMe && <span className="ml-1.5 text-[10px] font-normal bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">{t.leaderboardYou}</span>}
-                  </span>
-                  <span className="text-xs font-bold text-gold tabular-nums">
-                    {row.total_points.toLocaleString()} pts
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Loading state */}
       {loadingGigs && (
@@ -329,13 +283,13 @@ export default function GigsPage() {
 
               // Check if this gig's time overlaps with any other gig the user already claimed
               const gigStartDt = new Date(`${gig.gig_date}T${gig.start_time}`);
-              const gigEndDt   = new Date(`${gig.gig_date}T${gig.end_time}`);
+              const gigEndDt = new Date(`${gig.gig_date}T${gig.end_time}`);
               const conflictingGig = !isClaimed ? gigs.find(g =>
                 g.id !== gig.id &&
                 claimedIds.has(g.id) &&
                 g.gig_date === gig.gig_date &&
                 new Date(`${g.gig_date}T${g.start_time}`) < gigEndDt &&
-                new Date(`${g.gig_date}T${g.end_time}`)   > gigStartDt
+                new Date(`${g.gig_date}T${g.end_time}`) > gigStartDt
               ) : undefined;
               const isConflict = !!conflictingGig;
 
@@ -396,7 +350,7 @@ export default function GigsPage() {
 
                   <p className="text-sm text-text-secondary mb-3">{gig.description}</p>
                   <div className="flex items-center gap-2 text-xs text-text-muted mb-3">
-                    <Clock size={13} /> {new Date(gig.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} · {gig.start_time?.slice(0,5)} – {gig.end_time?.slice(0,5)}
+                    <Clock size={13} /> {new Date(gig.gig_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} · {gig.start_time?.slice(0, 5)} – {gig.end_time?.slice(0, 5)}
                     {countdownLabel && (
                       <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${isOngoing ? "bg-gold-light/40 text-gold-dark dark:bg-surface-muted dark:text-gold" : "bg-primary-50 dark:bg-primary/10 text-primary"}`}>
                         {countdownLabel}
@@ -431,11 +385,10 @@ export default function GigsPage() {
                     <button
                       onClick={() => handleClaim(gig.id)}
                       disabled={isFull || isConflict}
-                      className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-semibold transition-all ${
-                        isConflict
+                      className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-semibold transition-all ${isConflict
                           ? 'bg-gold-light/20 text-gold-dark border border-gold/30 cursor-not-allowed dark:bg-surface-muted dark:text-gold dark:border-gold/20'
                           : 'btn-primary'
-                      }`}
+                        }`}
                       title={isConflict ? `Overlaps with "${conflictingGig?.title}"` : undefined}
                     >
                       {isConflict ? <AlertCircle size={16} /> : isAnonymous ? <LogIn size={16} /> : <Users size={16} />}
