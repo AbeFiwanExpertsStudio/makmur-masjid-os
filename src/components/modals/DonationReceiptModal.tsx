@@ -148,10 +148,17 @@ export default function DonationReceiptModal({ donationId, onClose }: DonationRe
                 <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Authenticating Receipt...</p>
               </div>
             ) : error ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center text-red-500 bg-white">
-                <AlertCircle size={40} />
-                <p className="text-sm font-bold">{error}</p>
-                <button onClick={onClose} className="mt-4 px-6 py-2 bg-slate-100 rounded-xl text-slate-600 font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Close</button>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center bg-white">
+                <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-2">
+                  <AlertCircle size={32} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 leading-tight">Receipt Unavailable</h3>
+                <p className="text-sm text-slate-500 max-w-[280px]">
+                  {error.includes("PGRST116") || error.includes("JSON object") 
+                    ? "We couldn't find this donation record. Please ensure the payment was successful."
+                    : "You might not have permission to view this receipt or it's still being processed."}
+                </p>
+                <button onClick={onClose} className="mt-4 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Go Back</button>
               </div>
             ) : (
               <div id="receipt-content-capture" className="receipt-theme-light">
