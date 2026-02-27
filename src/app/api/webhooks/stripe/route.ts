@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Mark donation as completed
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("donations")
         .update({
           status: "completed",
@@ -78,7 +78,12 @@ export async function POST(req: NextRequest) {
         .eq("id", donationId)
         .neq("status", "completed");
 
-      console.log(`Webhook: donation ${donationId} completed via Stripe`);
+      if (updateError) {
+        console.error(`Webhook error updating donation ${donationId}:`, updateError.message);
+        return NextResponse.json({ error: "Failed to update donation status" }, { status: 500 });
+      }
+
+      console.log(`Webhook SUCCESS: donation ${donationId} marked COMPLETED`);
     }
 
     if (event.type === "checkout.session.expired") {

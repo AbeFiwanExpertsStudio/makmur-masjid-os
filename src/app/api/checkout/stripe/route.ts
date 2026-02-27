@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     // 4. Store the Stripe session ID on the donation row
     await supabaseAdmin
       .from("donations")
-      .update({ payment_intent_id: session.id })
+      .update({ stripe_session_id: session.id })
       .eq("id", donation.id);
 
     return NextResponse.json({ url: session.url, sessionId: session.id });
