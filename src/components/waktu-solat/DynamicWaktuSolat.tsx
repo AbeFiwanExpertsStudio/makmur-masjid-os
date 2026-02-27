@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { format } from "date-fns";
-import { MoonStar, Sunrise, SunMedium, Sun, Sunset, Moon, Settings, Volume2, X, MapPin } from "lucide-react";
+import { MoonStar, Sunrise, SunMedium, Sun, Sunset, Moon, Settings, Volume2, X, MapPin, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePrayerSettings, THEMES } from "./PrayerSettingsContext";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 
@@ -36,6 +37,7 @@ export default function DynamicWaktuSolat() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [dismissedAlertTime, setDismissedAlertTime] = useState<number | null>(null);
     const [demoAlertEndTime, setDemoAlertEndTime] = useState<number | null>(null);
+    const [zoneDetecting, setZoneDetecting] = useState(false);
 
     const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
     const audioOtherRef = useRef<HTMLAudioElement | null>(null);
@@ -50,28 +52,53 @@ export default function DynamicWaktuSolat() {
     useEffect(() => {
         if (!isLoaded) return;
         if (!selectedZone) { // Only force auto-locate if NO zone was ever saved by user
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    async (position) => {
-                        try {
-                            const { latitude, longitude } = position.coords;
-                            const res = await fetch(`https://api.waktusolat.app/zones/gps?lat=${latitude}&long=${longitude}`);
-                            const gpsZones = await res.json();
-                            if (gpsZones?.length > 0) {
-                                setSelectedZone(gpsZones[0].jakimCode || "WLY01");
-                                setZoneLabel(gpsZones[0].daerah || "Locating...");
-                            } else {
-                                setSelectedZone("WLY01");
-                            }
-                        } catch (err) { setSelectedZone("WLY01"); }
-                    },
-                    () => { setSelectedZone("WLY01"); }, { enableHighAccuracy: true }
-                );
-            } else {
-                setSelectedZone("WLY01");
-            }
+            handleLocateMe(true);
         }
-    }, [isLoaded, selectedZone, setSelectedZone]);
+    }, [isLoaded, selectedZone]);
+
+    const handleLocateMe = async (isAuto = false) => {
+        if (!("geolocation" in navigator)) {
+            if (!isAuto) toast.error("Geolocation is not supported by your browser");
+            if (isAuto) setSelectedZone("WLY01");
+            return;
+        }
+
+        setZoneDetecting(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                try {
+                    const { latitude, longitude } = position.coords;
+                    const res = await fetch(`https://api.waktusolat.app/zones/gps?lat=${latitude}&long=${longitude}`);
+                    const gpsZones = await res.json();
+                    
+                    if (gpsZones?.length > 0) {
+                        const detected = gpsZones[0];
+                        setSelectedZone(detected.jakimCode || "WLY01");
+                        if (!isAuto) {
+                            toast.success(`Location detected: ${detected.daerah || detected.jakimCode}`);
+                        }
+                    } else {
+                        if (!isAuto) toast.error("Could not find a zone for your location");
+                        if (isAuto) setSelectedZone("WLY01");
+                    }
+                } catch (err) {
+                    if (!isAuto) toast.error("Error detecting location");
+                    if (isAuto) setSelectedZone("WLY01");
+                } finally {
+                    setZoneDetecting(false);
+                }
+            },
+            (error) => {
+                if (!isAuto) {
+                    const msg = error.code === 1 ? "Location access denied" : "Error getting location";
+                    toast.error(msg);
+                }
+                if (isAuto) setSelectedZone("WLY01");
+                setZoneDetecting(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     useEffect(() => {
         if (!selectedZone) return;
@@ -409,8 +436,17 @@ export default function DynamicWaktuSolat() {
                                             {zones.map(z => <option key={z.jakimCode} value={z.jakimCode}>{z.jakimCode} - {z.daerah.split(",")[0]}, {z.negeri}</option>)}
                                         </select>
                                     </div>
-                                    <button className="w-full bg-blue-500 text-white font-medium py-3.5 rounded-xl hover:bg-blue-600 transition flex items-center justify-center gap-2">
-                                        <MapPin size={18} /> {t("Locate Me", "Cari Lokasi")}
+                                    <button 
+                                        onClick={() => handleLocateMe(false)}
+                                        disabled={zoneDetecting}
+                                        className="w-full bg-blue-500 text-white font-medium py-3.5 rounded-xl hover:bg-blue-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {zoneDetecting ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <MapPin size={18} />
+                                        )}
+                                        {zoneDetecting ? t("Detecting...", "Mengesan...") : t("Locate Me", "Cari Lokasi")}
                                     </button>
                                 </div>
                             </section>
