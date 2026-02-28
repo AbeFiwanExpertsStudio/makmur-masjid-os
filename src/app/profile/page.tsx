@@ -314,6 +314,27 @@ export default function ProfilePage() {
 
       {/* ── Notifications Card ── */}
       <div className="card p-6 mb-5">
+        {(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream) && 
+         !(window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+            <div className="flex gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 shrink-0 h-fit">
+                <Smartphone size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-text-muted mb-1">
+                  {language === 'ms' ? 'Tip Pengguna iOS' : 'iOS User Tip'}
+                </h4>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  {language === 'ms' 
+                    ? 'Untuk terima notifikasi di iPhone, anda perlu "Add to Home Screen" dahulu melalui butang Share di pelayar.' 
+                    : 'To receive notifications on your iPhone, you must first "Add to Home Screen" using the Share button in your browser.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">

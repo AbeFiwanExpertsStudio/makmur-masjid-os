@@ -29,7 +29,7 @@ export function usePrayerSettings() {
     const [language, setLanguage] = useState<"en" | "ms">("en");
     const [bgImage, setBgImage] = useState<string>("");
     const [bgOpacity, setBgOpacity] = useState<number>(75);
-    const [selectedZone, setSelectedZone] = useState<string>("");
+    const [selectedZone, setSelectedZone] = useState<string>("WLY01");
     const [showBannerAlert, setShowBannerAlert] = useState<boolean>(true);
     const [enableBlinking, setEnableBlinking] = useState<boolean>(true);
     const [isLoaded, setIsLoaded] = useState(false);

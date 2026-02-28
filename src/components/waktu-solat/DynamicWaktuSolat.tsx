@@ -71,6 +71,13 @@ export default function DynamicWaktuSolat() {
         };
     }, []);
 
+    // Auto-locate on first launch if no zone is stored
+    useEffect(() => {
+        if (isLoaded && !localStorage.getItem("makmur_waktu_settings")) {
+            handleLocateMe(true);
+        }
+    }, [isLoaded]);
+
     const handleLocateMe = async (isAuto = false) => {
         if (!("geolocation" in navigator)) {
             if (!isAuto) toast.error("Geolocation is not supported by your browser");
