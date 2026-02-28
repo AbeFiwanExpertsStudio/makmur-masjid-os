@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.mosque_programs (
 DO $$
 BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.mosque_programs;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.user_roles;
 EXCEPTION WHEN duplicate_object THEN
   NULL; -- already a member, skip
 END;
@@ -103,10 +104,15 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  v_title text;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Unauthorized: Only admins can complete gigs.';
   END IF;
+
+  -- Get gig title for notification
+  SELECT title INTO v_title FROM public.volunteer_gigs WHERE id = p_gig_id;
 
   -- Mark gig as completed
   UPDATE public.volunteer_gigs
@@ -121,6 +127,15 @@ BEGIN
   WHERE gc.gig_id = p_gig_id
   ON CONFLICT (user_id) DO UPDATE
     SET total_points = COALESCE(user_roles.total_points, 0) + 100;
+
+  -- Insert periodic notifications for all participants
+  INSERT INTO public.notifications (user_id, type, payload)
+  SELECT gc.guest_uuid, 'gig_completed', jsonb_build_object(
+    'gig_title', v_title,
+    'points_awarded', 100
+  )
+  FROM public.gig_claims gc
+  WHERE gc.gig_id = p_gig_id;
 END;
 $$;
 

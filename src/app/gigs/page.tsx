@@ -21,6 +21,7 @@ type Gig = {
   gig_date: string;
   start_time: string;
   end_time: string;
+  is_completed: boolean;
 };
 
 // No hardcoded fallback — all gigs come from Supabase.
@@ -35,7 +36,7 @@ function waitMs(ms: number): Promise<null> {
 /*  Main Page                          */
 /* ─────────────────────────────────── */
 export default function GigsPage() {
-  const { user, isAnonymous, isAdmin, setShowLoginModal } = useAuth();
+  const { user, isAnonymous, isAdmin, points, setShowLoginModal } = useAuth();
   const { t, language } = useLanguage();
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [loadingGigs, setLoadingGigs] = useState(true);
@@ -46,7 +47,6 @@ export default function GigsPage() {
   const [editingGig, setEditingGig] = useState<Gig | null>(null);
   const [deletingGig, setDeletingGig] = useState<Gig | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [myPoints, setMyPoints] = useState(0);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -73,11 +73,11 @@ export default function GigsPage() {
   const fetchGigs = async () => {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("volunteer_gigs")
-        .select(`id, title, description, required_pax, gig_date, start_time, end_time, created_at, gig_claims(count)`)
-        .eq("is_cancelled", false)
-        .order("gig_date", { ascending: true });
+        const { data, error } = await supabase
+          .from("volunteer_gigs")
+          .select(`id, title, description, required_pax, gig_date, start_time, end_time, is_completed, created_at, gig_claims(count)`)
+          .eq("is_cancelled", false)
+          .order("gig_date", { ascending: true });
 
       if (error) {
         console.warn("Could not load gigs:", error.message);
@@ -95,6 +95,7 @@ export default function GigsPage() {
           gig_date: row.gig_date ?? new Date().toISOString().split('T')[0],
           start_time: row.start_time ?? '19:00',
           end_time: row.end_time ?? '21:00',
+          is_completed: !!row.is_completed,
         }));
         setGigs(mapped);
       }
@@ -110,16 +111,6 @@ export default function GigsPage() {
 
     if (user && !user.is_anonymous) {
       fetchMyClaims(user.id);
-      // Fetch user points — uses user_roles.total_points updated by complete_gig RPC
-      (async () => {
-        const supabase = createClient();
-        const { data } = await supabase
-          .from("user_roles")
-          .select("total_points")
-          .eq("user_id", user.id)
-          .single();
-        if (data) setMyPoints(data.total_points ?? 0);
-      })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -192,7 +183,7 @@ export default function GigsPage() {
             onClick={() => setShowAddModal(true)}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            <Plus size={16} /> {language === 'ms' ? 'Tambah Gig' : 'Add Gig'}
+            <Plus size={16} /> <span className="hidden sm:inline">{language === 'ms' ? 'Tambah Gig' : 'Add Gig'}</span>
           </button>
         )}
       </div>
@@ -205,7 +196,7 @@ export default function GigsPage() {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-text-muted">{t.gigsMyPoints}</p>
-            <p className="text-2xl font-bold text-text">{myPoints.toLocaleString()} <span className="text-sm font-normal text-text-muted">pts</span></p>
+            <p className="text-2xl font-bold text-text">{points.toLocaleString()} <span className="text-sm font-normal text-text-muted">pts</span></p>
           </div>
           <div className="ml-auto text-xs text-text-muted max-w-[140px] text-right">
             {t.gigsPointsDesc}
@@ -287,6 +278,7 @@ export default function GigsPage() {
               const conflictingGig = !isClaimed ? gigs.find(g =>
                 g.id !== gig.id &&
                 claimedIds.has(g.id) &&
+                !g.is_completed &&
                 g.gig_date === gig.gig_date &&
                 new Date(`${g.gig_date}T${g.start_time}`) < gigEndDt &&
                 new Date(`${g.gig_date}T${g.end_time}`) > gigStartDt
@@ -543,6 +535,7 @@ function GigFormModal({
           gig_date: gigDate,
           start_time: startTime,
           end_time: endTime,
+          is_completed: gig?.is_completed ?? false,
         });
       }
 
@@ -562,6 +555,7 @@ function GigFormModal({
         gig_date: gigDate,
         start_time: startTime,
         end_time: endTime,
+        is_completed: gig?.is_completed ?? false,
       };
       onSave(fallbackGig);
       setSuccess(true);

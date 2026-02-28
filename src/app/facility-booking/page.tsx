@@ -226,7 +226,7 @@ export default function FacilityBookingPage() {
             onClick={() => { setEditingFacility(null); setShowFacilityModal(true); }}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            <Plus size={16} /> {t.fbAddFacility}
+            <Plus size={16} /> <span className="hidden sm:inline">{t.fbAddFacility}</span>
           </button>
         )}
       </div>

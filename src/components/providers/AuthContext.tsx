@@ -14,6 +14,7 @@ interface AuthContextType {
   isAdmin: boolean;
   displayName: string | null;
   avatarUrl: string | null;
+  points: number;
   refreshProfile: () => Promise<void>;
   showLoginModal: boolean;
   setShowLoginModal: (v: boolean) => void;
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   displayName: null,
   avatarUrl: null,
+  points: 0,
   refreshProfile: async () => {},
   showLoginModal: false,
   setShowLoginModal: () => { },
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [points, setPoints] = useState<number>(0);
 
   // Use email presence to definitively detect anonymous vs registered users
   const isAnonymous = user ? (!user.email) : true;
@@ -60,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("user_roles")
-        .select("role, is_banned")
+        .select("role, is_banned, total_points")
         .eq("user_id", userId)
         .single();
 
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const admin = data?.role === "admin";
       setIsAdmin(admin);
+      setPoints(data?.total_points ?? 0);
       return admin;
     } catch (err: any) {
       if (!err?.message?.includes("LockManager")) {
@@ -208,14 +212,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAdmin(false);
           setDisplayName(null);
           setAvatarUrl(null);
+          setPoints(0);
         }
       }
     );
+
+    /* ──────────────────────────────────────────
+       Listen for Realtime point updates (user_roles).
+    ────────────────────────────────────────── */
+    let realtimeChannel: any = null;
+    if (user && !isAnonymous) {
+      realtimeChannel = supabase
+        .channel(`user_points_${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "user_roles",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new && typeof payload.new.total_points === "number") {
+              setPoints(payload.new.total_points);
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
       mounted = false;
       clearInterval(banPollInterval);
       subscription.unsubscribe();
+      if (realtimeChannel) realtimeChannel.unsubscribe();
     };
   }, [checkAdminRole, fetchProfile]);
 
@@ -245,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check ban status BEFORE setting user state so we can block the login
         const { data: roleData } = await supabase
           .from("user_roles")
-          .select("role, is_banned")
+          .select("role, is_banned, total_points")
           .eq("user_id", data.user.id)
           .single();
 
@@ -257,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         const admin = roleData?.role === "admin";
         setIsAdmin(admin);
+        setPoints(roleData?.total_points ?? 0);
         fetchProfile(data.user.id);
       }
 
@@ -290,6 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAdmin(false);
     setDisplayName(null);
     setAvatarUrl(null);
+    setPoints(0);
     setUser(null);
     await supabase.auth.signOut();
     window.location.href = "/";
@@ -297,7 +329,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, isAnonymous, isAdmin, displayName, avatarUrl, refreshProfile, showLoginModal, setShowLoginModal, signInWithEmail, signUp, signOut }}
+      value={{ user, isLoading, isAnonymous, isAdmin, displayName, avatarUrl, points, refreshProfile, showLoginModal, setShowLoginModal, signInWithEmail, signUp, signOut }}
     >
       {children}
     </AuthContext.Provider>

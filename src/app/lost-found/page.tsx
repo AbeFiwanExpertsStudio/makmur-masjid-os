@@ -195,7 +195,7 @@ export default function LostFoundPage() {
             onClick={() => { setEditingItem(null); setPostType("lost"); setShowPostModal(true); }}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
           >
-            <Plus size={16} /> {t.lfPostItem}
+            <Plus size={16} /> <span className="hidden sm:inline">{t.lfPostItem}</span>
           </button>
         )}
       </div>

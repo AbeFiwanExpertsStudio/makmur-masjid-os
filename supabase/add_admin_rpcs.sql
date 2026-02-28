@@ -157,7 +157,7 @@ BEGIN
     RAISE EXCEPTION 'Gig not found.';
   END IF;
 
-  -- Block if user already claimed an overlapping gig on the same date
+  -- Block if user already claimed an overlapping gig on the same date that is STILL active/future
   IF EXISTS (
     SELECT 1
     FROM public.gig_claims gc
@@ -165,10 +165,14 @@ BEGIN
     WHERE gc.guest_uuid = p_guest_uuid
       AND vg.gig_date = new_date
       AND vg.id != p_gig_id
+      AND vg.is_cancelled = false
+      AND vg.is_completed = false
+      -- Ignore overlaps with gigs that have already ended (to allow joining a new one if it overlaps with the "past" part of a completed/expired gig)
+      AND (vg.gig_date + vg.end_time) > now()
       AND new_start < vg.end_time
       AND new_end   > vg.start_time
   ) THEN
-    RAISE EXCEPTION 'You already have a gig that overlaps with this time slot.';
+    RAISE EXCEPTION 'You already have an active gig that overlaps with this time slot.';
   END IF;
 
   -- Insert the claim (will throw 23505 if duplicate)
@@ -184,24 +188,67 @@ RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  v_title text;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Unauthorized: Only admins can complete gigs.';
   END IF;
+
+  -- Ensure the notifications table has the columns we need (safety check)
+  BEGIN
+    ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type text;
+    ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS payload jsonb DEFAULT '{}';
+    ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read boolean DEFAULT false;
+
+    -- PRE-REQUISITE: Populate any existing NULL values first to avoid constraint errors
+    UPDATE public.notifications SET type = 'legacy' WHERE type IS NULL;
+    UPDATE public.notifications SET payload = '{}'::jsonb WHERE payload IS NULL;
+    UPDATE public.notifications SET is_read = false WHERE is_read IS NULL;
+
+    -- CRITICAL: If a 'message' column exists (from an old schema), it must be nullable
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'message') THEN
+      ALTER TABLE public.notifications ALTER COLUMN message DROP NOT NULL;
+    END IF;
+
+    -- Finalize constraints
+    ALTER TABLE public.notifications ALTER COLUMN type SET NOT NULL;
+    ALTER TABLE public.notifications ALTER COLUMN payload SET NOT NULL;
+    ALTER TABLE public.notifications ALTER COLUMN is_read SET NOT NULL;
+  EXCEPTION WHEN others THEN
+    NULL;
+  END;
+
+  -- Get gig title for notification
+  SELECT title INTO v_title FROM public.volunteer_gigs WHERE id = p_gig_id;
 
   -- Mark gig as completed
   UPDATE public.volunteer_gigs
   SET is_completed = true, completed_at = now()
   WHERE id = p_gig_id;
 
-  -- Award 100 points to all users who claimed this gig
-  UPDATE public.user_roles
-  SET total_points = COALESCE(total_points, 0) + 100
-  WHERE user_id IN (
-    SELECT guest_uuid
-    FROM public.gig_claims
-    WHERE gig_id = p_gig_id
-  );
+  -- Award 100 points (using robust UPSERT to user_roles)
+  INSERT INTO public.user_roles (user_id, role, total_points)
+  SELECT gc.guest_uuid, 'volunteer', 100
+  FROM public.gig_claims gc
+  WHERE gc.gig_id = p_gig_id
+  ON CONFLICT (user_id) DO UPDATE
+    SET total_points = COALESCE(user_roles.total_points, 0) + 100;
+
+  -- Send persistent notifications to all volunteers who claimed this gig
+  INSERT INTO public.notifications (user_id, type, payload)
+  SELECT 
+    gc.guest_uuid, 
+    'gig_completed', 
+    jsonb_build_object(
+      'gig_id', p_gig_id, 
+      'gig_title', vg.title,           -- Key must match Navbar.tsx expectations
+      'points_awarded', 100,           -- Key must match Navbar.tsx expectations
+      'completed_at', now()
+    )
+  FROM public.gig_claims gc
+  JOIN public.volunteer_gigs vg ON vg.id = gc.gig_id
+  WHERE gc.gig_id = p_gig_id;
 END;
 $$;
 

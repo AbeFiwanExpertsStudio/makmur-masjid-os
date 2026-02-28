@@ -113,7 +113,7 @@ export async function claimGig(
         return { success: false, error: "You have already claimed this gig." };
       }
       if ((result.error as any).message?.includes('overlaps')) {
-        return { success: false, error: "You already have a gig that overlaps with this time slot." };
+        return { success: false, error: (result.error as any).message };
       }
       if ((result.error as any).code === '23503') {
         return { success: false, error: "This gig no longer exists. Please refresh the page." };

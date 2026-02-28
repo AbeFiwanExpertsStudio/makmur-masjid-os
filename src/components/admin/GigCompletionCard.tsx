@@ -73,7 +73,7 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
       return 0;
     });
 
-  const handleCompleteGig = async (gigId: string) => {
+  const handleCompleteGig = async (gigId: string, gigTitle: string) => {
     const supabase = createClient();
     try {
       const { error } = await supabase.rpc("complete_gig", { p_gig_id: gigId });
@@ -82,8 +82,44 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
       } else {
         toast.success("Gig completed! Points awarded to volunteers.");
         onRefresh();
+
+        // Trigger push notifications for participants
+        const { data: claims } = await supabase
+          .from("gig_claims")
+          .select("guest_uuid")
+          .eq("gig_id", gigId);
+
+        if (claims && claims.length > 0) {
+          const userIds = claims.map(c => c.guest_uuid);
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("fcm_tokens")
+            .in("id", userIds);
+
+          const allTokens = (profiles || [])
+            .flatMap(p => p.fcm_tokens || [])
+            .filter(t => typeof t === 'string' && t.length > 0);
+
+          if (allTokens.length > 0) {
+            try {
+              await fetch("/api/notifications/push", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  tokens: allTokens,
+                  title: "Gig Completed! 🌟",
+                  body: `Thank you for your help with "${gigTitle}". 100 points awarded!`,
+                  data: { gig_id: gigId, type: "gig_completed" }
+                })
+              });
+            } catch (pushErr) {
+              console.error("Failed to send push notification:", pushErr);
+            }
+          }
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("An unexpected error occurred.");
     }
   };
@@ -149,7 +185,7 @@ export default function GigCompletionCard({ gigs, onRefresh }: Props) {
                 </div>
               ) : (
                 <button
-                  onClick={() => handleCompleteGig(g.id)}
+                  onClick={() => handleCompleteGig(g.id, g.title)}
                   className="badge bg-primary-50 text-primary border border-[#D5F5E3] hover:bg-[#D5F5E3] hover:scale-105 active:scale-95 transition-all text-xs"
                 >
                   <Award size={12} /> {t.adminCompleteAward}

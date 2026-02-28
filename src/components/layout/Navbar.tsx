@@ -88,6 +88,11 @@ export function Navbar() {
                 ? t.notifBookingApproved((n.payload as Record<string, string>).facility_name ?? '')
                 : n.type === 'booking_cancelled'
                 ? t.notifBookingCancelled((n.payload as Record<string, string>).facility_name ?? '')
+                : n.type === 'gig_completed'
+                ? t.notifGigCompleted(
+                    (n.payload as any).gig_title ?? 'Gig',
+                    (n.payload as any).points_awarded ?? 100
+                  )
                 : t.notifBookingRejected((n.payload as Record<string, string>).facility_name ?? ''),
             created_at: n.created_at,
             notifType: 'booking' as const,

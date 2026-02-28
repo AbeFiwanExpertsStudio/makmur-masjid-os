@@ -356,6 +356,7 @@ const translations = {
     notifBookingApproved: (name: string) => `Your booking for "${name}" was approved!`,
     notifBookingRejected: (name: string) => `Your booking for "${name}" was rejected.`,
     notifBookingCancelled: (name: string) => `Your booking for "${name}" was cancelled by admin.`,
+    notifGigCompleted: (name: string, points: number) => `Alhamdulillah! You earned ${points} points for completing "${name}". Thank you for your service!`,
     notifTypeBooking: "Booking Update",
     notifTypeBroadcast: "Announcement",
 
@@ -1236,6 +1237,7 @@ const translations = {
     scanBookingCheckedInSuccess: "Daftar Masuk Direkod!",
     scanBookingCheckedInAt: (time: string) => `Daftar masuk pada ${time}`,
     scanBookingAlreadyCheckedIn: "Sudah daftar masuk",
+    notifGigCompleted: (name: string, points: number) => `Alhamdulillah! Anda mendapat ${points} mata kerana menghabiskan "${name}". Terima kasih atas khidmat anda!`,
     mbCheckedIn: "Daftar Masuk",
   },
 } as const;

@@ -191,7 +191,7 @@ export default function CrowdfundingPage() {
             onClick={() => setShowAddModal(true)}
             className="btn-primary py-2 px-4 shadow-md rounded-xl text-sm flex items-center gap-2"
           >
-            <Plus size={16} /> {language === 'ms' ? 'Tambah Kempen' : 'Add Campaign'}
+            <Plus size={16} /> <span className="hidden sm:inline">{language === 'ms' ? 'Tambah Kempen' : 'Add Campaign'}</span>
           </button>
         )}
       </div>

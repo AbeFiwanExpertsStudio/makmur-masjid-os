@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import React, { useEffect, useRef, useState } from "react";
 import {
   User, Phone, Mail, Camera, Loader2, Save, ShieldCheck,
-  CalendarDays, KeyRound, LogOut, XCircle, Bell, Smartphone
+  CalendarDays, KeyRound, LogOut, XCircle, Bell, Smartphone, Star
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -25,7 +25,7 @@ function formatDate(iso: string, lang: string): string {
 /* ─────────────────────────────────────────────────────────────── */
 
 export default function ProfilePage() {
-  const { user, isAnonymous, isAdmin, signOut, setShowLoginModal, refreshProfile } = useAuth();
+  const { user, isAnonymous, isAdmin, points, signOut, setShowLoginModal, refreshProfile } = useAuth();
   const { t, language } = useLanguage();
   const router = useRouter();
 
@@ -246,6 +246,17 @@ export default function ProfilePage() {
           className="hidden"
           onChange={handleAvatarSelect}
         />
+
+        {/* ── Points display ── */}
+        <div className="flex flex-col items-center pt-2">
+          <div className="flex items-center gap-2 text-2xl font-bold text-text">
+            <Star size={20} className="text-gold fill-gold" />
+            {points.toLocaleString()}
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mt-1">
+            {t.profilePoints}
+          </p>
+        </div>
       </div>
 
       {/* ── Info card ── */}

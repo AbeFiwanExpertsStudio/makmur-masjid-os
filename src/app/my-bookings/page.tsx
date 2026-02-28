@@ -48,7 +48,7 @@ function fmtTime(t: string) { return t?.slice(0, 5) ?? ""; }
 
 interface GigClaim {
   id: string;
-  joined_at: string;
+  claimed_at: string;
   volunteer_gigs: {
     title: string;
     gig_date: string;
@@ -102,14 +102,12 @@ export default function MyBookingsPage() {
           .from("facility_bookings")
           .select("*, facilities(name)")
           .eq("booked_by", user!.id)
-          .or(`booking_date.gte.${since90days},status.eq.approved`)
           .order("booking_date", { ascending: false }),
         supabase
           .from("gig_claims")
-          .select("id, joined_at, volunteer_gigs(title, gig_date, start_time, end_time, is_completed, is_cancelled)")
+          .select("id, claimed_at, volunteer_gigs(title, gig_date, start_time, end_time, is_completed, is_cancelled)")
           .eq("guest_uuid", user!.id)
-          .gte("joined_at", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-          .order("joined_at", { ascending: false }),
+          .order("claimed_at", { ascending: false }),
         supabase
           .from("donations")
           .select("*, crowdfund_campaigns(title)")
