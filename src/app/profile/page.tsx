@@ -6,11 +6,13 @@ import { createClient } from "@/lib/supabase/client";
 import React, { useEffect, useRef, useState } from "react";
 import {
   User, Phone, Mail, Camera, Loader2, Save, ShieldCheck,
-  CalendarDays, KeyRound, LogOut, XCircle,
+  CalendarDays, KeyRound, LogOut, XCircle, Bell, Smartphone
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import ChangePasswordModal from "@/components/auth/ChangePasswordModal";
+import IOSPushModal from "@/components/modals/iOSPushModal";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 /* ─────────────────────────────────────────────────────────────── */
 
@@ -37,6 +39,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showiOSModal, setShowiOSModal] = useState(false);
+  const { subscribeToNotifications, isSubscribing } = usePushNotifications();
 
   const avatarRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +137,19 @@ export default function ProfilePage() {
       toast.success(t.profileSaved);
     }
     setSaving(false);
+  };
+
+  const handleToggleNotifications = async () => {
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+
+    if (isIOS && !isStandalone) {
+      setShowiOSModal(true);
+      return;
+    }
+
+    await subscribeToNotifications();
   };
 
   /* ── Sign out ── */
@@ -272,6 +289,41 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* ── Notifications Card ── */}
+      <div className="card p-6 mb-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+              <Bell size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text leading-tight">
+                {t.profileNotifications}
+              </h3>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                {t.profileNotificationsDesc}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleToggleNotifications}
+            disabled={isSubscribing}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              isSubscribing 
+                ? 'bg-surface-alt text-text-muted cursor-not-allowed'
+                : 'bg-primary/10 text-primary hover:bg-primary/20'
+            }`}
+          >
+            {isSubscribing ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Smartphone size={14} />
+            )}
+            {t.profileNotificationsEnable}
+          </button>
+        </div>
+      </div>
+
       {/* ── Save button ── */}
       <button
         onClick={handleSave}
@@ -310,6 +362,10 @@ export default function ProfilePage() {
 
       {showChangePassword && (
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
+
+      {showiOSModal && (
+        <iOSPushModal onClose={() => setShowiOSModal(false)} />
       )}
     </div>
   );

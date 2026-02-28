@@ -130,7 +130,7 @@ export default function FacilityBookingPage() {
     const { error } = await supabase.from("facility_bookings").update(payload).eq("id", id);
     if (error) { toast.error(error.message); return; }
 
-    // ── Persist notification so the booker sees it even if they were offline ──
+    // ── Persist notification and send native push ──
     if (newStatus === "approved" || newStatus === "rejected" || (newStatus === "cancelled" && isAdmin)) {
       const booking = bookings.find((b) => b.id === id);
       if (booking && booking.booked_by !== user?.id) {
@@ -138,6 +138,8 @@ export default function FacilityBookingPage() {
           newStatus === "approved" ? "booking_approved" :
           newStatus === "cancelled" ? "booking_cancelled" :
           "booking_rejected";
+        
+        // 1. In-app notification
         await supabase.from("notifications").insert({
           user_id: booking.booked_by,
           type: notifType,
@@ -146,6 +148,43 @@ export default function FacilityBookingPage() {
             facility_name: booking.facilities?.name ?? "facility",
           },
         });
+
+        // 2. Native Push Notification
+        try {
+          // Fetch user's tokens
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("fcm_tokens")
+            .eq("id", booking.booked_by)
+            .single();
+
+          if (profile?.fcm_tokens && profile.fcm_tokens.length > 0) {
+            const title = 
+              newStatus === "approved" ? "Booking Approved!" :
+              newStatus === "cancelled" ? "Booking Cancelled" :
+              "Booking Rejected";
+            
+            const body = newStatus === "approved" 
+              ? `Your booking for ${booking.facilities?.name} has been approved.`
+              : `There's an update regarding your booking for ${booking.facilities?.name}.`;
+
+            await fetch("/api/notifications/push", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tokens: profile.fcm_tokens,
+                title,
+                body,
+                data: {
+                  url: "/my-bookings",
+                  bookingId: id
+                }
+              }),
+            });
+          }
+        } catch (pushErr) {
+          console.error("Push notification failed:", pushErr);
+        }
       }
     }
 

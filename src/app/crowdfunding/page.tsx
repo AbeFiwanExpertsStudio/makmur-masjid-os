@@ -575,6 +575,35 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
           supabase.from("crowdfund_campaigns").insert(payload).select().single(),
           waitMs(5000)
         ]) as any;
+
+        if (data) {
+          // ── Native Push Notification for New Campaign ──
+          try {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("fcm_tokens")
+              .not("fcm_tokens", "is", null);
+
+            if (profiles) {
+              const allTokens = profiles.flatMap(p => p.fcm_tokens || []).filter(Boolean);
+              if (allTokens.length > 0) {
+                await fetch("/api/notifications/push", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    tokens: allTokens,
+                    title: "New Fundraiser Launched!",
+                    body: `Support our latest cause: "${title.trim()}". RM${target.toLocaleString()} target.`,
+                    data: { url: "/crowdfunding" }
+                  }),
+                });
+              }
+            }
+          } catch (pushErr) {
+            console.error("Campaign push failed:", pushErr);
+          }
+        }
+
         // if timeout, provide a fallback visual update
         onSave(data || { id: crypto.randomUUID(), ...payload });
         toast.success("Campaign created!");

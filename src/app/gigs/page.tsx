@@ -506,6 +506,32 @@ function GigFormModal({
           toast.error(result.error.message);
         } else {
           toast.success("Gig created successfully!");
+          
+          // ── Native Push Notification for New Gig ──
+          try {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("fcm_tokens")
+              .not("fcm_tokens", "is", null);
+
+            if (profiles) {
+              const allTokens = profiles.flatMap(p => p.fcm_tokens || []).filter(Boolean);
+              if (allTokens.length > 0) {
+                await fetch("/api/notifications/push", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    tokens: allTokens,
+                    title: "New Volunteer Oppportunity!",
+                    body: `Join us for "${title.trim()}". We need ${requiredPax} volunteers!`,
+                    data: { url: "/gigs" }
+                  }),
+                });
+              }
+            }
+          } catch (pushErr) {
+            console.error("Gig push failed:", pushErr);
+          }
         }
 
         onSave({

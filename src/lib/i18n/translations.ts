@@ -333,6 +333,10 @@ const translations = {
     profileAccount: "Account",
     profileImgTooBig: "Image too large. Max 2MB.",
     profileNamePlaceholder: "e.g. Ahmad bin Ali",
+    profileNotifications: "Push Notifications",
+    profileNotificationsDesc: "Get system alerts directly on your device.",
+    profileNotificationsEnable: "Enable Notifications",
+    profileNotificationsEnabled: "Enabled",
 
     // ── My Bookings page ───────────────────────────────────────────
     myBookingsTitle: "My Activity",
@@ -943,6 +947,10 @@ const translations = {
     profileAccount: "Akaun",
     profileImgTooBig: "Gambar terlalu besar. Had 2MB.",
     profileNamePlaceholder: "cth. Ahmad bin Ali",
+    profileNotifications: "Pemberitahuan Push",
+    profileNotificationsDesc: "Dapatkan makluman sistem terus ke peranti anda.",
+    profileNotificationsEnable: "Aktifkan Pemberitahuan",
+    profileNotificationsEnabled: "Aktif",
 
     // ── My Bookings page ───────────────────────────────────────────
     myBookingsTitle: "Aktiviti Saya",

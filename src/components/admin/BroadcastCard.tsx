@@ -41,6 +41,37 @@ export default function BroadcastCard({ broadcasts, onRefresh }: Props) {
         toast.error(`Broadcast failed: ${error.message}`);
       } else {
         toast.success("Broadcast sent to all users!");
+        
+        // ── Native Push Notification for Broadcast ──
+        try {
+          // Fetch ALL users' tokens
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("fcm_tokens")
+            .not("fcm_tokens", "is", null);
+
+          if (profiles) {
+            const allTokens = profiles.flatMap(p => p.fcm_tokens || []).filter(Boolean);
+            
+            if (allTokens.length > 0) {
+              await fetch("/api/notifications/push", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  tokens: allTokens,
+                  title: "New Community Broadcast",
+                  body: broadcastMsg.trim(),
+                  data: {
+                    url: "/"
+                  }
+                }),
+              });
+            }
+          }
+        } catch (pushErr) {
+          console.error("Broadcast push failed:", pushErr);
+        }
+
         setBroadcastMsg("");
         onRefresh();
         // Notify the Navbar in the same tab immediately — no WebSocket round-trip needed
