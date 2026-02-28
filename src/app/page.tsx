@@ -55,7 +55,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden w-full relative">
       {/* ═══ HERO SECTION ═══ */}
       <section className="hero-gradient text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-surface/5 rounded-full -mt-48 -mr-48 blur-3xl" />
@@ -131,14 +131,14 @@ export default function HomePage() {
       </section>
 
       {/* ═══ STATS BAR ═══ */}
-      <section className="container mx-auto px-4 -mt-2 mb-12">
-        <div className="bg-surface rounded-2xl shadow-lg border border-border p-6 grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border">
+      <section className="container mx-auto px-2 min-[400px]:px-4 -mt-2 mb-12 relative z-20">
+        <div className="bg-surface rounded-2xl shadow-lg border border-border p-3 min-[400px]:p-6 grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border">
           {statDisplay.map((s) => (
-            <div key={s.label} className="text-center py-4 md:py-0 md:px-6">
-              <p className={`text-2xl md:text-3xl font-bold text-primary transition-all ${stats.isLoading ? "opacity-40" : ""}`}>
+            <div key={s.label} className="text-center py-3 md:py-0 px-1 min-[400px]:px-6 flex flex-col items-center justify-center">
+              <p className={`text-xl min-[400px]:text-2xl md:text-3xl font-bold text-primary transition-all leading-tight ${stats.isLoading ? "opacity-40" : ""}`}>
                 {s.value}
               </p>
-              <p className="text-xs text-text-muted font-medium mt-1">{s.label}</p>
+              <p className="text-[10px] min-[400px]:text-xs text-text-muted font-medium mt-1 leading-tight">{s.label}</p>
             </div>
           ))}
         </div>

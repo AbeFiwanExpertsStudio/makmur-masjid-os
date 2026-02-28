@@ -66,7 +66,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${reemKufi.variable} ${amiri.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300`}>
+      <body className={`${inter.variable} ${reemKufi.variable} ${amiri.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300 overflow-x-hidden`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LanguageProvider>
           <AuthProvider>

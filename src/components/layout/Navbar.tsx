@@ -286,15 +286,15 @@ export function Navbar() {
 
   return (
     <>
-    <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-border/40 bg-white dark:bg-slate-800 flex items-center justify-center">
+    <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300 w-full overflow-hidden">
+      <div className="container mx-auto px-2 min-[400px]:px-4 h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 min-[400px]:gap-3 group shrink-0">
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-border/40 bg-transparent flex items-center justify-center">
             <img src="/navbar_logo.png" alt="logo" className="w-full h-full object-cover" />
           </div>
-          <div>
-            <span className="font-bold text-lg text-text block leading-tight">{settings.system_name}</span>
-            <span className="text-[10px] text-text-muted font-medium -mt-0.5 block">{settings.system_desc}</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-base min-[400px]:text-lg text-text block leading-tight hidden min-[360px]:block">{settings.system_name}</span>
+            <span className="text-[10px] text-text-muted font-medium -mt-0.5 hidden sm:block">{settings.system_desc}</span>
           </div>
         </Link>
 
@@ -355,7 +355,7 @@ export function Navbar() {
           </div>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 min-[400px]:gap-2">
           {/* Theme Toggle */}
           {mounted && (
             <button
@@ -376,12 +376,12 @@ export function Navbar() {
           {mounted && (
             <button
               onClick={() => setLanguage(language === 'en' ? 'ms' : 'en')}
-              className="h-9 px-2.5 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary transition-all gap-1 font-bold text-xs"
+              className="h-9 px-1.5 min-[400px]:px-2.5 rounded-xl hover:bg-surface-muted flex items-center justify-center text-text-secondary transition-all gap-0.5 min-[400px]:gap-1 font-bold text-[10px] min-[400px]:text-xs"
               aria-label="Toggle Language"
             >
-              <span className={`transition-all ${language === 'en' ? 'text-primary font-extrabold' : 'opacity-50'}`}>EN</span>
-              <span className="opacity-30">|</span>
-              <span className={`transition-all ${language === 'ms' ? 'text-primary font-extrabold' : 'opacity-50'}`}>BM</span>
+              <span className={`transition-all ${language === 'en' ? 'text-primary' : 'opacity-40'}`}>EN</span>
+              <span className="opacity-20 text-[8px]">|</span>
+              <span className={`transition-all ${language === 'ms' ? 'text-primary' : 'opacity-40'}`}>BM</span>
             </button>
           )}
 
@@ -467,7 +467,12 @@ export function Navbar() {
           {isLoading ? (
             <div className="hidden md:block w-20 h-9 bg-gray-100 animate-pulse rounded-xl ml-1" />
           ) : isAnonymous ? (
-            <button onClick={() => setShowLoginModal(true)} className="hidden md:block px-4 py-2 btn-primary text-sm">{t.signIn}</button>
+            <button 
+              onClick={() => setShowLoginModal(true)} 
+              className="px-2.5 py-1.5 md:px-4 md:py-2 btn-primary text-[10px] md:text-sm whitespace-nowrap shrink-0"
+            >
+              {t.signIn}
+            </button>
           ) : (
             /* ═══ Profile avatar + dropdown with Logout ═══ */
             <div className="relative" ref={profileRef}>
