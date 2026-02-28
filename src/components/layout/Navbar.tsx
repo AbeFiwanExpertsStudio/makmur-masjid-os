@@ -286,7 +286,7 @@ export function Navbar() {
 
   return (
     <>
-    <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300 w-full overflow-hidden">
+    <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300 w-full">
       <div className="container mx-auto px-2 min-[400px]:px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 min-[400px]:gap-3 group shrink-0">
           <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-border/40 bg-transparent flex items-center justify-center">
