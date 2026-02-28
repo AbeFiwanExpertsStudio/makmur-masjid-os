@@ -12,6 +12,7 @@ import {
   UserCheck,
   ShieldCheck,
   ShieldOff,
+  MoreVertical,
 } from "lucide-react";
 import { useLanguage } from "@/components/providers/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
@@ -41,6 +42,7 @@ export default function UserManagementSection({
 }: Props) {
   const { t } = useLanguage();
   const [userSearch, setUserSearch] = useState("");
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [actionModal, setActionModal] = useState<{
     type: ActionType;
     user: UserEntry;
@@ -220,10 +222,82 @@ export default function UserManagementSection({
                   {u.is_banned ? t.adminBanned : u.role}
                 </span>
 
+                {/* Mobile: three-dot dropdown */}
+                <div className="relative sm:hidden">
+                  <button
+                    onClick={() =>
+                      setOpenDropdownId(
+                        openDropdownId === u.id ? null : u.id
+                      )
+                    }
+                    className="p-1.5 rounded-full hover:bg-surface-muted transition active:scale-95"
+                    aria-label="User actions"
+                  >
+                    <MoreVertical size={16} className="text-text-muted" />
+                  </button>
+                  {openDropdownId === u.id && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setOpenDropdownId(null)}
+                      />
+                      <div className="absolute right-0 top-9 z-50 bg-surface border border-border rounded-xl shadow-xl py-1.5 min-w-[150px]">
+                        {u.is_banned ? (
+                          <button
+                            onClick={() => {
+                              setActionModal({ type: "unban", user: u });
+                              setOpenDropdownId(null);
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-surface-muted transition-colors"
+                          >
+                            <UserCheck size={14} /> {t.adminUnban}
+                          </button>
+                        ) : (
+                          <>
+                            {u.role === "volunteer" && (
+                              <button
+                                onClick={() => {
+                                  setActionModal({ type: "promote", user: u });
+                                  setOpenDropdownId(null);
+                                }}
+                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-surface-muted transition-colors"
+                              >
+                                <ShieldCheck size={14} /> {t.adminPromote}
+                              </button>
+                            )}
+                            {u.role === "admin" && (
+                              <button
+                                onClick={() => {
+                                  setActionModal({ type: "demote", user: u });
+                                  setOpenDropdownId(null);
+                                }}
+                                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-surface-muted transition-colors"
+                              >
+                                <ShieldOff size={14} /> {t.adminDemote}
+                              </button>
+                            )}
+                            <div className="h-px bg-border mx-3 my-1" />
+                            <button
+                              onClick={() => {
+                                setActionModal({ type: "ban", user: u });
+                                setOpenDropdownId(null);
+                              }}
+                              className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-surface-muted transition-colors"
+                            >
+                              <Ban size={14} /> {t.adminBan}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Desktop: inline action buttons */}
                 {u.is_banned ? (
                   <button
                     onClick={() => setActionModal({ type: "unban", user: u })}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
+                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
                   >
                     <UserCheck size={11} /> {t.adminUnban}
                   </button>
@@ -234,7 +308,7 @@ export default function UserManagementSection({
                         onClick={() =>
                           setActionModal({ type: "promote", user: u })
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
+                        className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
                       >
                         <ShieldCheck size={11} /> {t.adminPromote}
                       </button>
@@ -244,7 +318,7 @@ export default function UserManagementSection({
                         onClick={() =>
                           setActionModal({ type: "demote", user: u })
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white transition-all shadow-sm hover:shadow active:scale-95"
+                        className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white transition-all shadow-sm hover:shadow active:scale-95"
                       >
                         <ShieldOff size={11} /> {t.adminDemote}
                       </button>
@@ -253,7 +327,7 @@ export default function UserManagementSection({
                       onClick={() =>
                         setActionModal({ type: "ban", user: u })
                       }
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
+                      className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white transition-all shadow-sm hover:shadow active:scale-95"
                     >
                       <Ban size={11} /> {t.adminBan}
                     </button>
