@@ -289,7 +289,9 @@ export function Navbar() {
     <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 hero-gradient rounded-xl flex items-center justify-center text-white text-lg shadow-sm">🌙</div>
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-border/40 bg-white dark:bg-slate-800 flex items-center justify-center">
+            <img src="/navbar_logo.png" alt="logo" className="w-full h-full object-cover" />
+          </div>
           <div>
             <span className="font-bold text-lg text-text block leading-tight">{settings.system_name}</span>
             <span className="text-[10px] text-text-muted font-medium -mt-0.5 block">{settings.system_desc}</span>

@@ -75,8 +75,50 @@ export function usePushNotifications() {
     return false;
   }, [user]);
 
+  const unsubscribeFromNotifications = useCallback(async () => {
+    if (!user) return;
+    setIsSubscribing(true);
+    try {
+      const messaging = await getFirebaseMessaging();
+      if (!messaging) throw new Error("Messaging not supported");
+
+      const token = await getToken(messaging, {
+        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+      });
+
+      if (token) {
+        const supabase = createClient();
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("fcm_tokens")
+          .eq("id", user.id)
+          .single();
+
+        const existingTokens = profile?.fcm_tokens || [];
+        const newTokens = existingTokens.filter((t: string) => t !== token);
+
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            fcm_tokens: newTokens,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", user.id);
+
+        if (updateError) throw updateError;
+        toast.success("Notifications disabled");
+      }
+    } catch (error: any) {
+      console.error("Unsubscribe error:", error);
+      toast.error(error.message || "Failed to disable notifications");
+    } finally {
+      setIsSubscribing(false);
+    }
+  }, [user]);
+
   return {
     subscribeToNotifications,
+    unsubscribeFromNotifications,
     isSubscribing
   };
 }

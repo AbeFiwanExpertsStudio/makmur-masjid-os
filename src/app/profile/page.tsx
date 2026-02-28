@@ -40,7 +40,8 @@ export default function ProfilePage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showiOSModal, setShowiOSModal] = useState(false);
-  const { subscribeToNotifications, isSubscribing } = usePushNotifications();
+  const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
+  const { subscribeToNotifications, unsubscribeFromNotifications, isSubscribing } = usePushNotifications();
 
   const avatarRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +61,7 @@ export default function ProfilePage() {
       const supabase = createClient();
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, phone, avatar_url")
+        .select("display_name, phone, avatar_url, fcm_tokens")
         .eq("id", user.id)
         .single();
 
@@ -69,6 +70,11 @@ export default function ProfilePage() {
         setPhone(data.phone ?? "");
         setAvatarUrl(data.avatar_url ?? null);
         setAvatarPreview(data.avatar_url ?? null);
+        
+        // Initial subscription check (very basic)
+        if (data.fcm_tokens && data.fcm_tokens.length > 0) {
+          setIsNotificationsEnabled(true);
+        }
       }
       setLoadingProfile(false);
     };
@@ -149,7 +155,13 @@ export default function ProfilePage() {
       return;
     }
 
-    await subscribeToNotifications();
+    if (isNotificationsEnabled) {
+      await unsubscribeFromNotifications();
+      setIsNotificationsEnabled(false);
+    } else {
+      const success = await subscribeToNotifications();
+      if (success) setIsNotificationsEnabled(true);
+    }
   };
 
   /* ── Sign out ── */
@@ -311,15 +323,23 @@ export default function ProfilePage() {
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               isSubscribing 
                 ? 'bg-surface-alt text-text-muted cursor-not-allowed'
-                : 'bg-primary/10 text-primary hover:bg-primary/20'
+                : isNotificationsEnabled
+                  ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20'
             }`}
           >
             {isSubscribing ? (
               <Loader2 size={14} className="animate-spin" />
+            ) : isNotificationsEnabled ? (
+              <Bell size={14} className="opacity-70" />
             ) : (
               <Smartphone size={14} />
             )}
-            {t.profileNotificationsEnable}
+            {isSubscribing 
+              ? t.profileSaving 
+              : isNotificationsEnabled 
+                ? (language === 'ms' ? 'Matikan' : 'Disable') 
+                : (language === 'ms' ? 'Aktifkan' : 'Enable')}
           </button>
         </div>
       </div>

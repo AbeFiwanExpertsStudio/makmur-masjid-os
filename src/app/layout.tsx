@@ -48,6 +48,10 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     manifest: "/manifest.json",
+    icons: {
+      icon: "/icon-192.png",
+      apple: "/icon-192.png",
+    }
   };
 }
 
