@@ -202,11 +202,18 @@ export default function UserManagementSection({
                 <span className="text-xs text-text-muted truncate block">
                   {u.email}
                 </span>
+                {/* pts badge shown inline on mobile to free up right-side space */}
+                {(u.total_points ?? 0) > 0 && (
+                  <span className="sm:hidden inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 mt-1 rounded-full bg-amber-500 text-white">
+                    ⭐ {u.total_points} pts
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                {/* pts badge on desktop only */}
                 {(u.total_points ?? 0) > 0 && (
-                  <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
+                  <span className="hidden sm:inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
                     ⭐ {u.total_points} pts
                   </span>
                 )}
