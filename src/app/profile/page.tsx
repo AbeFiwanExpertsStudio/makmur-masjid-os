@@ -365,7 +365,7 @@ export default function ProfilePage() {
       )}
 
       {showiOSModal && (
-        <iOSPushModal onClose={() => setShowiOSModal(false)} />
+        <IOSPushModal onClose={() => setShowiOSModal(false)} />
       )}
     </div>
   );
