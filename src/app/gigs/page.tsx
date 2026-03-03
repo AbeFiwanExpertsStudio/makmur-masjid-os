@@ -451,6 +451,13 @@ function GigFormModal({
     if (!title.trim() || !description.trim()) return;
     if (!user) { setSaveError(t.gigLoginRequired); return; }
 
+    // Date validation: prevent backdating
+    const today = new Date().toISOString().split('T')[0];
+    if (gigDate < today) {
+      toast.error("Gig date cannot be in the past.");
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
 

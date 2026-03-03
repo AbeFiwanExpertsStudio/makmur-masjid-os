@@ -558,6 +558,13 @@ function BookModal({
 
   const handleSubmit = async () => {
     if (!bookingDate || !startTime || !endTime) return;
+    
+    // Date validation: prevent backdating
+    if (bookingDate < minDate) {
+      toast.error(t.fbDateInPastError || "Booking date cannot be in the past.");
+      return;
+    }
+
     if (startTime >= endTime) {
       toast.error(t.fbEndTimeError);
       return;

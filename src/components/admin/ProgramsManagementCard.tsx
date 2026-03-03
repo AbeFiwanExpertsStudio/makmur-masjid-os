@@ -83,6 +83,14 @@ function ProgramModal({ program, onClose, onSaved, t }: ModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date || !startTime || !endTime) return;
+
+    // Date validation: prevent backdating
+    const today = new Date().toISOString().split("T")[0];
+    if (date < today) {
+      toast.error(t.mpDateInPastError || "Program date cannot be in the past.");
+      return;
+    }
+
     if (endTime < startTime) { toast.error(t.mpTimeError); return; }
     setSaving(true);
     const supabase = createClient();

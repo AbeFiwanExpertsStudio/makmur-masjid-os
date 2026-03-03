@@ -729,6 +729,13 @@ function EKuponFormModal({
   const handleSave = async () => {
     if (!name.trim() || !date) return;
 
+    // Date validation: prevent backdating
+    const today = new Date().toISOString().split('T')[0];
+    if (date < today) {
+      toast.error("Event date cannot be in the past.");
+      return;
+    }
+
     // Validation: End must be after start
     const startDateTime = new Date(`${date}T${startTime}`);
     const endDateTime = new Date(`${date}T${endTime}`);
