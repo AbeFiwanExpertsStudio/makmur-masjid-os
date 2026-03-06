@@ -12,6 +12,7 @@ import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import ChangePasswordModal from "@/components/auth/ChangePasswordModal";
 import IOSPushModal from "@/components/modals/iOSPushModal";
+import AndroidPushModal from "@/components/modals/AndroidPushModal";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 /* ─────────────────────────────────────────────────────────────── */
@@ -40,6 +41,7 @@ export default function ProfilePage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showiOSModal, setShowiOSModal] = useState(false);
+  const [showAndroidModal, setShowAndroidModal] = useState(false);
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(false);
   const { subscribeToNotifications, unsubscribeFromNotifications, isSubscribing } = usePushNotifications();
 
@@ -146,12 +148,19 @@ export default function ProfilePage() {
   };
 
   const handleToggleNotifications = async () => {
-    // Detect iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    // Detect OS
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isAndroid = /Android/.test(ua);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
 
     if (isIOS && !isStandalone) {
       setShowiOSModal(true);
+      return;
+    }
+
+    if (isAndroid && !isStandalone) {
+      setShowAndroidModal(true);
       return;
     }
 
@@ -314,7 +323,7 @@ export default function ProfilePage() {
 
       {/* ── Notifications Card ── */}
       <div className="card p-6 mb-5">
-        {(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream) && 
+        {((/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream) || /Android/.test(navigator.userAgent)) && 
          !(window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) && (
           <div className="mb-6 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
             <div className="flex gap-3">
@@ -323,12 +332,18 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h4 className="text-sm font-bold text-text-muted mb-1">
-                  {language === 'ms' ? 'Tip Pengguna iOS' : 'iOS User Tip'}
+                  {/Android/.test(navigator.userAgent) 
+                    ? (language === 'ms' ? 'Tip Pengguna Android' : 'Android User Tip')
+                    : (language === 'ms' ? 'Tip Pengguna iOS' : 'iOS User Tip')}
                 </h4>
                 <p className="text-xs text-text-muted leading-relaxed">
-                  {language === 'ms' 
-                    ? 'Untuk terima notifikasi di iPhone, anda perlu "Add to Home Screen" dahulu melalui butang Share di pelayar.' 
-                    : 'To receive notifications on your iPhone, you must first "Add to Home Screen" using the Share button in your browser.'}
+                  {/Android/.test(navigator.userAgent)
+                    ? (language === 'ms' 
+                        ? 'Untuk terima notifikasi di Android, anda perlu pasang aplikasi ini ke skrin utama dahulu.' 
+                        : 'To receive notifications on your Android device, you must first install this app to your home screen.')
+                    : (language === 'ms' 
+                        ? 'Untuk terima notifikasi di iPhone, anda perlu "Add to Home Screen" dahulu melalui butang Share di pelayar.' 
+                        : 'To receive notifications on your iPhone, you must first "Add to Home Screen" using the Share button in your browser.')}
                 </p>
               </div>
             </div>
@@ -418,6 +433,9 @@ export default function ProfilePage() {
 
       {showiOSModal && (
         <IOSPushModal onClose={() => setShowiOSModal(false)} />
+      )}
+      {showAndroidModal && (
+        <AndroidPushModal onClose={() => setShowAndroidModal(false)} />
       )}
     </div>
   );

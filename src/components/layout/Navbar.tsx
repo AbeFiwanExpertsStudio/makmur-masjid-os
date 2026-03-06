@@ -405,7 +405,7 @@ export function Navbar() {
             </button>
 
             {notifOpen && (
-              <div className="fixed left-2 right-2 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96 bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden z-50">
+              <div className="fixed left-2 right-2 top-16 sm:absolute sm:left-auto sm:right-[-10px] sm:right-0 sm:top-12 sm:w-[calc(100vw-32px)] sm:w-96 bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden z-50">
                 {/* Gradient header */}
                 <div className="hero-gradient px-4 py-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
