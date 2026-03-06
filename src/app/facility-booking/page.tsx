@@ -9,7 +9,6 @@ import {
   Calendar, Clock, Users, MapPin, CheckCircle2,
   XCircle, Trash2, Pencil, ChevronDown, QrCode,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import Pagination from "@/components/ui/Pagination";
 import { toast } from "react-hot-toast";
 import type { Facility, FacilityBooking, BookingStatus } from "@/types/database";
@@ -422,11 +421,13 @@ export default function FacilityBookingPage() {
                         </button>
                         {expandedQR === b.id && (
                           <div className="mt-3 flex flex-col items-center gap-2 p-4 rounded-xl bg-white border border-border/60">
-                            <QRCodeSVG
-                              value={`makmur-booking:${b.id}`}
-                              size={160}
-                              level="M"
-                              includeMargin
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&ecc=M&data=${encodeURIComponent(`makmur-booking:${b.id}`)}`}
+                              alt="QR Code"
+                              width={160}
+                              height={160}
+                              className="rounded"
                             />
                             <p className="text-[11px] text-gray-500 font-semibold">{t.fbQrLabel}</p>
                             <p className="text-[10px] text-gray-400 text-center max-w-[180px]">{t.fbQrHint}</p>

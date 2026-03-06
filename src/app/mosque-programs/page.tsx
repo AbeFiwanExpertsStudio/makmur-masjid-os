@@ -7,10 +7,11 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   BookOpen, Plus, X, Loader2, AlertTriangle,
   Calendar, Clock, MapPin, Mic2, RefreshCw, Pencil, Trash2,
-  ChevronLeft, ChevronRight, CalendarPlus,
+  ChevronLeft, ChevronRight, CalendarPlus, Star,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import type { MosqueProgram, ProgramType } from "@/types/database";
+import { getIslamicHolidays, type IslamicHoliday } from "@/lib/islamicHolidays";
 
 /* ── Helpers ── */
 function formatDate(d: string, lang: string) {
@@ -21,7 +22,8 @@ function formatDate(d: string, lang: string) {
 
 function formatTime(t: string) { return t.slice(0, 5); }
 
-function typeColor(type: ProgramType) {
+function typeColor(type: ProgramType | "holiday") {
+  if (type === "holiday") return "bg-amber-500 text-black dark:bg-amber-400/80";
   const map: Record<ProgramType, string> = {
     lecture:  "bg-blue-600 text-white dark:bg-blue-500/80",
     halaqah:  "bg-emerald-600 text-white dark:bg-emerald-500/80",
@@ -31,7 +33,8 @@ function typeColor(type: ProgramType) {
   return map[type];
 }
 
-function typeDotColor(type: ProgramType) {
+function typeDotColor(type: ProgramType | "holiday") {
+  if (type === "holiday") return "bg-amber-400";
   const map: Record<ProgramType, string> = {
     lecture: "bg-blue-500",
     halaqah: "bg-emerald-500",
@@ -89,12 +92,13 @@ function downloadICS(prog: MosqueProgram) {
 /* ═══════════════════════════════════════════════════════════════════ */
 interface CalendarProps {
   programs: MosqueProgram[];
+  islamicHolidays: IslamicHoliday[];
   selectedDate: string | null;
   onSelectDate: (d: string | null) => void;
   language: string;
   t: any;
 }
-function MiniCalendar({ programs, selectedDate, onSelectDate, language, t }: CalendarProps) {
+function MiniCalendar({ programs, islamicHolidays, selectedDate, onSelectDate, language, t }: CalendarProps) {
   const today  = todayStr();
   const locale = language === "ms" ? "ms-MY" : "en-MY";
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -108,10 +112,15 @@ function MiniCalendar({ programs, selectedDate, onSelectDate, language, t }: Cal
   const firstDow    = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   // date → Set<ProgramType> for dots
-  const dotMap: Record<string, Set<ProgramType>> = {};
+  const dotMap: Record<string, Set<ProgramType | "holiday">> = {};
   programs.forEach(p => {
     if (!dotMap[p.program_date]) dotMap[p.program_date] = new Set();
     dotMap[p.program_date].add(p.program_type);
+  });
+  // Add Islamic holiday dots (amber)
+  islamicHolidays.forEach(h => {
+    if (!dotMap[h.gregorianDate]) dotMap[h.gregorianDate] = new Set();
+    dotMap[h.gregorianDate].add("holiday" as any);
   });
   const cells: (string | null)[] = [
     ...Array(firstDow).fill(null),
@@ -175,6 +184,10 @@ function MiniCalendar({ programs, selectedDate, onSelectDate, language, t }: Cal
             <span className="text-[10px] text-text-muted">{typeLabel(type, t)}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0 bg-amber-400" />
+          <span className="text-[10px] text-text-muted">Cuti Umum / Hari Islam</span>
+        </div>
       </div>
     </div>
   );
@@ -190,6 +203,7 @@ export default function MosqueProgramsPage() {
   const [programs, setPrograms] = useState<MosqueProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [islamicHolidays, setIslamicHolidays] = useState<IslamicHoliday[]>([]);
 
   const [typeFilter, setTypeFilter] = useState<ProgramType | "all">("all");
   const [timeFilter, setTimeFilter] = useState<"upcoming" | "today" | "past">("upcoming");
@@ -230,6 +244,10 @@ export default function MosqueProgramsPage() {
       .subscribe();
     return () => { supabase.removeChannel(chan); };
   }, [fetchPrograms]);
+
+  useEffect(() => {
+    getIslamicHolidays(new Date().getFullYear()).then(setIslamicHolidays);
+  }, []);
 
   /* ── Derived ── */
   const today = todayStr();
@@ -292,6 +310,7 @@ export default function MosqueProgramsPage() {
       {!loading && !fetchError && (
         <MiniCalendar
           programs={programs}
+          islamicHolidays={islamicHolidays}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           language={language}
@@ -416,7 +435,26 @@ export default function MosqueProgramsPage() {
           byDate[p.program_date].push(p);
         });
 
-        return Object.entries(byDate).map(([date, items]) => (
+        // Merge Islamic holidays into the date groups
+        const visibleHolidays = islamicHolidays.filter(h => {
+          if (selectedDate) return h.gregorianDate === selectedDate;
+          if (timeFilter === "today")    return h.gregorianDate === today;
+          if (timeFilter === "upcoming") return h.gregorianDate >= today;
+          if (timeFilter === "past")     return h.gregorianDate < today;
+          return true;
+        });
+        visibleHolidays.forEach(h => {
+          if (!byDate[h.gregorianDate]) byDate[h.gregorianDate] = [];
+        });
+
+        // Holiday lookup for rendering
+        const holidayByDate: Record<string, IslamicHoliday[]> = {};
+        visibleHolidays.forEach(h => {
+          if (!holidayByDate[h.gregorianDate]) holidayByDate[h.gregorianDate] = [];
+          holidayByDate[h.gregorianDate].push(h);
+        });
+
+        return Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, items]) => (
           <div key={date} className="mb-6">
             {/* Date header */}
             <div className="flex items-center gap-2 mb-3">
@@ -430,6 +468,20 @@ export default function MosqueProgramsPage() {
             </div>
 
             <div className="space-y-3">
+              {/* Islamic holiday cards for this date */}
+              {(holidayByDate[date] ?? []).map(h => (
+                <div key={`holiday-${h.gregorianDate}-${h.name}`}
+                  className="rounded-xl p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-600/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Star size={14} className="text-amber-500 flex-shrink-0" />
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-400 text-black">
+                      {h.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">{h.hijriLabel}</p>
+                </div>
+              ))}
+
               {items.map(prog => (
                 <div key={prog.id} className="card p-4 group hover:border-primary/30 transition-all">
                   <div className="flex items-start justify-between gap-3">

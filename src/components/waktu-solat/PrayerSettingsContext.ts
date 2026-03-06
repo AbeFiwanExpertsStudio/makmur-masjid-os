@@ -27,8 +27,6 @@ export function usePrayerSettings() {
 
     // New Settings
     const [language, setLanguage] = useState<"en" | "ms">("en");
-    const [bgImage, setBgImage] = useState<string>("");
-    const [bgOpacity, setBgOpacity] = useState<number>(75);
     const [selectedZone, setSelectedZone] = useState<string>("WLY01");
     const [showBannerAlert, setShowBannerAlert] = useState<boolean>(true);
     const [enableBlinking, setEnableBlinking] = useState<boolean>(true);
@@ -45,21 +43,9 @@ export function usePrayerSettings() {
                 if (parsed.customTitle !== undefined) setCustomTitle(parsed.customTitle);
                 if (typeof parsed.audioEnabled === 'boolean') setAudioEnabled(parsed.audioEnabled);
                 if (parsed.language) setLanguage(parsed.language);
-                if (parsed.bgOpacity !== undefined) setBgOpacity(parsed.bgOpacity);
                 if (parsed.selectedZone) setSelectedZone(parsed.selectedZone);
                 if (typeof parsed.showBannerAlert === 'boolean') setShowBannerAlert(parsed.showBannerAlert);
                 if (typeof parsed.enableBlinking === 'boolean') setEnableBlinking(parsed.enableBlinking);
-            } catch (e) { }
-        }
-
-        // Load image separately
-        const storedImg = localStorage.getItem("makmur_waktu_bgImage");
-        if (storedImg) setBgImage(storedImg);
-        else if (stored) {
-            // Migration edge case if previous crash left it inside makmur_waktu_settings
-            try {
-                const parsed = JSON.parse(stored);
-                if (parsed.bgImage) setBgImage(parsed.bgImage);
             } catch (e) { }
         }
 
@@ -76,27 +62,15 @@ export function usePrayerSettings() {
                 customTitle,
                 audioEnabled,
                 language,
-                bgOpacity,
                 selectedZone,
                 showBannerAlert,
                 enableBlinking
             }));
-
-            // For large base64 images, use extremely simple localstorage with try catch, 
-            // if it fails, alert the user the image is too large and clear it.
-            try {
-                localStorage.setItem("makmur_waktu_bgImage", bgImage);
-            } catch (lsError) {
-                console.error("Image too large for LocalStorage");
-                alert("Gambar terlalu besar untuk disimpan (Melebihi had 5MB). Sila gunakan gambar bersaiz lebih kecil.");
-                setBgImage("");
-                localStorage.removeItem("makmur_waktu_bgImage");
-            }
             window.dispatchEvent(new Event("makmur-bg-update"));
         } catch (e) {
             console.error("Storage save failed", e);
         }
-    }, [theme, use24Hour, customTitle, audioEnabled, language, bgImage, bgOpacity, selectedZone, showBannerAlert, enableBlinking, isLoaded]);
+    }, [theme, use24Hour, customTitle, audioEnabled, language, selectedZone, showBannerAlert, enableBlinking, isLoaded]);
 
     return {
         theme, setTheme,
@@ -104,8 +78,6 @@ export function usePrayerSettings() {
         customTitle, setCustomTitle,
         audioEnabled, setAudioEnabled,
         language, setLanguage,
-        bgImage, setBgImage,
-        bgOpacity, setBgOpacity,
         selectedZone, setSelectedZone,
         showBannerAlert, setShowBannerAlert,
         enableBlinking, setEnableBlinking,

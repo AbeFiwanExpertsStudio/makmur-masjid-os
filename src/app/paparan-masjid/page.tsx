@@ -91,6 +91,7 @@ export default function PaparanMasjidPage() {
   const lastAzanFired = useRef<number>(0);
   const lastAlertFired = useRef<number>(0);
   const lastIqamatFired = useRef<number>(0);
+  const pushSentRef = useRef<Set<number>>(new Set());
   const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
   const audioOtherRef = useRef<HTMLAudioElement | null>(null);
   const audioBeepRef = useRef<HTMLAudioElement | null>(null);
@@ -326,6 +327,15 @@ export default function PaparanMasjidPage() {
             audioOtherRef.current.currentTime = 0;
             audioOtherRef.current.play().catch(() => { });
           }
+          // Send push notification once per prayer time
+          if (!pushSentRef.current.has(p[triggered])) {
+            pushSentRef.current.add(p[triggered]);
+            fetch("/api/notifications/azan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prayerKey: triggered }),
+            }).catch(() => { });
+          }
         }
       }
     }, 1000);
@@ -422,7 +432,8 @@ export default function PaparanMasjidPage() {
   // ── Render ──────────────────────────────────────────────────
   const panelLayout = config.panel_waktu.layout ?? "horizontal";
   const isFriday = now.getDay() === 5;
-  const overlayDarkness = (now.getHours() >= 0 && now.getHours() < 4) ? "bg-black/93" : "bg-black/70";
+  // Dim screen from 7 pm to 7 am to reduce OLED burn-in during low-activity hours
+  const overlayDarkness = (now.getHours() >= 19 || now.getHours() < 7) ? "bg-black/93" : "bg-black/70";
   return (
     <div className="fixed inset-0 z-[9999] overflow-hidden select-none" style={bgStyle}>
       {/* Dark overlay — auto-darkens between midnight and 4 am to reduce burn-in */}
@@ -522,10 +533,10 @@ export default function PaparanMasjidPage() {
             <div className="flex-1 relative rounded-2xl overflow-hidden min-h-0 flex items-center justify-center bg-black/30 border border-white/10">
               {/* Islamic geometric tile pattern overlay */}
               <div
-                className="absolute inset-0 opacity-[0.07]"
+                className="absolute inset-0 opacity-[0.12]"
                 style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%23fff' stroke-width='0.8'%3E%3Cpolygon points='40,4 51,14 64,10 64,24 75,32 68,44 75,56 64,56 56,68 44,62 32,68 24,56 12,56 18,44 12,32 24,24 24,10 36,14'/%3E%3Cpolygon points='40,16 48,22 57,19 57,28 65,34 60,42 65,50 57,50 51,58 43,54 34,58 28,50 20,50 25,42 20,34 28,28 28,19 37,22'/%3E%3Cline x1='40' y1='4' x2='40' y2='16'/%3E%3Cline x1='75' y1='32' x2='65' y2='34'/%3E%3Cline x1='75' y1='56' x2='65' y2='50'/%3E%3Cline x1='40' y1='68' x2='40' y2='58'/%3E%3Cline x1='12' y1='56' x2='20' y2='50'/%3E%3Cline x1='12' y1='32' x2='20' y2='34'/%3E%3C/g%3E%3C/svg%3E")`,
-                  backgroundSize: "80px 80px",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='112' height='112'/%3E%3Cpolygon points='37,4 83,4 116,37 116,83 83,116 37,116 4,83 4,37'/%3E%3Cpolygon points='60,20 67,44 88,32 76,54 100,60 76,66 88,88 67,76 60,100 53,76 32,88 44,66 20,60 44,54 32,32 53,44'/%3E%3Cpolygon points='67,44 76,54 76,66 67,76 53,76 44,66 44,54 53,44'/%3E%3Cline x1='60' y1='0' x2='60' y2='20'/%3E%3Cline x1='120' y1='60' x2='100' y2='60'/%3E%3Cline x1='60' y1='120' x2='60' y2='100'/%3E%3Cline x1='0' y1='60' x2='20' y2='60'/%3E%3Cline x1='0' y1='0' x2='32' y2='32'/%3E%3Cline x1='120' y1='0' x2='88' y2='32'/%3E%3Cline x1='0' y1='120' x2='32' y2='88'/%3E%3Cline x1='120' y1='120' x2='88' y2='88'/%3E%3C/g%3E%3C/svg%3E")`,
+                  backgroundSize: "120px 120px",
                 }}
               />
               {/* Corner ornaments */}

@@ -19,6 +19,7 @@ import UserManagementSection, { type UserEntry } from "@/components/admin/UserMa
 import SystemSettingsEditor from "@/components/admin/SystemSettingsEditor";
 import SkrinMasjidEditor from "@/components/admin/SkrinMasjidEditor";
 import ProgramsManagementCard from "@/components/admin/ProgramsManagementCard";
+import PushNotificationTestCard from "@/components/admin/PushNotificationTestCard";
 import BroadcastTicker from "@/components/layout/BroadcastTicker";
 import type { MosqueProgram } from "@/types/database";
 
@@ -210,6 +211,7 @@ export default function AdminPage() {
             programs={programs}
             onRefresh={fetchPrograms}
           />
+          <PushNotificationTestCard />
         </div>
 
         <div className="mt-6">

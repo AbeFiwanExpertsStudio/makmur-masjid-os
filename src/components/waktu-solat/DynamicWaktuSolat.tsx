@@ -27,8 +27,6 @@ export default function DynamicWaktuSolat() {
         customTitle, setCustomTitle,
         audioEnabled, setAudioEnabled,
         language, setLanguage,
-        bgImage, setBgImage,
-        bgOpacity, setBgOpacity,
         selectedZone, setSelectedZone,
         showBannerAlert, setShowBannerAlert,
         enableBlinking, setEnableBlinking,
@@ -39,6 +37,7 @@ export default function DynamicWaktuSolat() {
     const [dismissedAlertTime, setDismissedAlertTime] = useState<number | null>(null);
     const [demoAlertEndTime, setDemoAlertEndTime] = useState<number | null>(null);
     const [zoneDetecting, setZoneDetecting] = useState(false);
+    const [isTestPlaying, setIsTestPlaying] = useState(false);
 
     const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
     const audioOtherRef = useRef<HTMLAudioElement | null>(null);
@@ -207,7 +206,7 @@ export default function DynamicWaktuSolat() {
     };
 
     return (
-        <div className="flex-1 w-full flex flex-col relative overflow-hidden transition-colors duration-500 shadow-2xl max-h-[calc(100vh-64px)]">
+        <div className="fixed top-16 inset-x-0 bottom-14 lg:bottom-0 flex flex-col overflow-hidden transition-colors duration-500 shadow-2xl">
 
             <div className="relative z-20 w-full max-w-7xl mx-auto px-4 py-4 md:px-8 md:py-6 flex flex-col flex-1 h-full max-h-full">
                 {/* Header Data Section */}
@@ -351,7 +350,7 @@ export default function DynamicWaktuSolat() {
 
             {/* Massive Settings Drawer Overlay */}
             {settingsOpen && (
-                <div className="fixed inset-0 z-50 flex justify-end">
+                <div className="fixed inset-x-0 top-0 bottom-14 lg:inset-0 z-[60] flex justify-end">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity cursor-pointer" onClick={() => setSettingsOpen(false)} />
                     <div className="relative w-full md:w-[480px] bg-[#1A1A1A] h-full flex flex-col shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
                         <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 bg-[#1A1A1A]/95 backdrop-blur z-10">
@@ -384,52 +383,6 @@ export default function DynamicWaktuSolat() {
                                                 <button key={tOption.id} onClick={() => setTheme(tOption)} className={`w-8 h-8 rounded-full transition-transform ${tOption.bgClass} ${theme.id === tOption.id ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1A1A1A] scale-110' : ''}`} />
                                             ))}
                                         </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section>
-                                <div className="mb-4">
-                                    <h4 className="font-bold text-white mb-1">{t("Background Appearance", "Penampilan Latar")}</h4>
-                                    <p className="text-xs text-white/50">{t("Upload or link an image and adjust transparency", "Muat naik imej dan laraskan kelegapan")}</p>
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="w-full relative">
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => {
-                                                        setBgImage(reader.result as string);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            }}
-                                            className="w-full bg-[#2A2A2A] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 text-blue-700 hover:file:bg-blue-100"
-                                        />
-                                        {bgImage && (
-                                            <button
-                                                onClick={() => setBgImage("")}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full hover:bg-red-500/30 transition"
-                                            >
-                                                {t("Clear", "Kosongkan")}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between text-xs text-white/70 mb-2">
-                                            <span>{t("Overlay Opacity", "Kelegapan Lapisan")} ({bgOpacity}%)</span>
-                                            <span>{t("Darker", "Lebih Gelap")}</span>
-                                        </div>
-                                        <input
-                                            type="range" min="0" max="100"
-                                            value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))}
-                                            className="w-full accent-blue-500"
-                                        />
-                                        <p className="text-[10px] text-white/40 mt-1">{t("Set to 0% for pure photo, 100% for solid dark theme.", "Tetapkan 0% untuk foto tulen, 100% untuk tema gelap penuh.")}</p>
                                     </div>
                                 </div>
                             </section>
@@ -499,7 +452,9 @@ export default function DynamicWaktuSolat() {
                                         onClick={() => {
                                             if (audioSubuhRef.current) {
                                                 audioSubuhRef.current.currentTime = 0;
+                                                audioSubuhRef.current.onended = () => setIsTestPlaying(false);
                                                 audioSubuhRef.current.play();
+                                                setIsTestPlaying(true);
                                             }
                                         }}
                                         className="flex-1 bg-blue-500/20 text-blue-400 font-medium py-3 rounded-lg hover:bg-blue-500/30 transition flex flex-col items-center justify-center gap-1 text-xs border border-blue-500/20"
@@ -511,7 +466,9 @@ export default function DynamicWaktuSolat() {
                                         onClick={() => {
                                             if (audioOtherRef.current) {
                                                 audioOtherRef.current.currentTime = 0;
+                                                audioOtherRef.current.onended = () => setIsTestPlaying(false);
                                                 audioOtherRef.current.play();
+                                                setIsTestPlaying(true);
                                             }
                                         }}
                                         className="flex-1 bg-emerald-500/20 text-emerald-400 font-medium py-3 rounded-lg hover:bg-emerald-500/30 transition flex flex-col items-center justify-center gap-1 text-xs border border-emerald-500/20"
@@ -519,6 +476,21 @@ export default function DynamicWaktuSolat() {
                                         <Volume2 size={16} /> {t("Test Local Azan", "Uji Azan Tempatan")}
                                     </button>
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        if (audioSubuhRef.current) { audioSubuhRef.current.pause(); audioSubuhRef.current.currentTime = 0; }
+                                        if (audioOtherRef.current) { audioOtherRef.current.pause(); audioOtherRef.current.currentTime = 0; }
+                                        setIsTestPlaying(false);
+                                    }}
+                                    disabled={!isTestPlaying}
+                                    className={`w-full font-medium py-3 rounded-lg transition flex justify-center items-center gap-2 text-xs border ${
+                                        isTestPlaying
+                                            ? 'bg-red-500/20 text-red-400 border-red-500/20 hover:bg-red-500/30'
+                                            : 'bg-[#2A2A2A] text-white/30 border-white/5 cursor-not-allowed'
+                                    }`}
+                                >
+                                    <X size={14} /> {t("Stop / Henti", "Henti")}
+                                </button>
                             </section>
 
                             <section>
@@ -553,8 +525,8 @@ export default function DynamicWaktuSolat() {
                             </section>
                         </div>
 
-                        <div className="sticky bottom-0 p-6 bg-[#1A1A1A]/95 backdrop-blur border-t border-white/10 z-10 w-full mt-auto">
-                            <button onClick={() => setSettingsOpen(false)} className="w-full bg-[#2A2A2A] text-white font-medium py-4 rounded-xl hover:bg-[#333] transition border border-white/5">
+                        <div className="sticky bottom-0 px-6 py-3 bg-[#1A1A1A]/95 backdrop-blur border-t border-white/10 z-10 w-full mt-auto flex justify-end">
+                            <button onClick={() => setSettingsOpen(false)} className="bg-[#2A2A2A] text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-[#333] transition border border-white/10">
                                 {t("Save", "Simpan")}
                             </button>
                         </div>
