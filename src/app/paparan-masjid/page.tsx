@@ -266,7 +266,7 @@ export default function PaparanMasjidPage() {
     }
   }, [activeDebugScene, debugOverride]);
 
-  const activeScene = activeDebugScene ?? machineState.context.scene;
+  const activeScene = activeDebugScene ?? scheduledScene;
 
   useEffect(() => {
     if (activeScene.kind === "idle") return;
