@@ -1,38 +1,18 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useMachine } from "@xstate/react";
 import { format } from "date-fns";
 import { ms } from "date-fns/locale";
 import { useScreenConfig } from "@/hooks/useScreenConfig";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createClient } from "@/lib/supabase/client";
-import { Monitor, X, Volume2, Bell, Timer, ChevronDown } from "lucide-react";
-
-// ── Types ───────────────────────────────────────────────────────
-interface PrayerDay {
-  day: number;
-  hijri: string;
-  fajr: number;
-  syuruk: number;
-  dhuhr: number;
-  asr: number;
-  maghrib: number;
-  isha: number;
-}
-
-type PrayerKey = "fajr" | "syuruk" | "dhuhr" | "asr" | "maghrib" | "isha";
-
-const PRAYER_DISPLAY: { key: PrayerKey; ms: string }[] = [
-  { key: "fajr", ms: "Subuh" },
-  { key: "syuruk", ms: "Syuruk" },
-  { key: "dhuhr", ms: "Zuhur" },
-  { key: "asr", ms: "Asar" },
-  { key: "maghrib", ms: "Maghrib" },
-  { key: "isha", ms: "Isyak" },
-];
-
-// Prayers that have azan (exclude syuruk)
-const AZAN_PRAYERS: PrayerKey[] = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+import FullScreenAlertScene from "@/components/paparan-masjid/FullScreenAlertScene";
+import TimedCountdownScene from "@/components/paparan-masjid/TimedCountdownScene";
+import { paparanMachine } from "@/lib/paparan-masjid/machine";
+import { resolvePaparanScene } from "@/lib/paparan-masjid/schedule";
+import { AZAN_PRAYERS, getPrayerLabel, PRAYER_DISPLAY, type PaparanScene, type PaparanSceneKind, type PrayerDay, type PrayerKey } from "@/lib/paparan-masjid/types";
+import { Monitor, X, Volume2, Bell, Timer, ChevronDown, AlarmClock, AlertTriangle, Users, BookOpen } from "lucide-react";
 
 // ── Helper ──────────────────────────────────────────────────────
 function unixToTimeStr(unix: number): string {
@@ -58,6 +38,7 @@ function getCurrentAndNext(prayers: PrayerDay, nowUnix: number) {
 export default function PaparanMasjidPage() {
   const { config, slides, loaded } = useScreenConfig();
   const sysSettings = useSystemSettings();
+  const [machineState, sendToMachine] = useMachine(paparanMachine);
 
   const [now, setNow] = useState<Date>(new Date());
   const [prayers, setPrayers] = useState<PrayerDay | null>(null);
@@ -66,19 +47,17 @@ export default function PaparanMasjidPage() {
   // Slideshow
   const [slideIdx, setSlideIdx] = useState(0);
 
-  // Alert / Iqamat state
-  const [alertPrayer, setAlertPrayer] = useState<PrayerKey | null>(null);
-  const [showAlert, setShowAlert] = useState(false);
-  const [showIqamat, setShowIqamat] = useState(false);
-  // iqamatTarget: absolute unix second when iqamat fires
-  const [iqamatTarget, setIqamatTarget] = useState<number>(0);
-  const [iqamatSeconds, setIqamatSeconds] = useState(0);
-  const [iqamatTotal, setIqamatTotal] = useState(0);
-
   // Test panel
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [testPrayer, setTestPrayer] = useState<PrayerKey>("dhuhr");
   const [testIqamatSecs, setTestIqamatSecs] = useState(30);
+  const [debugOverride, setDebugOverride] = useState<{
+    kind: PaparanSceneKind;
+    prayerKey: PrayerKey;
+    startedAtMs: number;
+    endsAtMs: number;
+  } | null>(null);
+  const dismissedTokenRef = useRef<string>("");
 
   // Auto-detected zone (used when config.zone is blank)
   const [detectedZone, setDetectedZone] = useState<string>("");
@@ -87,34 +66,27 @@ export default function PaparanMasjidPage() {
   // Active broadcasts for the ticker
   const [activeBroadcasts, setActiveBroadcasts] = useState<string[]>([]);
 
-  // Refs to avoid stale closures in setInterval
-  const lastAzanFired = useRef<number>(0);
-  const lastAlertFired = useRef<number>(0);
-  const lastIqamatFired = useRef<number>(0);
-  const pushSentRef = useRef<Set<number>>(new Set());
   const audioSubuhRef = useRef<HTMLAudioElement | null>(null);
   const audioOtherRef = useRef<HTMLAudioElement | null>(null);
   const audioBeepRef = useRef<HTMLAudioElement | null>(null);
-  const prayersRef = useRef<PrayerDay | null>(null);
-  const configRef = useRef(config);
+  const lastScheduledTokenRef = useRef<string>("");
+  const lastCueTokenRef = useRef<string>("");
+  const lastPushTokenRef = useRef<string>("");
   const activeZoneRef = useRef("");
   // Track the calendar date last fetched so we can re-fetch at midnight
   const lastFetchedDate = useRef<number>(new Date().getDate());
 
-  useEffect(() => { configRef.current = config; }, [config]);
-  useEffect(() => { prayersRef.current = prayers; }, [prayers]);
-
   // ── Restore fired-guards from sessionStorage on mount ──
   useEffect(() => {
-    const storedAzan = sessionStorage.getItem("lastAzanFired");
-    if (storedAzan) lastAzanFired.current = parseInt(storedAzan, 10);
-    const storedAlert = sessionStorage.getItem("lastAlertFired");
-    if (storedAlert) lastAlertFired.current = parseInt(storedAlert, 10);
+    const storedCueToken = sessionStorage.getItem("paparanLastCueToken");
+    if (storedCueToken) lastCueTokenRef.current = storedCueToken;
+    const storedPushToken = sessionStorage.getItem("paparanLastPushToken");
+    if (storedPushToken) lastPushTokenRef.current = storedPushToken;
   }, []);
 
   // ── Helper: play a double-beep pattern, repeated `reps` times ──
   // Pattern per rep: beep → 150ms → beep  |  600ms gap before next rep
-  const playBeeps = useCallback((reps = 10) => {
+  const playBeeps = useCallback((reps = 1) => {
     const audio = audioBeepRef.current;
     if (!audio) return;
     let rep = 0;
@@ -189,8 +161,7 @@ export default function PaparanMasjidPage() {
       if (e.key === "t" || e.key === "T") setShowTestPanel(v => !v);
       if (e.key === "Escape") {
         setShowTestPanel(false);
-        setShowAlert(false);
-        setShowIqamat(false);
+        setDebugOverride(null);
       }
     };
     window.addEventListener("keydown", handler);
@@ -235,112 +206,20 @@ export default function PaparanMasjidPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeZone]);
 
-  // ── Clock + alert + azan logic ──
+  // ── Clock + midnight refresh ──
   useEffect(() => {
     const timer = setInterval(() => {
       const nowDate = new Date();
       setNow(nowDate);
-
-      const cfg = configRef.current;
-      const p = prayersRef.current;
-      if (!p) return;
-
-      const nowUnix = Math.floor(nowDate.getTime() / 1000);
 
       // ── Midnight prayer-data refresh ─────────────────────────────
       const todayDay = nowDate.getDate();
       if (todayDay !== lastFetchedDate.current && activeZoneRef.current) {
         fetchPrayers(activeZoneRef.current);
       }
-
-      // ── Alert Masuk Waktu ────────────────────────────────────────
-      // Shows for the first ALERT_WINDOW seconds after prayer time.
-      // When iqamat is also enabled the alert gets ALERT_WINDOW seconds
-      // of exclusive screen time before the countdown takes over.
-      const ALERT_WINDOW = 10; // seconds the alert banner is shown
-      if (cfg.alert_masuk.enabled) {
-        const triggered = AZAN_PRAYERS.find(
-          key => nowUnix >= p[key] && nowUnix < p[key] + 120
-        );
-        if (triggered && lastAlertFired.current !== p[triggered]) {
-          lastAlertFired.current = p[triggered];
-          sessionStorage.setItem("lastAlertFired", String(p[triggered]));
-          setAlertPrayer(triggered);
-          setShowAlert(true);
-          setShowIqamat(false);
-          // Beep x10 immediately when the alert appears
-          playBeeps(10);
-          // Auto-dismiss: use ALERT_WINDOW when iqamat will take over, else 90s
-          const dismissAfter = cfg.alert_iqamat.enabled
-            ? ALERT_WINDOW * 1000
-            : 90_000;
-          setTimeout(() => setShowAlert(false), dismissAfter);
-        }
-      }
-
-      // ── Iqamat countdown ─────────────────────────────────────────
-      // Starts ALERT_WINDOW seconds after azan so the alert banner plays
-      // first. Counts down from iqamat_delay to 0.
-      if (cfg.alert_iqamat.enabled) {
-        const delayMs = cfg.alert_iqamat.delay_minutes * 60;
-        const iqamatStart = ALERT_WINDOW; // don't start until alert has shown
-        const triggered = AZAN_PRAYERS.find(key =>
-          nowUnix >= p[key] + iqamatStart && nowUnix < p[key] + delayMs
-        );
-        if (triggered && lastIqamatFired.current !== p[triggered]) {
-          lastIqamatFired.current = p[triggered];
-          setAlertPrayer(triggered);
-          setIqamatTarget(p[triggered] + delayMs);
-          setIqamatTotal(delayMs);
-          // showAlert will already have auto-dismissed by now
-          setShowAlert(false);
-          setShowIqamat(true);
-          // Beep x10 immediately when the iqamat countdown screen appears
-          playBeeps(10);
-        }
-      }
-
-      // Live iqamat seconds countdown
-      if (iqamatTarget > 0) {
-        const rem = iqamatTarget - nowUnix;
-        if (rem <= 0) {
-          setIqamatSeconds(0);
-          setShowIqamat(false);
-          setIqamatTarget(0);
-        } else {
-          setIqamatSeconds(rem);
-        }
-      }
-
-      // Azan autoplay
-      if (cfg.bunyi_azan.enabled) {
-        const triggered = AZAN_PRAYERS.find(
-          key => nowUnix >= p[key] && nowUnix < p[key] + 60
-        );
-        if (triggered && lastAzanFired.current !== p[triggered]) {
-          lastAzanFired.current = p[triggered];
-          sessionStorage.setItem("lastAzanFired", String(p[triggered]));
-          if (triggered === "fajr" && audioSubuhRef.current) {
-            audioSubuhRef.current.currentTime = 0;
-            audioSubuhRef.current.play().catch(() => { });
-          } else if (audioOtherRef.current) {
-            audioOtherRef.current.currentTime = 0;
-            audioOtherRef.current.play().catch(() => { });
-          }
-          // Send push notification once per prayer time
-          if (!pushSentRef.current.has(p[triggered])) {
-            pushSentRef.current.add(p[triggered]);
-            fetch("/api/notifications/azan", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ prayerKey: triggered }),
-            }).catch(() => { });
-          }
-        }
-      }
     }, 1000);
     return () => clearInterval(timer);
-  }, [iqamatTarget, fetchPrayers, playBeeps]);
+  }, [fetchPrayers]);
 
   // ── Slideshow rotation ──
   useEffect(() => {
@@ -350,26 +229,148 @@ export default function PaparanMasjidPage() {
     return () => clearInterval(t);
   }, [config.slideshow, slides]);
 
+  const scheduledScene = useMemo(
+    () => resolvePaparanScene({ now, prayers, config }),
+    [now, prayers, config]
+  );
+
+  useEffect(() => {
+    if (scheduledScene.token === lastScheduledTokenRef.current) return;
+    lastScheduledTokenRef.current = scheduledScene.token;
+    sendToMachine({ type: "SCHEDULE_UPDATED", scene: scheduledScene });
+  }, [scheduledScene, sendToMachine]);
+
+  const activeDebugScene = useMemo<PaparanScene | null>(() => {
+    if (!debugOverride) return null;
+
+    const nowMs = now.getTime();
+    if (nowMs >= debugOverride.endsAtMs) return null;
+
+    const totalMs = Math.max(debugOverride.endsAtMs - debugOverride.startedAtMs, 1);
+    const remainingMs = Math.max(0, debugOverride.endsAtMs - nowMs);
+    return {
+      kind: debugOverride.kind,
+      token: `debug:${debugOverride.kind}:${debugOverride.prayerKey}:${debugOverride.startedAtMs}`,
+      prayerKey: debugOverride.prayerKey,
+      startedAtMs: debugOverride.startedAtMs,
+      endsAtMs: debugOverride.endsAtMs,
+      totalMs,
+      remainingMs,
+      progress: Math.min(Math.max((nowMs - debugOverride.startedAtMs) / totalMs, 0), 1),
+    };
+  }, [debugOverride, now]);
+
+  useEffect(() => {
+    if (debugOverride && !activeDebugScene) {
+      setDebugOverride(null);
+    }
+  }, [activeDebugScene, debugOverride]);
+
+  const activeScene = activeDebugScene ?? machineState.context.scene;
+
+  useEffect(() => {
+    if (activeScene.kind === "idle") return;
+    if (activeScene.token === lastCueTokenRef.current) return;
+
+    lastCueTokenRef.current = activeScene.token;
+    sessionStorage.setItem("paparanLastCueToken", activeScene.token);
+
+    if (activeScene.kind === "azanAlert") {
+      playBeeps(1);
+
+      if (config.bunyi_azan.enabled && activeScene.prayerKey) {
+        if (activeScene.prayerKey === "fajr" && audioSubuhRef.current) {
+          audioSubuhRef.current.currentTime = 0;
+          audioSubuhRef.current.play().catch(() => { });
+        } else if (audioOtherRef.current) {
+          audioOtherRef.current.currentTime = 0;
+          audioOtherRef.current.play().catch(() => { });
+        }
+      }
+
+      if (activeScene.token !== lastPushTokenRef.current && activeScene.prayerKey) {
+        lastPushTokenRef.current = activeScene.token;
+        sessionStorage.setItem("paparanLastPushToken", activeScene.token);
+        fetch("/api/notifications/azan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prayerKey: activeScene.prayerKey }),
+        }).catch(() => { });
+      }
+
+      return;
+    }
+
+    if (activeScene.kind === "iqamatFinalAlert" || activeScene.kind === "solatPhase") {
+      playBeeps(1);
+    }
+  }, [activeScene, config.bunyi_azan.enabled, playBeeps]);
+
   // ── Test action handlers ───────────────────────────────────────────
-  const testAlert = () => {
-    setAlertPrayer(testPrayer);
-    setShowIqamat(false);
-    setShowAlert(true);
+  const testPreAzan = () => {
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "preAzanCountdown",
+      prayerKey: testPrayer,
+      startedAtMs,
+      endsAtMs: startedAtMs + testIqamatSecs * 1000,
+    });
     setShowTestPanel(false);
-    playBeeps(10);
-    setTimeout(() => setShowAlert(false), 90_000);
+  };
+
+  const testAlert = () => {
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "azanAlert",
+      prayerKey: testPrayer,
+      startedAtMs,
+      endsAtMs: startedAtMs + 120_000,
+    });
+    setShowTestPanel(false);
   };
 
   const testIqamat = () => {
-    const target = Math.floor(Date.now() / 1000) + testIqamatSecs;
-    setAlertPrayer(testPrayer);
-    setIqamatTarget(target);
-    setIqamatSeconds(testIqamatSecs);
-    setIqamatTotal(testIqamatSecs);
-    setShowAlert(false);
-    setShowIqamat(true);
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "iqamatCountdownMain",
+      prayerKey: testPrayer,
+      startedAtMs,
+      endsAtMs: startedAtMs + testIqamatSecs * 1000,
+    });
     setShowTestPanel(false);
-    playBeeps(10);
+  };
+
+  const testIqamatFinal = () => {
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "iqamatFinalAlert",
+      prayerKey: testPrayer,
+      startedAtMs,
+      endsAtMs: startedAtMs + testIqamatSecs * 1000,
+    });
+    setShowTestPanel(false);
+  };
+
+  const testSolat = () => {
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "solatPhase",
+      prayerKey: testPrayer,
+      startedAtMs,
+      endsAtMs: startedAtMs + 120_000,
+    });
+    setShowTestPanel(false);
+  };
+
+  const testKhutbah = () => {
+    const startedAtMs = Date.now();
+    setDebugOverride({
+      kind: "fridayKhutbah",
+      prayerKey: "dhuhr",
+      startedAtMs,
+      endsAtMs: startedAtMs + testIqamatSecs * 1000,
+    });
+    setShowTestPanel(false);
   };
 
   const testAzan = (type: "subuh" | "other") => {
@@ -386,18 +387,14 @@ export default function PaparanMasjidPage() {
   const stopAll = () => {
     audioSubuhRef.current?.pause();
     audioOtherRef.current?.pause();
+    audioBeepRef.current?.pause();
     if (audioSubuhRef.current) audioSubuhRef.current.currentTime = 0;
-    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0; if (audioBeepRef.current) { audioBeepRef.current.pause(); audioBeepRef.current.currentTime = 0; } setShowAlert(false);
-    setShowIqamat(false);
-    setIqamatTarget(0);
+    if (audioOtherRef.current) audioOtherRef.current.currentTime = 0;
+    if (audioBeepRef.current) audioBeepRef.current.currentTime = 0;
+    setDebugOverride(null);
   };
 
   // ── Helpers ─────────────────────────────────────────────────
-  const prayerLabel = useCallback((key: PrayerKey | null) => {
-    if (!key) return "";
-    return PRAYER_DISPLAY.find(p => p.key === key)?.ms ?? key;
-  }, []);
-
   const nowUnix = Math.floor(now.getTime() / 1000);
   const { current: currentPrayer, next: nextPrayer } = prayers
     ? getCurrentAndNext(prayers, nowUnix)
@@ -417,6 +414,15 @@ export default function PaparanMasjidPage() {
     [tickerText]
   );
   const tickerActive = config.ticker?.enabled && activeBroadcasts.length > 0;
+  const activePrayerLabel = getPrayerLabel(activeScene.prayerKey);
+  const activePrayerTime = activeScene.prayerKey && prayers
+    ? unixToTimeStr(prayers[activeScene.prayerKey])
+    : undefined;
+  const containerScene = activeScene.kind === "preAzanCountdown" || activeScene.kind === "iqamatCountdownMain"
+    ? activeScene
+    : null;
+  const fullScreenScene = activeScene.kind !== "idle" && !containerScene && activeScene.token !== dismissedTokenRef.current ? activeScene : null;
+  const sceneBackgroundUrl = slides[slideIdx]?.url || (config.gambar_masjid.enabled ? config.gambar_masjid.url : "");
 
   if (!loaded) {
     return (
@@ -463,7 +469,7 @@ export default function PaparanMasjidPage() {
                 <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-3 py-1 mt-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-white/70 text-xs font-semibold uppercase tracking-widest">
-                    {prayerLabel(nextPrayer)}
+                    {getPrayerLabel(nextPrayer)}
                   </span>
                   <span className="text-white/50 text-xs tabular-nums">
                     {`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}
@@ -494,8 +500,14 @@ export default function PaparanMasjidPage() {
         {/* horizontal → flex-col: slideshow top + prayer panel bottom */}
         <div className={`flex-1 min-h-0 flex gap-4 ${panelLayout === "vertical" ? "flex-row" : "flex-col"}`}>
 
-          {/* ── SLIDESHOW ──────────────────────────────── */}
-          {config.slideshow.enabled && slides.length > 0 && (
+          {containerScene ? (
+            <div className="flex-1 min-h-0">
+              <TimedCountdownScene
+                scene={containerScene}
+                prayerLabel={activePrayerLabel}
+              />
+            </div>
+          ) : config.slideshow.enabled && slides.length > 0 ? (
             <div className="flex-1 relative rounded-2xl overflow-hidden min-h-0">
               {slides.map((slide, i) => (
                 <div
@@ -514,7 +526,6 @@ export default function PaparanMasjidPage() {
                   )}
                 </div>
               ))}
-              {/* Slide dots */}
               {slides.length > 1 && (
                 <div className="absolute bottom-4 right-4 flex gap-1.5">
                   {slides.map((_, i) => (
@@ -526,12 +537,8 @@ export default function PaparanMasjidPage() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* ── NO-SLIDE PLACEHOLDER ────────────────────── */}
-          {(!config.slideshow.enabled || slides.length === 0) && (
+          ) : (
             <div className="flex-1 relative rounded-2xl overflow-hidden min-h-0 flex items-center justify-center bg-black/30 border border-white/10">
-              {/* Islamic geometric tile pattern overlay */}
               <div
                 className="absolute inset-0 opacity-[0.12]"
                 style={{
@@ -539,24 +546,19 @@ export default function PaparanMasjidPage() {
                   backgroundSize: "120px 120px",
                 }}
               />
-              {/* Corner ornaments */}
               <div className="absolute top-5 left-5 w-10 h-10 border-t-2 border-l-2 border-white/20 rounded-tl-lg" />
               <div className="absolute top-5 right-5 w-10 h-10 border-t-2 border-r-2 border-white/20 rounded-tr-lg" />
               <div className="absolute bottom-5 left-5 w-10 h-10 border-b-2 border-l-2 border-white/20 rounded-bl-lg" />
               <div className="absolute bottom-5 right-5 w-10 h-10 border-b-2 border-r-2 border-white/20 rounded-br-lg" />
-              {/* Centre card */}
               <div className="relative z-10 flex flex-col items-center gap-5 px-12 py-10 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl text-center max-w-md">
-                {/* Arabic bismillah */}
                 <p className="text-white/90 text-3xl leading-relaxed" style={{ fontFamily: "serif", direction: "rtl" }}>
                   بسم الله الرحمن الرحيم
                 </p>
-                {/* Divider with diamond */}
                 <div className="flex items-center gap-3 w-full">
                   <div className="flex-1 h-px bg-white/20" />
                   <div className="w-2 h-2 bg-white/30 rotate-45" />
                   <div className="flex-1 h-px bg-white/20" />
                 </div>
-                {/* Mosque name */}
                 <p className="text-white text-2xl font-bold tracking-widest uppercase leading-tight">
                   {sysSettings?.system_desc || sysSettings?.system_name || "MASJID"}
                 </p>
@@ -708,12 +710,13 @@ export default function PaparanMasjidPage() {
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setShowTestPanel(false)}>
           <div
-            className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            className="bg-[#1a1a1a] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/10">
               <div>
-                <p className="text-white font-bold text-base">Panel Ujian</p>
+                <p className="text-white font-bold text-base">Panel Ujian Skrin</p>
                 <p className="text-white/40 text-xs mt-0.5">Tekan ESC atau klik luar untuk tutup</p>
               </div>
               <button onClick={() => setShowTestPanel(false)} className="text-white/40 hover:text-white transition">
@@ -721,133 +724,157 @@ export default function PaparanMasjidPage() {
               </button>
             </div>
 
-            {/* Prayer selector */}
-            <div className="mb-4">
-              <label className="text-xs font-bold text-white/50 uppercase tracking-widest block mb-1.5">Pilih Waktu Solat</label>
-              <div className="relative">
-                <select
-                  value={testPrayer}
-                  onChange={e => setTestPrayer(e.target.value as PrayerKey)}
-                  className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm appearance-none outline-none"
-                >
-                  {AZAN_PRAYERS.map(key => (
-                    <option key={key} value={key}>
-                      {PRAYER_DISPLAY.find(p => p.key === key)?.ms ?? key}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+            <div className="px-6 py-4 space-y-5">
+              {/* Settings row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Waktu Solat</label>
+                  <div className="relative">
+                    <select
+                      value={testPrayer}
+                      onChange={e => setTestPrayer(e.target.value as PrayerKey)}
+                      className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-3 py-2 text-white text-sm appearance-none outline-none"
+                    >
+                      {AZAN_PRAYERS.map(key => (
+                        <option key={key} value={key}>
+                          {PRAYER_DISPLAY.find(p => p.key === key)?.ms ?? key}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest block mb-1.5">Tempoh (saat)</label>
+                  <input
+                    type="number" min={5} max={900} value={testIqamatSecs}
+                    onChange={e => setTestIqamatSecs(Math.max(5, Number(e.target.value)))}
+                    className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Iqamat seconds */}
-            <div className="mb-5">
-              <label className="text-xs font-bold text-white/50 uppercase tracking-widest block mb-1.5">
-                Kiraan Detik Iqamat (saat)
-              </label>
-              <input
-                type="number" min={5} max={600} value={testIqamatSecs}
-                onChange={e => setTestIqamatSecs(Math.max(5, Number(e.target.value)))}
-                className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none"
-              />
-            </div>
+              {/* State 1 — Pre-Azan Countdown */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">State 1 — Pra-Azan</p>
+                <button
+                  onClick={testPreAzan}
+                  className="w-full flex items-center gap-3 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/25 text-cyan-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                >
+                  <AlarmClock size={16} />
+                  <span>Akan Masuk Waktu — Countdown {testIqamatSecs}s</span>
+                </button>
+              </div>
 
-            <div className="space-y-2.5">
-              <button
-                onClick={testAlert}
-                className="w-full flex items-center gap-3 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
-              >
-                <Bell size={16} />
-                Uji Alert Masuk Waktu
-              </button>
+              {/* State 2 — Azan Alert */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">State 2 — Azan (2 min, auto)</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={testAlert}
+                    className="w-full flex items-center gap-3 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/25 text-emerald-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                  >
+                    <Bell size={16} />
+                    <span>Telah Masuk Waktu — Skrin Penuh</span>
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => testAzan("subuh")}
+                      className="flex items-center justify-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 text-amber-300 rounded-xl px-3 py-2.5 text-xs font-semibold transition"
+                    >
+                      <Volume2 size={13} />
+                      Audio Subuh
+                    </button>
+                    <button
+                      onClick={() => testAzan("other")}
+                      className="flex items-center justify-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 text-amber-300 rounded-xl px-3 py-2.5 text-xs font-semibold transition"
+                    >
+                      <Volume2 size={13} />
+                      Audio Lain
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-              <button
-                onClick={testIqamat}
-                className="w-full flex items-center gap-3 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
-              >
-                <Timer size={16} />
-                Uji Iqamat ({testIqamatSecs}s)
-              </button>
+              {/* State 3 — Iqamat */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">State 3 — Iqamat</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={testIqamat}
+                    className="w-full flex items-center gap-3 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/25 text-blue-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                  >
+                    <Timer size={16} />
+                    <span>Kiraan Iqamat Utama — {testIqamatSecs}s</span>
+                  </button>
+                  <button
+                    onClick={testIqamatFinal}
+                    className="w-full flex items-center gap-3 bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/25 text-orange-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                  >
+                    <AlertTriangle size={16} />
+                    <span>Amaran Iqamat (2 min terakhir) — {testIqamatSecs}s</span>
+                  </button>
+                </div>
+              </div>
 
-              <button
-                onClick={() => testAzan("subuh")}
-                className="w-full flex items-center gap-3 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
-              >
-                <Volume2 size={16} />
-                Uji Azan Subuh
-              </button>
+              {/* State 4 — Solat */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">State 4 — Solat (2 min, auto)</p>
+                <button
+                  onClick={testSolat}
+                  className="w-full flex items-center gap-3 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/25 text-violet-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                >
+                  <Users size={16} />
+                  <span>Sila Rapatkan Saf — Ikon Telefon &amp; Senyap</span>
+                </button>
+              </div>
 
-              <button
-                onClick={() => testAzan("other")}
-                className="w-full flex items-center gap-3 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
-              >
-                <Volume2 size={16} />
-                Uji Azan (Solat Lain)
-              </button>
+              {/* State 5 — Khutbah Jumaat */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">State 5 — Khutbah Jumaat</p>
+                <button
+                  onClick={testKhutbah}
+                  className="w-full flex items-center gap-3 bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/25 text-yellow-300 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                >
+                  <BookOpen size={16} />
+                  <span>Adab Khutbah — {testIqamatSecs}s</span>
+                </button>
+              </div>
 
+              {/* Reset */}
               <button
                 onClick={stopAll}
-                className="w-full flex items-center gap-3 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm font-semibold transition"
+                className="w-full flex items-center gap-3 bg-red-500/15 hover:bg-red-500/25 border border-red-500/25 text-red-400 rounded-xl px-4 py-3 text-sm font-semibold transition"
               >
                 <X size={16} />
-                Henti Semua &amp; Reset
+                Henti Semua &amp; Kembali ke Idle
               </button>
+
+              {/* Current active scene indicator */}
+              {activeScene.kind !== "idle" && (
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-1">Fasa Aktif Sekarang</p>
+                  <p className="text-white text-sm font-semibold">{activeScene.kind}</p>
+                  {activeScene.prayerKey && (
+                    <p className="text-white/50 text-xs mt-0.5">{getPrayerLabel(activeScene.prayerKey)} · {Math.round(activeScene.remainingMs / 1000)}s berbaki</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── ALERT MASUK WAKTU OVERLAY ───────────────── */}
-      {showAlert && config.alert_masuk.enabled && alertPrayer && (
-        <div
-          className="absolute inset-0 z-20 flex items-center justify-center cursor-pointer bg-black/80 backdrop-blur-sm"
-          onClick={() => setShowAlert(false)}
-        >
-          <div className="text-center px-8 animate-in fade-in zoom-in duration-500">
-            <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-6">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-white/70 text-sm uppercase tracking-widest">Waktu Solat</span>
-            </div>
-            <p className="text-white/60 text-xl tracking-widest uppercase mb-2">Telah Masuk Waktu</p>
-            <p className="text-white text-[12rem] font-bold tracking-tight leading-none mb-4">
-              {prayerLabel(alertPrayer)}
-            </p>
-            {prayers && (
-              <p className="text-white/50 text-3xl tabular-nums">{unixToTimeStr(prayers[alertPrayer])}</p>
-            )}
-            <p className="text-white/20 text-xs mt-12 tracking-widest">KETUK UNTUK TUTUP</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── IQAMAT COUNTDOWN OVERLAY ─────────────────── */}
-      {showIqamat && config.alert_iqamat.enabled && alertPrayer && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/85 backdrop-blur-sm"
-          onClick={() => setShowIqamat(false)}>
-          <div className="text-center px-8 animate-in fade-in zoom-in duration-500 w-full max-w-lg">
-            <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-6">
-              <Timer size={14} className="text-blue-400" />
-              <span className="text-white/70 text-sm uppercase tracking-widest">{prayerLabel(alertPrayer)}</span>
-            </div>
-            <p className="text-white/60 text-xl tracking-widest uppercase mb-2">Iqamat Dalam</p>
-            <p className="text-white text-9xl font-bold tabular-nums leading-none mb-6">
-              {String(Math.floor(iqamatSeconds / 60)).padStart(2, "0")}
-              <span className="text-white/30 mx-1">:</span>
-              {String(iqamatSeconds % 60).padStart(2, "0")}
-            </p>
-            {/* Progress bar */}
-            <div className="w-full bg-white/10 rounded-full h-2 mb-4 overflow-hidden">
-              <div
-                className="h-full bg-blue-400 rounded-full transition-all duration-1000 ease-linear"
-                style={{ width: `${iqamatTotal > 0 ? (iqamatSeconds / iqamatTotal) * 100 : 0}%` }}
-              />
-            </div>
-            <p className="text-emerald-400 text-base mt-4 tracking-wide">
-              Sila bersiap untuk solat berjemaah
-            </p>
-            <p className="text-white/20 text-xs mt-8 tracking-widest">KETUK UNTUK TUTUP</p>
-          </div>
-        </div>
+      {fullScreenScene && (
+        <FullScreenAlertScene
+          scene={fullScreenScene}
+          prayerLabel={activePrayerLabel}
+          prayerTimeText={activePrayerTime}
+          onDismiss={() => {
+            dismissedTokenRef.current = fullScreenScene.token;
+            if (debugOverride) setDebugOverride(null);
+          }}
+        />
       )}
 
       {/* ── AUDIO ELEMENTS ───────────────────────────── */}
