@@ -257,13 +257,13 @@ export function BottomNav() {
             className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${profileActive || profileOpen ? "text-primary dark:text-primary-light" : "text-text-muted hover:text-text-secondary"
               }`}
           >
-            <div className={`p-1 rounded-full transition-all ${profileActive || profileOpen ? "bg-primary-50 dark:bg-primary/10" : ""}`}>
+            <div className={`p-1.5 rounded-full transition-all ${profileActive || profileOpen ? "bg-primary-50 dark:bg-primary/10" : ""}`}>
               {(!user || isAnonymous) ? (
-                <UserRound size={32} strokeWidth={profileActive || profileOpen ? 2.5 : 1.8} />
+                <UserRound size={20} strokeWidth={profileActive || profileOpen ? 2.5 : 1.8} />
               ) : avatarUrl ? (
-                <img src={avatarUrl} alt="Me" className={`w-[36px] h-[36px] rounded-full object-cover border-2 ${profileActive || profileOpen ? 'border-primary' : 'border-border/60'}`} />
+                <img src={avatarUrl} alt="Me" className={`w-[36px] h-[36px] -m-0.5 rounded-full object-cover border-2 ${profileActive || profileOpen ? 'border-primary' : 'border-border/60'}`} />
               ) : (
-                <div className="w-[36px] h-[36px] rounded-full hero-gradient text-white text-[15px] font-bold flex items-center justify-center uppercase">
+                <div className="w-[36px] h-[36px] -m-0.5 rounded-full hero-gradient text-white text-[15px] font-bold flex items-center justify-center uppercase">
                   {user.email?.[0] || 'U'}
                 </div>
               )}
