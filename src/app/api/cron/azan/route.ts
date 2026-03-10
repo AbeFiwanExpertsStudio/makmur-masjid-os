@@ -91,15 +91,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: "No prayer data" });
     }
 
-    // Current time in UTC unix seconds
     const nowUnix = Math.floor(Date.now() / 1000);
 
-    // Find a prayer that started within the last 90 seconds
     let matchedPrayer: PrayerKey | null = null;
     for (const key of PRAYER_KEYS) {
       const prayerUnix = prayers[key];
       const diff = nowUnix - prayerUnix;
-      // Fire if we are 0-90 seconds after prayer time
       if (diff >= 0 && diff < 90) {
         matchedPrayer = key;
         break;
@@ -110,53 +107,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: "No prayer match", nowUnix });
     }
 
-    // Dedup: check if this prayer was already fired today
     const todayStr = new Date().toISOString().slice(0, 10);
     const fired = await getFiredPrayers();
-    // Reset if it's a new day
     const todayPrayers = fired.date === todayStr ? fired.prayers : [];
 
     if (todayPrayers.includes(matchedPrayer)) {
       return NextResponse.json({ skipped: true, reason: "Already fired", prayer: matchedPrayer });
     }
 
-    // Fire the push notification
-    const label = PRAYER_LABELS[matchedPrayer];
-    const title = `🕌 Waktu ${label.ms}`;
-    const body = `Telah masuk waktu solat ${label.ms}. Segera berwudhu.`;
-
-    // Fetch all tokens
-    const { data: profiles } = await supabaseAdmin
-      .from("profiles")
-      .select("fcm_tokens")
-      .not("fcm_tokens", "is", null);
-
-    const tokens: string[] = (profiles ?? [])
-      .flatMap((p: { fcm_tokens: string[] | null }) => p.fcm_tokens ?? [])
-      .filter(Boolean);
-
-    if (tokens.length === 0) {
-      await markPrayerFired(todayStr, matchedPrayer, todayPrayers);
-      return NextResponse.json({ success: true, sent: 0, matchedPrayer });
-    }
-
-    // Initialize Firebase Admin SDK directly (same as push route)
-    if (admin.apps.length === 0) {
-      const serviceAccountStr = process.env.FIREBASE_ADMIN_SDK_JSON;
-      if (!serviceAccountStr) {
-        return NextResponse.json({ error: "Firebase not configured" }, { status: 500 });
-      }
-      const serviceAccount = JSON.parse(serviceAccountStr);
-      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    }
-
-    const message = {
-      notification: { title, body },
-      data: { type: "azan", prayerKey: matchedPrayer },
-      tokens,
-    };
-
-    const response = await admin.messaging().sendEachForMulticast(message);
+    // Use centralized notification logic
+    const { sendAzanNotification } = await import("@/lib/server/notifications");
+    const result = await sendAzanNotification(matchedPrayer);
 
     // Mark as fired
     await markPrayerFired(todayStr, matchedPrayer, todayPrayers);
@@ -164,8 +125,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       matchedPrayer,
-      sent: response.successCount,
-      failed: response.failureCount,
+      sent: result.sent,
+      failed: result.failed,
     });
   } catch (err: any) {
     console.error("[cron/azan] Error:", err);

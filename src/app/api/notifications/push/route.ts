@@ -1,28 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
-
-// Initialize Firebase Admin SDK
-const initializeFirebaseAdmin = () => {
-  if (admin.apps.length > 0) return admin.app();
-
-  // We expect the private key to be structured as a JSON string in environment variable
-  const serviceAccountStr = process.env.FIREBASE_ADMIN_SDK_JSON;
-  
-  if (!serviceAccountStr) {
-    console.error("FIREBASE_ADMIN_SDK_JSON is missing");
-    return null;
-  }
-
-  try {
-    const serviceAccount = JSON.parse(serviceAccountStr);
-    return admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-  } catch (error) {
-    console.error("Error parsing FIREBASE_ADMIN_SDK_JSON:", error);
-    return null;
-  }
-};
+import { initializeFirebaseAdmin } from "@/lib/server/notifications";
 
 export async function POST(req: NextRequest) {
   try {
