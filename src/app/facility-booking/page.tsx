@@ -16,9 +16,9 @@ import type { Facility, FacilityBooking, BookingStatus } from "@/types/database"
 /* ── Helpers ── */
 function statusColor(s: BookingStatus) {
   switch (s) {
-    case "pending":   return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-    case "approved":  return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-    case "rejected":  return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+    case "pending": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+    case "approved": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+    case "rejected": return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
     case "cancelled": return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
   }
 }
@@ -84,18 +84,18 @@ export default function FacilityBookingPage() {
         user && !isAnonymous
           ? isAdmin
             ? supabase
-                .from("facility_bookings")
-                .select("*, facilities:facility_id(name), profiles:booked_by(display_name)")
-                // Admin: last 90 days OR still-pending (could be older)
-                .or(`booking_date.gte.${since90},status.eq.pending`)
-                .order("booking_date", { ascending: false })
+              .from("facility_bookings")
+              .select("*, facilities:facility_id(name), profiles:booked_by(display_name)")
+              // Admin: last 90 days OR still-pending (could be older)
+              .or(`booking_date.gte.${since90},status.eq.pending`)
+              .order("booking_date", { ascending: false })
             : supabase
-                .from("facility_bookings")
-                .select("*, facilities:facility_id(name)")
-                .eq("booked_by", user.id)
-                // User: last 90 days OR approved (future bookings always visible)
-                .or(`booking_date.gte.${since90},status.eq.approved`)
-                .order("booking_date", { ascending: false })
+              .from("facility_bookings")
+              .select("*, facilities:facility_id(name)")
+              .eq("booked_by", user.id)
+              // User: last 90 days OR approved (future bookings always visible)
+              .or(`booking_date.gte.${since90},status.eq.approved`)
+              .order("booking_date", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
       ]);
 
@@ -135,9 +135,9 @@ export default function FacilityBookingPage() {
       if (booking && booking.booked_by !== user?.id) {
         const notifType =
           newStatus === "approved" ? "booking_approved" :
-          newStatus === "cancelled" ? "booking_cancelled" :
-          "booking_rejected";
-        
+            newStatus === "cancelled" ? "booking_cancelled" :
+              "booking_rejected";
+
         // 1. In-app notification
         await supabase.from("notifications").insert({
           user_id: booking.booked_by,
@@ -158,12 +158,12 @@ export default function FacilityBookingPage() {
             .single();
 
           if (profile?.fcm_tokens && profile.fcm_tokens.length > 0) {
-            const title = 
+            const title =
               newStatus === "approved" ? "Booking Approved!" :
-              newStatus === "cancelled" ? "Booking Cancelled" :
-              "Booking Rejected";
-            
-            const body = newStatus === "approved" 
+                newStatus === "cancelled" ? "Booking Cancelled" :
+                  "Booking Rejected";
+
+            const body = newStatus === "approved"
               ? `Your booking for ${booking.facilities?.name} has been approved.`
               : `There's an update regarding your booking for ${booking.facilities?.name}.`;
 
@@ -245,17 +245,16 @@ export default function FacilityBookingPage() {
             tb === "facilities"
               ? t.fbFacilitiesTab
               : tb === "myBookings"
-              ? t.fbMyBookings
-              : t.fbAllBookings;
+                ? t.fbMyBookings
+                : t.fbAllBookings;
           return (
             <button
               key={tb}
               onClick={() => { setTab(tb as any); setPage(1); }}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                tab === tb
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${tab === tb
                   ? "bg-primary text-white shadow-sm"
                   : "text-text-muted hover:text-text hover:bg-surface"
-              }`}
+                }`}
             >
               {label}
             </button>
@@ -559,7 +558,7 @@ function BookModal({
 
   const handleSubmit = async () => {
     if (!bookingDate || !startTime || !endTime) return;
-    
+
     // Date validation: prevent backdating
     if (bookingDate < minDate) {
       toast.error(t.fbDateInPastError || "Booking date cannot be in the past.");
@@ -603,8 +602,11 @@ function BookModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-border/60">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div
+        className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full overflow-y-auto border border-border/60"
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border/60 sticky top-0 bg-surface z-10 rounded-t-2xl">
           <div>
@@ -741,8 +743,11 @@ function FacilityFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-border/60">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div
+        className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full overflow-y-auto border border-border/60"
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         <div className="flex items-center justify-between p-5 border-b border-border/60 sticky top-0 bg-surface z-10 rounded-t-2xl">
           <h3 className="text-lg font-bold text-text">{isEdit ? t.fbEditFacility : t.fbAddFacility}</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-alt rounded-xl transition-colors">

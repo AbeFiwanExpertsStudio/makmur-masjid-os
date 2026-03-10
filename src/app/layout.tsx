@@ -68,34 +68,34 @@ export default function RootLayout({
       <body className={`${inter.variable} ${reemKufi.variable} ${amiri.variable} font-sans antialiased islamic-pattern text-text bg-background transition-colors duration-300 overflow-x-hidden`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <LanguageProvider>
-          <AuthProvider>
-            <div className="flex flex-col min-h-screen pb-16 md:pb-0">
-              <Navbar />
-              <main className="flex-1 relative">
-                {children}
-              </main>
-              <BottomNav />
-            </div>
-            <AuthModal />
-            <Toaster
-              position="top-center"
-              toastOptions={{
-                className: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-50 border border-slate-100 dark:border-slate-800",
-                success: {
-                  iconTheme: {
-                    primary: "#059669",
-                    secondary: "white",
+            <AuthProvider>
+              <div className="flex flex-col min-h-screen pb-[80px] lg:pb-0">
+                <Navbar />
+                <main className="flex-1 relative">
+                  {children}
+                </main>
+                <BottomNav />
+              </div>
+              <AuthModal />
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  className: "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-50 border border-slate-100 dark:border-slate-800",
+                  success: {
+                    iconTheme: {
+                      primary: "#059669",
+                      secondary: "white",
+                    },
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: "#f59e0b",
-                    secondary: "white",
+                  error: {
+                    iconTheme: {
+                      primary: "#f59e0b",
+                      secondary: "white",
+                    },
                   },
-                },
-              }}
-            />
-          </AuthProvider>
+                }}
+              />
+            </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

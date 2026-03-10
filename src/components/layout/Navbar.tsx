@@ -291,7 +291,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300 w-full">
+      <header className="hidden lg:block bg-surface/80 backdrop-blur-xl border-b border-border/60 sticky top-0 z-50 transition-colors duration-300 w-full">
         <div className="container mx-auto px-2 min-[400px]:px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 min-[400px]:gap-3 group shrink-0">
             <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-border/40 bg-transparent flex items-center justify-center">
@@ -331,8 +331,8 @@ export function Navbar() {
               <button
                 onClick={() => setMoreOpen(!moreOpen)}
                 className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${moreLinks.some(l => pathname.startsWith(l.href)) || moreOpen
-                    ? 'bg-primary-50 text-primary font-semibold'
-                    : 'text-text-secondary hover:text-primary hover:bg-surface-alt'
+                  ? 'bg-primary-50 text-primary font-semibold'
+                  : 'text-text-secondary hover:text-primary hover:bg-surface-alt'
                   }`}
               >
                 {t.navMore}
@@ -346,8 +346,8 @@ export function Navbar() {
                       href={link.href}
                       onClick={() => setMoreOpen(false)}
                       className={`block px-4 py-2.5 text-sm font-medium transition-colors ${pathname.startsWith(link.href)
-                          ? 'text-primary bg-primary-50 font-semibold'
-                          : 'text-text-secondary hover:text-primary hover:bg-surface-alt'
+                        ? 'text-primary bg-primary-50 font-semibold'
+                        : 'text-text-secondary hover:text-primary hover:bg-surface-alt'
                         }`}
                     >
                       {link.label}

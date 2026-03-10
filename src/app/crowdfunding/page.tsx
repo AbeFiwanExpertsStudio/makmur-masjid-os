@@ -296,8 +296,8 @@ export default function CrowdfundingPage() {
                     onClick={() => !isGoalReached && setDonateModal(c.id)}
                     disabled={isGoalReached}
                     className={`w-full py-3 text-sm flex justify-center items-center gap-2 rounded-xl font-bold transition-all ${isGoalReached
-                        ? "bg-text-muted/20 text-text-muted border border-border cursor-not-allowed"
-                        : "btn-primary"
+                      ? "bg-text-muted/20 text-text-muted border border-border cursor-not-allowed"
+                      : "btn-primary"
                       }`}
                   >
                     <HandHeart size={16} />
@@ -317,8 +317,12 @@ export default function CrowdfundingPage() {
 
       {/* Donate Modal */}
       {donateModal && activeCampaign && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setDonateModal(null)}>
-          <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={() => setDonateModal(null)}>
+          <div
+            className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative overflow-y-auto overflow-x-hidden"
+            style={{ maxHeight: "calc(100dvh - 120px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button onClick={() => setDonateModal(null)} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
               <X size={20} />
             </button>
@@ -335,8 +339,8 @@ export default function CrowdfundingPage() {
                     key={amt}
                     onClick={() => setDonationAmount(amt)}
                     className={`py-3 font-bold text-sm rounded-xl border transition-colors ${donationAmount === amt
-                        ? "bg-primary text-white border-primary"
-                        : "bg-background text-primary border-primary hover:bg-primary-50"
+                      ? "bg-primary text-white border-primary"
+                      : "bg-background text-primary border-primary hover:bg-primary-50"
                       }`}
                   >
                     RM{amt}
@@ -467,8 +471,12 @@ function DonationSuccessModal({ onClose, donationId, onShowReceipt }: { onClose:
   const { t } = useLanguage();
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={onClose}>
-      <div className="bg-surface rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.3)] relative overflow-hidden text-center scale-up-center" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div
+        className="bg-surface rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.3)] relative text-center scale-up-center overflow-y-auto overflow-x-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         <div className="hero-gradient py-12 px-6 text-white relative">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mt-20 -mr-20 blur-3xl animate-pulse" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-light/20 rounded-full -mb-16 -ml-16 blur-2xl" />
@@ -616,8 +624,12 @@ function CampaignFormModal({ mode, campaign, onClose, onSave }: { mode: "add" | 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-surface rounded-2xl w-full max-w-md relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-surface rounded-2xl w-full max-w-md relative overflow-y-auto overflow-x-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
@@ -701,7 +713,7 @@ function DeleteCampaignModal({ campaign, onClose, onDelete }: { campaign: Campai
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="bg-red-50 dark:bg-red-950 p-5 flex items-center justify-between border-b border-red-100 dark:border-red-900">
           <div className="flex gap-3 items-center">

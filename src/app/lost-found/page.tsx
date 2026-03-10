@@ -216,11 +216,10 @@ export default function LostFoundPage() {
             <button
               key={f}
               onClick={() => { setTypeFilter(f); setPage(1); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                typeFilter === f
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-text-muted hover:text-text hover:bg-surface"
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${typeFilter === f
+                ? "bg-primary text-white shadow-sm"
+                : "text-text-muted hover:text-text hover:bg-surface"
+                }`}
             >
               {f === "all" ? t.lfAll : f === "lost" ? t.lfLost : t.lfFound}
             </button>
@@ -233,11 +232,10 @@ export default function LostFoundPage() {
             <button
               key={f}
               onClick={() => { setStatusFilter(f); setPage(1); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                statusFilter === f
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-text-muted hover:text-text hover:bg-surface"
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === f
+                ? "bg-primary text-white shadow-sm"
+                : "text-text-muted hover:text-text hover:bg-surface"
+                }`}
             >
               {f === "all" ? t.lfAll : f === "open" ? t.lfOpen : t.lfResolved}
             </button>
@@ -294,9 +292,8 @@ export default function LostFoundPage() {
           return (
             <div
               key={item.id}
-              className={`card p-4 transition-all ${
-                item.status !== "open" ? "opacity-60" : ""
-              }`}
+              className={`card p-4 transition-all ${item.status !== "open" ? "opacity-60" : ""
+                }`}
             >
               <div className="flex gap-3">
                 {/* Category icon */}
@@ -311,11 +308,10 @@ export default function LostFoundPage() {
                       <h3 className="font-semibold text-text text-sm leading-tight">{item.title}</h3>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {/* Type badge */}
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          item.type === "lost"
-                            ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                            : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        }`}>
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${item.type === "lost"
+                          ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          }`}>
                           {item.type === "lost" ? t.lfLost : t.lfFound}
                         </span>
                         {/* Category badge */}
@@ -589,8 +585,12 @@ function PostModal({
   const isBusy = saving || uploading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto border border-border/60">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+      {/* pb-[60px] on mobile lifts the sheet above the fixed bottom nav bar */}
+      <div
+        className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full overflow-y-auto border border-border/60"
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border/60 sticky top-0 bg-surface z-10 rounded-t-2xl">
           <h3 className="text-lg font-bold text-text">
@@ -601,23 +601,21 @@ function PostModal({
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 pb-6">
           {/* Type toggle */}
           {!isEdit && (
             <div className="flex gap-2 p-1 bg-surface-alt rounded-xl border border-border/60">
               <button
                 onClick={() => setType("lost")}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  type === "lost" ? "bg-red-500 text-white shadow-sm" : "text-text-muted hover:text-text"
-                }`}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${type === "lost" ? "bg-red-500 text-white shadow-sm" : "text-text-muted hover:text-text"
+                  }`}
               >
                 {t.lfLost}
               </button>
               <button
                 onClick={() => setType("found")}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  type === "found" ? "bg-emerald-500 text-white shadow-sm" : "text-text-muted hover:text-text"
-                }`}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${type === "found" ? "bg-emerald-500 text-white shadow-sm" : "text-text-muted hover:text-text"
+                  }`}
               >
                 {t.lfFound}
               </button>
@@ -642,11 +640,10 @@ function PostModal({
                 <button
                   key={cat.value}
                   onClick={() => setCategory(cat.value)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-medium transition-all ${
-                    category === cat.value
-                      ? "border-primary bg-primary-50 text-primary dark:bg-primary/10"
-                      : "border-border/40 text-text-muted hover:bg-surface-alt"
-                  }`}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-xs font-medium transition-all ${category === cat.value
+                    ? "border-primary bg-primary-50 text-primary dark:bg-primary/10"
+                    : "border-border/40 text-text-muted hover:bg-surface-alt"
+                    }`}
                 >
                   <span className="text-lg">{cat.icon}</span>
                   <span>{categoryLabel(cat.value, t)}</span>
@@ -662,11 +659,10 @@ function PostModal({
             </label>
 
             {/* Contextual hint */}
-            <p className={`text-xs px-3 py-2 rounded-lg mb-2 ${
-              type === "found"
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
-                : "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
-            }`}>
+            <p className={`text-xs px-3 py-2 rounded-lg mb-2 ${type === "found"
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+              : "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+              }`}>
               {type === "found" ? t.lfImageHintFound : t.lfImageHintLost}
             </p>
 

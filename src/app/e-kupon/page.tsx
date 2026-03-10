@@ -180,10 +180,10 @@ export default function EKuponPage() {
         <div className="flex items-center gap-3">
           <div className="text-primary"><Ticket size={28} strokeWidth={2.5} /></div>
           <div>
-              <h1 className="text-2xl font-bold text-text">{t.ekuponTitle}</h1>
-              <p className="text-sm text-text-muted">{t.ekuponSubtitle}</p>
-            </div>
+            <h1 className="text-2xl font-bold text-text">{t.ekuponTitle}</h1>
+            <p className="text-sm text-text-muted">{t.ekuponSubtitle}</p>
           </div>
+        </div>
         {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
@@ -411,21 +411,19 @@ function KuponCard({
   };
 
   return (
-    <div className={`card overflow-hidden transition-shadow ${
-      isScheduled
+    <div className={`card overflow-hidden transition-shadow ${isScheduled
         ? "card-scheduled ring-1 ring-gold/35 dark:ring-gold/20 shadow-md shadow-gold/10 dark:shadow-gold/5"
         : isActive
           ? "ring-1 ring-primary/20 dark:ring-primary/30 shadow-md shadow-primary/10 dark:shadow-primary/20"
           : ""
-    }`}>
+      }`}>
       <div
-        className={`p-6 text-white relative overflow-hidden ${
-          isExpired
+        className={`p-6 text-white relative overflow-hidden ${isExpired
             ? "bg-gradient-to-br from-gray-600/90 to-gray-800 dark:from-gray-700 dark:to-gray-900"
             : isActive
               ? "hero-gradient"
               : "bg-gradient-to-br from-amber-500 to-amber-600"
-        }`}
+          }`}
         style={event.background_image && !isExpired ? {
           backgroundImage: isActive
             ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 100%), url(${event.background_image})`
@@ -444,14 +442,13 @@ function KuponCard({
             {event.name}
           </h2>
           <div className="flex items-center gap-2">
-            <span className={`badge text-[10px] ${
-              isExpired
+            <span className={`badge text-[10px] ${isExpired
                 ? "bg-white/10 text-white/50 border border-white/10"
                 : isScheduled
                   ? "bg-black/20 text-white border border-white/20 backdrop-blur-sm"
                   : "bg-white/20 text-white font-semibold backdrop-blur-sm border border-white/10"
-            }`}>
-            {isExpired ? "EXPIRED" : isScheduled ? t.statusScheduled : t.statusActive}
+              }`}>
+              {isExpired ? "EXPIRED" : isScheduled ? t.statusScheduled : t.statusActive}
             </span>
 
             {/* ── ADMIN: Edit & Delete ── */}
@@ -493,11 +490,10 @@ function KuponCard({
               ) : (
                 <span className="w-2 h-2 rounded-full bg-primary animate-live" />
               )}
-              <span className={`font-bold ${
-                isScheduled
+              <span className={`font-bold ${isScheduled
                   ? "text-amber-600 dark:text-amber-400"
                   : "text-primary-dark dark:text-primary-light"
-              }`}>
+                }`}>
                 {remainingPacks}/{totalPacks} {t.remaining}
               </span>
             </span>
@@ -520,13 +516,12 @@ function KuponCard({
           <button
             onClick={handleClaim}
             disabled={isClaiming || remainingPacks <= 0 || isExpired}
-            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${
-              isExpired
+            className={`w-full py-4 text-base flex items-center justify-center gap-2 rounded-xl font-bold transition-all shadow-md ${isExpired
                 ? "bg-surface-muted dark:bg-surface text-text-muted cursor-not-allowed border border-border shadow-none"
                 : isScheduled
                   ? "bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/25"
                   : "bg-gradient-to-br from-primary-light to-primary hover:from-primary hover:to-primary-dark text-white hover:shadow-lg shadow-primary/20 dark:shadow-primary/30"
-            }`}
+              }`}
           >
             {isExpired ? <Clock size={20} /> : isScheduled ? <CalendarPlus size={20} /> : <Utensils size={20} />}
             {isExpired
@@ -565,7 +560,7 @@ function KuponCard({
                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
             </div>
-            
+
             <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4 border-t border-border" : "grid-rows-[0fr] opacity-0"}`}>
               <div className="overflow-hidden">
                 <div className="pt-4">
@@ -624,7 +619,7 @@ function KuponCard({
                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
             </div>
-            
+
             <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr] opacity-100 mt-4 border-t border-primary/10" : "grid-rows-[0fr] opacity-0"}`}>
               <div className="overflow-hidden">
                 <div className="pt-5">
@@ -854,8 +849,12 @@ function EKuponFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative overflow-y-auto"
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
@@ -941,7 +940,7 @@ function EKuponFormModal({
                       className="hidden"
                       onChange={handleImagePick}
                     />
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                     <span className="text-xs text-text-muted">Click to upload image</span>
                   </label>
                 )}
@@ -1023,14 +1022,14 @@ function DeleteEKuponModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
         <div className="bg-red-50 dark:bg-red-950/60 border-b border-red-100 dark:border-red-900/50 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">
             <AlertTriangle className="text-red-500 dark:text-red-400" />
             <div>
-          <h2 className="font-bold text-red-900 dark:text-red-200">{t.deleteEKuponTitle}</h2>
+              <h2 className="font-bold text-red-900 dark:text-red-200">{t.deleteEKuponTitle}</h2>
             </div>
           </div>
           <button onClick={onClose} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 bg-red-100 dark:bg-red-900/40 p-1 rounded-md"><X size={18} /></button>

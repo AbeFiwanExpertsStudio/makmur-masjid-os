@@ -25,10 +25,10 @@ function formatTime(t: string) { return t.slice(0, 5); }
 function typeColor(type: ProgramType | "holiday") {
   if (type === "holiday") return "bg-amber-500 text-black dark:bg-amber-400/80";
   const map: Record<ProgramType, string> = {
-    lecture:  "bg-blue-600 text-white dark:bg-blue-500/80",
-    halaqah:  "bg-emerald-600 text-white dark:bg-emerald-500/80",
-    jumuah:   "bg-amber-500 text-white dark:bg-amber-500/80",
-    other:    "bg-purple-600 text-white dark:bg-purple-500/80",
+    lecture: "bg-blue-600 text-white dark:bg-blue-500/80",
+    halaqah: "bg-emerald-600 text-white dark:bg-emerald-500/80",
+    jumuah: "bg-amber-500 text-white dark:bg-amber-500/80",
+    other: "bg-purple-600 text-white dark:bg-purple-500/80",
   };
   return map[type];
 }
@@ -38,8 +38,8 @@ function typeDotColor(type: ProgramType | "holiday") {
   const map: Record<ProgramType, string> = {
     lecture: "bg-blue-500",
     halaqah: "bg-emerald-500",
-    jumuah:  "bg-amber-500",
-    other:   "bg-purple-500",
+    jumuah: "bg-amber-500",
+    other: "bg-purple-500",
   };
   return map[type];
 }
@@ -48,8 +48,8 @@ function typeLabel(type: ProgramType, t: any) {
   const map: Record<ProgramType, string> = {
     lecture: t.mpLecture,
     halaqah: t.mpHalaqah,
-    jumuah:  t.mpJumuah,
-    other:   t.mpOther,
+    jumuah: t.mpJumuah,
+    other: t.mpOther,
   };
   return map[type];
 }
@@ -58,10 +58,10 @@ const todayStr = () => new Date().toISOString().split("T")[0];
 
 /* ── .ics download ── */
 function downloadICS(prog: MosqueProgram) {
-  const dateCompact  = prog.program_date.replace(/-/g, "");
+  const dateCompact = prog.program_date.replace(/-/g, "");
   const startCompact = prog.start_time.slice(0, 5).replace(":", "") + "00";
-  const endCompact   = prog.end_time.slice(0, 5).replace(":", "")   + "00";
-  const stamp        = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+  const endCompact = prog.end_time.slice(0, 5).replace(":", "") + "00";
+  const stamp = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
   const lines = [
     "BEGIN:VCALENDAR", "VERSION:2.0",
     "PRODID:-//Makmur Masjid//Mosque Programs//EN",
@@ -72,15 +72,15 @@ function downloadICS(prog: MosqueProgram) {
     `DTSTART;TZID=Asia/Kuala_Lumpur:${dateCompact}T${startCompact}`,
     `DTEND;TZID=Asia/Kuala_Lumpur:${dateCompact}T${endCompact}`,
     `SUMMARY:${prog.title}`,
-    prog.description     ? `DESCRIPTION:${prog.description.replace(/\n/g, "\\n")}` : null,
-    prog.location        ? `LOCATION:${prog.location}`                               : null,
-    prog.speaker         ? `ORGANIZER;CN=${prog.speaker}:MAILTO:noreply@makmur-masjid.app` : null,
-    prog.recurrence_note ? `COMMENT:${prog.recurrence_note}`                         : null,
+    prog.description ? `DESCRIPTION:${prog.description.replace(/\n/g, "\\n")}` : null,
+    prog.location ? `LOCATION:${prog.location}` : null,
+    prog.speaker ? `ORGANIZER;CN=${prog.speaker}:MAILTO:noreply@makmur-masjid.app` : null,
+    prog.recurrence_note ? `COMMENT:${prog.recurrence_note}` : null,
     "END:VEVENT", "END:VCALENDAR",
   ].filter(Boolean).join("\r\n");
   const blob = new Blob([lines], { type: "text/calendar;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
   a.href = url;
   a.download = `${prog.title.replace(/\s+/g, "_")}.ics`;
   a.click();
@@ -99,17 +99,17 @@ interface CalendarProps {
   t: any;
 }
 function MiniCalendar({ programs, islamicHolidays, selectedDate, onSelectDate, language, t }: CalendarProps) {
-  const today  = todayStr();
+  const today = todayStr();
   const locale = language === "ms" ? "ms-MY" : "en-MY";
   const [viewDate, setViewDate] = useState(() => new Date());
-  const year  = viewDate.getFullYear();
+  const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const monthLabel = new Date(year, month, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
   // Day headers Mon–Sun (ISO)
   const dayHeaders = Array.from({ length: 7 }, (_, i) =>
     new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "short" })
   );
-  const firstDow    = (new Date(year, month, 1).getDay() + 6) % 7;
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   // date → Set<ProgramType> for dots
   const dotMap: Record<string, Set<ProgramType | "holiday">> = {};
@@ -151,17 +151,16 @@ function MiniCalendar({ programs, islamicHolidays, selectedDate, onSelectDate, l
       <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((dateStr, i) => {
           if (!dateStr) return <div key={`f${i}`} className="h-9" />;
-          const isToday    = dateStr === today;
+          const isToday = dateStr === today;
           const isSelected = selectedDate === dateStr;
-          const types      = dotMap[dateStr];
+          const types = dotMap[dateStr];
           return (
             <div key={dateStr}
               onClick={() => onSelectDate(isSelected ? null : dateStr)}
-              className={`relative flex flex-col items-center justify-center h-9 rounded-lg cursor-pointer transition-all select-none ${
-                isSelected ? "bg-primary text-white shadow-sm"
-                : isToday  ? "bg-primary/15 text-primary font-bold ring-1 ring-primary/30"
-                : "hover:bg-border/40 text-text"
-              }`}
+              className={`relative flex flex-col items-center justify-center h-9 rounded-lg cursor-pointer transition-all select-none ${isSelected ? "bg-primary text-white shadow-sm"
+                  : isToday ? "bg-primary/15 text-primary font-bold ring-1 ring-primary/30"
+                    : "hover:bg-border/40 text-text"
+                }`}
             >
               <span className="text-xs leading-none">{new Date(dateStr + "T00:00:00").getDate()}</span>
               {types && types.size > 0 && (
@@ -255,9 +254,9 @@ export default function MosqueProgramsPage() {
   const visible = programs.filter(p => {
     if (typeFilter !== "all" && p.program_type !== typeFilter) return false;
     if (selectedDate) return p.program_date === selectedDate;
-    if (timeFilter === "today")    return p.program_date === today;
+    if (timeFilter === "today") return p.program_date === today;
     if (timeFilter === "upcoming") return p.program_date >= today;
-    if (timeFilter === "past")     return p.program_date < today;
+    if (timeFilter === "past") return p.program_date < today;
     return true;
   });
 
@@ -272,17 +271,17 @@ export default function MosqueProgramsPage() {
   };
 
   const typeFilters: { key: ProgramType | "all"; label: string }[] = [
-    { key: "all",     label: t.mpAll },
+    { key: "all", label: t.mpAll },
     { key: "lecture", label: t.mpLecture },
     { key: "halaqah", label: t.mpHalaqah },
-    { key: "jumuah",  label: t.mpJumuah },
-    { key: "other",   label: t.mpOther },
+    { key: "jumuah", label: t.mpJumuah },
+    { key: "other", label: t.mpOther },
   ];
 
   const timeFilters: { key: "upcoming" | "today" | "past"; label: string }[] = [
     { key: "upcoming", label: t.mpUpcoming },
-    { key: "today",    label: t.mpToday },
-    { key: "past",     label: t.mpPast },
+    { key: "today", label: t.mpToday },
+    { key: "past", label: t.mpPast },
   ];
 
   return (
@@ -325,11 +324,10 @@ export default function MosqueProgramsPage() {
             <button
               key={f.key}
               onClick={() => setTimeFilter(f.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                timeFilter === f.key
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${timeFilter === f.key
                   ? "bg-primary text-white shadow-sm"
                   : "bg-surface border border-border text-text-muted hover:border-primary/50"
-              }`}
+                }`}
             >
               {f.label}
             </button>
@@ -362,11 +360,10 @@ export default function MosqueProgramsPage() {
           <button
             key={f.key}
             onClick={() => setTypeFilter(f.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              typeFilter === f.key
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${typeFilter === f.key
                 ? "bg-primary text-white shadow-sm"
                 : "bg-surface border border-border text-text-muted hover:border-primary/50"
-            }`}
+              }`}
           >
             {f.label}
           </button>
@@ -438,9 +435,9 @@ export default function MosqueProgramsPage() {
         // Merge Islamic holidays into the date groups
         const visibleHolidays = islamicHolidays.filter(h => {
           if (selectedDate) return h.gregorianDate === selectedDate;
-          if (timeFilter === "today")    return h.gregorianDate === today;
+          if (timeFilter === "today") return h.gregorianDate === today;
           if (timeFilter === "upcoming") return h.gregorianDate >= today;
-          if (timeFilter === "past")     return h.gregorianDate < today;
+          if (timeFilter === "past") return h.gregorianDate < today;
           return true;
         });
         visibleHolidays.forEach(h => {
@@ -459,9 +456,8 @@ export default function MosqueProgramsPage() {
             {/* Date header */}
             <div className="flex items-center gap-2 mb-3">
               <Calendar size={14} className="text-primary" />
-              <span className={`text-xs font-bold uppercase tracking-wider ${
-                date === today ? "text-primary" : "text-text-muted"
-              }`}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${date === today ? "text-primary" : "text-text-muted"
+                }`}>
                 {date === today ? `${t.mpToday} — ` : ""}{formatDate(date, language)}
               </span>
               <div className="flex-1 h-px bg-border" />
@@ -625,17 +621,17 @@ function ProgramModal({ program, onClose, onSaved, t }: ModalProps) {
   const { user } = useAuth();
   const isEdit = !!program;
 
-  const [title, setTitle]             = useState(program?.title ?? "");
-  const [type, setType]               = useState<ProgramType>(program?.program_type ?? "lecture");
-  const [date, setDate]               = useState(program?.program_date ?? new Date().toISOString().split("T")[0]);
-  const [startTime, setStartTime]     = useState(program?.start_time?.slice(0, 5) ?? "20:00");
-  const [endTime, setEndTime]         = useState(program?.end_time?.slice(0, 5) ?? "21:00");
-  const [speaker, setSpeaker]         = useState(program?.speaker ?? "");
-  const [location, setLocation]       = useState(program?.location ?? "");
-  const [desc, setDesc]               = useState(program?.description ?? "");
+  const [title, setTitle] = useState(program?.title ?? "");
+  const [type, setType] = useState<ProgramType>(program?.program_type ?? "lecture");
+  const [date, setDate] = useState(program?.program_date ?? new Date().toISOString().split("T")[0]);
+  const [startTime, setStartTime] = useState(program?.start_time?.slice(0, 5) ?? "20:00");
+  const [endTime, setEndTime] = useState(program?.end_time?.slice(0, 5) ?? "21:00");
+  const [speaker, setSpeaker] = useState(program?.speaker ?? "");
+  const [location, setLocation] = useState(program?.location ?? "");
+  const [desc, setDesc] = useState(program?.description ?? "");
   const [isRecurring, setIsRecurring] = useState(program?.is_recurring ?? false);
   const [recurrenceNote, setRecurrenceNote] = useState(program?.recurrence_note ?? "");
-  const [saving, setSaving]           = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -651,17 +647,17 @@ function ProgramModal({ program, onClose, onSaved, t }: ModalProps) {
     setSaving(true);
     const supabase = createClient();
     const payload = {
-      title:           title.trim(),
-      program_type:    type,
-      program_date:    date,
-      start_time:      startTime,
-      end_time:        endTime,
-      speaker:         speaker.trim() || null,
-      location:        location.trim() || null,
-      description:     desc.trim() || null,
-      is_recurring:    isRecurring,
+      title: title.trim(),
+      program_type: type,
+      program_date: date,
+      start_time: startTime,
+      end_time: endTime,
+      speaker: speaker.trim() || null,
+      location: location.trim() || null,
+      description: desc.trim() || null,
+      is_recurring: isRecurring,
       recurrence_note: isRecurring && recurrenceNote.trim() ? recurrenceNote.trim() : null,
-      is_active:       true,
+      is_active: true,
     };
 
     if (isEdit && program) {
@@ -691,13 +687,17 @@ function ProgramModal({ program, onClose, onSaved, t }: ModalProps) {
   const programTypes: { value: ProgramType; label: string }[] = [
     { value: "lecture", label: t.mpLecture },
     { value: "halaqah", label: t.mpHalaqah },
-    { value: "jumuah",  label: t.mpJumuah },
-    { value: "other",   label: t.mpOther },
+    { value: "jumuah", label: t.mpJumuah },
+    { value: "other", label: t.mpOther },
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-border/60" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-surface rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full overflow-y-auto border border-border/60"
+        onClick={e => e.stopPropagation()}
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         {/* Sticky header */}
         <div className="sticky top-0 bg-surface border-b border-border/60 flex items-center justify-between px-5 py-4 z-10 rounded-t-2xl">
           <div className="flex items-center gap-2.5">

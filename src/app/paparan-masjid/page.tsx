@@ -880,7 +880,7 @@ export default function PaparanMasjidPage() {
       {/* ── AUDIO ELEMENTS ───────────────────────────── */}
       <audio ref={audioSubuhRef} src="/audio/adzan_subuh.mp3" preload="auto" />
       <audio ref={audioOtherRef} src="/audio/adzan_nahawand.mp3" preload="auto" />
-      <audio ref={audioBeepRef} src="/audio/beep.wav" preload="auto" />
+      <audio ref={audioBeepRef} src="/audio/beep.mp3" preload="auto" />
     </div>
   );
 }

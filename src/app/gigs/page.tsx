@@ -73,11 +73,11 @@ export default function GigsPage() {
   const fetchGigs = async () => {
     try {
       const supabase = createClient();
-        const { data, error } = await supabase
-          .from("volunteer_gigs")
-          .select(`id, title, description, required_pax, gig_date, start_time, end_time, is_completed, created_at, gig_claims(count)`)
-          .eq("is_cancelled", false)
-          .order("gig_date", { ascending: true });
+      const { data, error } = await supabase
+        .from("volunteer_gigs")
+        .select(`id, title, description, required_pax, gig_date, start_time, end_time, is_completed, created_at, gig_claims(count)`)
+        .eq("is_cancelled", false)
+        .order("gig_date", { ascending: true });
 
       if (error) {
         console.warn("Could not load gigs:", error.message);
@@ -378,8 +378,8 @@ export default function GigsPage() {
                       onClick={() => handleClaim(gig.id)}
                       disabled={isFull || isConflict}
                       className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-semibold transition-all ${isConflict
-                          ? 'bg-gold-light/20 text-gold-dark border border-gold/30 cursor-not-allowed dark:bg-surface-muted dark:text-gold dark:border-gold/20'
-                          : 'btn-primary'
+                        ? 'bg-gold-light/20 text-gold-dark border border-gold/30 cursor-not-allowed dark:bg-surface-muted dark:text-gold dark:border-gold/20'
+                        : 'btn-primary'
                         }`}
                       title={isConflict ? `Overlaps with "${conflictingGig?.title}"` : undefined}
                     >
@@ -505,7 +505,7 @@ function GigFormModal({
           toast.error(result.error.message);
         } else {
           toast.success("Gig created successfully!");
-          
+
           // ── Native Push Notification for New Gig ──
           try {
             const { data: profiles } = await supabase
@@ -573,8 +573,12 @@ function GigFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
+      <div
+        className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative overflow-y-auto"
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
@@ -708,7 +712,7 @@ function DeleteConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
         <div className="bg-red-50 dark:bg-red-950 border-b border-red-100 dark:border-red-900 p-5 flex items-center justify-between">
@@ -759,7 +763,7 @@ function CancelClaimModal({
 }) {
   const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="bg-gold-light/20 dark:bg-surface-muted border-b border-gold/20 dark:border-gold/10 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">

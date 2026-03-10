@@ -29,11 +29,11 @@ export default function HomePage() {
   ];
 
   const adminFeatures = [
-    { href: "/dashboard", icon: LayoutDashboard, title: "AI Dashboard", desc: t.featureDashboardDesc, color: "text-primary" },
-    { href: "/admin", icon: Shield, title: "AJK Admin", desc: t.featureAdminDesc, color: "text-primary" },
+    { href: "/dashboard", icon: LayoutDashboard, title: "AI Dashboard", desc: t.featureDashboardDesc, color: "text-[#00d084]" },
+    { href: "/admin", icon: Shield, title: "AJK Admin", desc: t.featureAdminDesc, color: "text-[#00d084]" },
   ];
 
-  const features = isAdmin ? [...adminFeatures, ...publicFeatures] : publicFeatures;
+  const features = [...adminFeatures, ...publicFeatures];
 
   const statDisplay = [
     {
@@ -150,40 +150,39 @@ export default function HomePage() {
       </section>
 
       {/* ═══ FEATURES SECTION ═══ */}
-      <section className="container mx-auto px-4 pb-20 pt-8">
-        <div className="text-center mb-12">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold mb-3">{t.whatWeOffer}</p>
-          <h2 className="text-3xl md:text-4xl font-black text-text tracking-tight">{t.everythingYourMosqueNeeds}</h2>
-        </div>
+      <section className="w-full bg-[#11141a]"> {/* Forced exact dark background spanning screen width */}
+        <div className="container mx-auto px-4 pb-20 pt-8">
+          <div className="text-center mb-16">
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-gold mb-4">{t.whatWeOffer}</p>
+            <h2 className="text-3xl md:text-[2.5rem] font-bold text-white tracking-tight">{t.everythingYourMosqueNeeds}</h2>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {features.map((f) => {
-            const Icon = f.icon;
-            return (
-              <Link
-                key={f.href}
-                href={f.href}
-                className="group flex flex-col p-6 rounded-3xl bg-[#1e232e] border border-white/5 shadow-xl hover:shadow-2xl hover:bg-[#252a36] hover:-translate-y-1 hover:border-white/10 transition-all duration-300 relative overflow-hidden"
-              >
-                {/* Subtle top-left gradient glow on hover */}
-                <div className="absolute top-0 left-0 w-32 h-32 bg-primary/20 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
+            {features.map((f) => {
+              const Icon = f.icon;
+              return (
+                <Link
+                  key={f.href}
+                  href={f.href}
+                  className="group flex flex-col p-8 rounded-[18px] bg-[#1e232e] border border-[#2b3240] shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-[#384152] transition-all duration-300 relative overflow-hidden"
+                >
+                  {/* Glowing hover dot top left */}
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-[#00d084]/10 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
 
-                <div className="relative z-10 w-12 h-12 rounded-xl bg-[#283141] flex items-center justify-center text-primary mb-6 ring-1 ring-white/5 group-hover:ring-primary/30 transition-all duration-300">
-                  <Icon size={20} className="opacity-90 group-hover:opacity-100" strokeWidth={2.5} />
-                </div>
+                  {/* Box Icon Container */}
+                  <div className="relative z-10 w-[42px] h-[42px] rounded-xl bg-[#00d084]/10 flex items-center justify-center text-[#00d084] mb-5 group-hover:bg-[#00d084]/20 transition-all duration-300">
+                    <Icon size={20} className="stroke-[#00d084]" strokeWidth={2} />
+                  </div>
 
-                <div className="relative z-10">
-                  <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
-                  <p className="text-sm font-medium text-white/50 leading-relaxed mb-6">{f.desc}</p>
-                </div>
-
-                {/* Arrow indicator pushed to bottom */}
-                <div className="mt-auto relative z-10 flex items-center gap-2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                  <span>Explore</span> <ArrowRight size={14} />
-                </div>
-              </Link>
-            );
-          })}
+                  {/* Text Container */}
+                  <div className="relative z-10 font-sans">
+                    <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
+                    <p className="text-[13px] text-[#8b949e] leading-relaxed mb-4">{f.desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </section>
 

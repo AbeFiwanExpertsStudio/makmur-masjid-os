@@ -255,7 +255,7 @@ export default function ZakatLocatorPage() {
                       {(() => {
                         const sDt = loc.start_date ? new Date(loc.start_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
                         const eDt = loc.end_date ? new Date(loc.end_date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-                        
+
                         if (loc.start_time && loc.end_time) {
                           return (
                             <div className="flex flex-col gap-0.5 mt-[-2px]">
@@ -265,7 +265,7 @@ export default function ZakatLocatorPage() {
                             </div>
                           );
                         }
-                        
+
                         return loc.start_date === loc.end_date ? sDt : `${sDt || 'Unspecified'} to ${eDt || 'Unspecified'}`;
                       })()}
                     </span>
@@ -367,7 +367,7 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
     if (startDate && endDate && startTime && endTime) {
       const startDateTime = new Date(`${startDate}T${startTime.split('.')[0]}`);
       const endDateTime = new Date(`${endDate}T${endTime.split('.')[0]}`);
-      
+
       if (endDateTime <= startDateTime) {
         toast.error("End date/time must be strictly after start date/time");
         return;
@@ -379,8 +379,8 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
     try {
       await Promise.race([
         supabase.from("zakat_counters").update({
-          name, address, 
-          start_date: startDate || null, 
+          name, address,
+          start_date: startDate || null,
           end_date: endDate || null,
           start_time: startTime ? `${startTime}:00` : null,
           end_time: endTime ? `${endTime}:00` : null
@@ -393,7 +393,7 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
       onSave({
         ...counter,
         name, address,
-        start_date: startDate || undefined, 
+        start_date: startDate || undefined,
         end_date: endDate || undefined,
         start_time: startTime ? `${startTime}:00` : undefined,
         end_time: endTime ? `${endTime}:00` : undefined
@@ -407,8 +407,12 @@ function EditCounterModal({ counter, onClose, onSave }: { counter: ZakatCounter,
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 transition-opacity" onClick={onClose}>
-      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 transition-opacity" onClick={onClose}>
+      <div
+        className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative overflow-y-auto overflow-x-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         <button onClick={onClose} className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1">
           <X size={20} />
         </button>
@@ -470,7 +474,7 @@ function DeleteCounterModal({ counter, onClose, onDelete }: { counter: ZakatCoun
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 transition-opacity" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4 transition-opacity" onClick={onClose}>
       <div className="bg-surface rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="bg-red-50 dark:bg-red-950 border-b border-red-100 dark:border-red-900 p-5 flex items-center justify-between">
           <div className="flex gap-3 items-center">

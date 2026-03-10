@@ -64,13 +64,17 @@ export function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center pb-[60px] sm:pb-0 sm:p-4"
       onClick={close}
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
     >
-      <div className="bg-surface rounded-2xl w-full max-w-md shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-surface rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl relative overflow-y-auto overflow-x-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "calc(100dvh - 120px)" }}
+      >
         <button
           onClick={close}
           className="absolute top-4 right-4 z-20 text-white/50 hover:text-white transition bg-black/20 rounded-full p-1"
@@ -97,9 +101,8 @@ export function AuthModal() {
               <button
                 key={m}
                 onClick={() => { setMode(m as "login" | "register"); setError(null); }}
-                className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${
-                  mode === m ? "text-primary border-primary" : "text-text-muted border-transparent hover:text-text-secondary"
-                }`}
+                className={`flex-1 py-3.5 text-sm font-semibold transition border-b-2 ${mode === m ? "text-primary border-primary" : "text-text-muted border-transparent hover:text-text-secondary"
+                  }`}
               >
                 {m === "login" ? t.authLogin : t.authRegister}
               </button>
@@ -142,69 +145,69 @@ export function AuthModal() {
 
         {/* Login / Register form */}
         {mode !== "forgot" && (
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2.5 rounded-xl">{error}</div>
-          )}
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2.5 rounded-xl">{error}</div>
+            )}
 
-          {mode === "register" && (
+            {mode === "register" && (
+              <div className="relative">
+                <UserIcon size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
+                <input type="text" placeholder={t.authFullName} value={name} onChange={(e) => setName(e.target.value)} required
+                  className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
+              </div>
+            )}
+
             <div className="relative">
-              <UserIcon size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-              <input type="text" placeholder={t.authFullName} value={name} onChange={(e) => setName(e.target.value)} required
-                className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background" />
+              <Mail size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
+              <input
+                type="email"
+                pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
+                placeholder={t.authEmail}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background"
+              />
             </div>
-          )}
 
-          <div className="relative">
-            <Mail size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-            <input
-              type="email"
-              pattern="[^\s@]+@[^\s@]+\.[^\s@]+"
-              placeholder={t.authEmail}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full pl-11 pr-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background"
-            />
-          </div>
-
-          <div className="relative">
-            <Lock size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder={t.authPassword}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full pl-11 pr-11 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3.5 top-3 text-text-muted hover:text-text-secondary transition"
-              tabIndex={-1}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-
-          {mode === "login" && (
-            <div className="text-right -mt-1">
-              <button type="button" onClick={() => { setMode("forgot"); setError(null); }}
-                className="text-xs text-primary hover:underline">
-                Forgot password?
+            <div className="relative">
+              <Lock size={16} className="absolute left-3.5 top-3.5 text-text-muted" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder={t.authPassword}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full pl-11 pr-11 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition bg-background"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3.5 top-3 text-text-muted hover:text-text-secondary transition"
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          )}
 
-          <button type="submit" disabled={loading} className="w-full py-3.5 btn-primary text-sm">
-            {loading
-              ? (mode === "login" ? t.authSigningIn : t.authCreating)
-              : (mode === "login" ? t.authSubmitLogin : t.authSubmitRegister)}
-          </button>
-        </form>
+            {mode === "login" && (
+              <div className="text-right -mt-1">
+                <button type="button" onClick={() => { setMode("forgot"); setError(null); }}
+                  className="text-xs text-primary hover:underline">
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full py-3.5 btn-primary text-sm">
+              {loading
+                ? (mode === "login" ? t.authSigningIn : t.authCreating)
+                : (mode === "login" ? t.authSubmitLogin : t.authSubmitRegister)}
+            </button>
+          </form>
         )}
       </div>
     </div>
