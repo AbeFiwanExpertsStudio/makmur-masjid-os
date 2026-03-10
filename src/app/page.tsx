@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Shield, PackageSearch, Building2, CalendarDays } from "lucide-react";
+import { LayoutDashboard, QrCode, MapPin, Users, HandHeart, ArrowRight, Star, Shield, PackageSearch, Building2, CalendarDays, Monitor, Clock } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthContext";
 import { useLiveStats } from "@/hooks/useLiveStats";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { useLanguage } from "@/components/providers/LanguageContext";
 
 function formatStat(value: number, prefix = "", suffix = ""): string {
-  if (value >= 1000) return `${prefix}${(value / 1000).toFixed(1)}K${suffix}`;
+  if (value >= 1_000_000) return `${prefix}${(value / 1_000_000).toFixed(1)}M${suffix}`;
+  if (value >= 1_000) return `${prefix}${(value / 1_000).toFixed(1)}K${suffix}`;
   return `${prefix}${value.toLocaleString()}${suffix}`;
 }
 
@@ -26,6 +27,8 @@ export default function HomePage() {
     { href: "/mosque-programs", icon: CalendarDays, title: t.navMosquePrograms, desc: t.featureProgramsDesc, color: "text-primary" },
     { href: "/lost-found", icon: PackageSearch, title: t.navLostFound, desc: t.featureLostFoundDesc, color: "text-primary" },
     { href: "/facility-booking", icon: Building2, title: t.navFacilityBooking, desc: t.featureFacilityDesc, color: "text-primary" },
+    { href: "/waktu-solat", icon: Clock, title: t.navWaktuSolat, desc: t.featureWaktuSolatDesc, color: "text-primary" },
+    { href: "/paparan-masjid", icon: Monitor, title: t.navPaparanMasjid, desc: t.featurePaparanMasjidDesc, color: "text-primary" },
   ];
 
   const adminFeatures = [
@@ -137,24 +140,24 @@ export default function HomePage() {
 
       {/* ═══ STATS BAR ═══ */}
       <section className="container mx-auto px-2 min-[400px]:px-4 -mt-20 md:-mt-24 mb-16 relative z-20">
-        <div className="bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/40 dark:border-white/10 p-4 min-[400px]:p-6 grid grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-0 divide-y md:divide-y-0 md:divide-x divide-border/50 transition-all">
+        <div className="bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border dark:border-white/10 p-4 min-[400px]:p-6 grid grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-0 divide-y md:divide-y-0 md:divide-x divide-border/50 transition-all">
           {statDisplay.map((s) => (
             <div key={s.label} className="text-center py-2 md:py-0 px-2 min-[400px]:px-6 flex flex-col items-center justify-center">
               <p className={`text-3xl md:text-3xl lg:text-4xl font-extrabold text-primary drop-shadow-sm transition-all leading-tight ${stats.isLoading ? "opacity-40" : ""}`}>
                 {s.value}
               </p>
-              <p className="text-[10px] min-[400px]:text-[11px] text-text border border-white/10 dark:border-white/5 bg-white/50 dark:bg-white/5 backdrop-blur-sm rounded-full px-3 py-1 font-semibold mt-2 leading-tight uppercase tracking-wider">{s.label}</p>
+              <p className="text-[10px] min-[400px]:text-[11px] text-text-secondary dark:text-text border border-border dark:border-white/5 bg-surface-alt dark:bg-white/5 rounded-full px-3 py-1 font-semibold mt-2 leading-tight uppercase tracking-wider">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ═══ FEATURES SECTION ═══ */}
-      <section className="w-full bg-[#11141a]"> {/* Forced exact dark background spanning screen width */}
+      <section className="w-full" style={{ backgroundColor: 'var(--features-bg)' }}>
         <div className="container mx-auto px-4 pb-20 pt-8">
           <div className="text-center mb-16">
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-gold mb-4">{t.whatWeOffer}</p>
-            <h2 className="text-3xl md:text-[2.5rem] font-bold text-white tracking-tight">{t.everythingYourMosqueNeeds}</h2>
+            <h2 className="text-3xl md:text-[2.5rem] font-bold text-text dark:text-white tracking-tight">{t.everythingYourMosqueNeeds}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
@@ -164,20 +167,20 @@ export default function HomePage() {
                 <Link
                   key={f.href}
                   href={f.href}
-                  className="group flex flex-col p-8 rounded-[18px] bg-[#1e232e] border border-[#2b3240] shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-[#384152] transition-all duration-300 relative overflow-hidden"
+                  className="group flex flex-col p-8 rounded-[18px] bg-white dark:bg-[#1e232e] border border-border dark:border-[#2b3240] shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-primary/30 dark:hover:border-[#384152] transition-all duration-300 relative overflow-hidden"
                 >
                   {/* Glowing hover dot top left */}
-                  <div className="absolute top-0 left-0 w-32 h-32 bg-[#00d084]/10 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-primary/10 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
 
                   {/* Box Icon Container */}
-                  <div className="relative z-10 w-[42px] h-[42px] rounded-xl bg-[#00d084]/10 flex items-center justify-center text-[#00d084] mb-5 group-hover:bg-[#00d084]/20 transition-all duration-300">
-                    <Icon size={20} className="stroke-[#00d084]" strokeWidth={2} />
+                  <div className="relative z-10 w-[42px] h-[42px] rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-5 group-hover:bg-primary/20 transition-all duration-300">
+                    <Icon size={20} className="stroke-primary" strokeWidth={2} />
                   </div>
 
                   {/* Text Container */}
                   <div className="relative z-10 font-sans">
-                    <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
-                    <p className="text-[13px] text-[#8b949e] leading-relaxed mb-4">{f.desc}</p>
+                    <h3 className="text-base font-semibold text-text dark:text-white mb-2">{f.title}</h3>
+                    <p className="text-[13px] text-text-muted dark:text-[#8b949e] leading-relaxed mb-4">{f.desc}</p>
                   </div>
                 </Link>
               );
@@ -187,12 +190,12 @@ export default function HomePage() {
       </section>
 
       {/* ═══ FOOTER / CREDITS ═══ */}
-      <footer className="w-full bg-[#11141a] pt-16 pb-12 border-t border-white/5 mt-auto">
+      <footer className="w-full bg-background pt-16 pb-12 border-t border-border dark:border-white/5 mt-auto">
         <div className="container mx-auto px-4 max-w-5xl">
 
           <div className="text-center mb-10">
-            <h3 className="text-xl font-bold text-white mb-2">Pembangun Sistem</h3>
-            <p className="text-sm text-white/40">Sistem ini dibangunkan dengan kerjasama oleh barisan pembangun berikut.</p>
+            <h3 className="text-xl font-bold text-text dark:text-white mb-2">{t.footerDevTitle}</h3>
+            <p className="text-sm text-text-muted dark:text-white/40">{t.footerDevSubtitle}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
@@ -202,9 +205,9 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
               </div>
-              <h4 className="text-base font-bold text-white mb-1">Developer 1</h4>
+              <h4 className="text-base font-bold text-text dark:text-white mb-1">Developer 1</h4>
               <p className="text-xs text-primary font-medium mb-2">Lead Engineer</p>
-              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Pembangun teras sistem dan arkitektur backend.</p>
+              <p className="text-xs text-text-muted dark:text-white/40 max-w-[200px] leading-relaxed">{t.footerDev1Desc}</p>
             </div>
 
             {/* Developer 2 */}
@@ -213,9 +216,9 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
               </div>
-              <h4 className="text-base font-bold text-white mb-1">Developer 2</h4>
+              <h4 className="text-base font-bold text-text dark:text-white mb-1">Developer 2</h4>
               <p className="text-xs text-gold font-medium mb-2">Frontend & UI/UX</p>
-              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Mereka bentuk interaksi pengguna dan paparan visual masjid.</p>
+              <p className="text-xs text-text-muted dark:text-white/40 max-w-[200px] leading-relaxed">{t.footerDev2Desc}</p>
             </div>
 
             {/* Developer 3 */}
@@ -224,16 +227,16 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
               </div>
-              <h4 className="text-base font-bold text-white mb-1">Developer 3</h4>
+              <h4 className="text-base font-bold text-text dark:text-white mb-1">Developer 3</h4>
               <p className="text-xs text-cyan-400 font-medium mb-2">Systems & Integration</p>
-              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Mengurus integrasi pembayaran dan automasi pangkalan data.</p>
+              <p className="text-xs text-text-muted dark:text-white/40 max-w-[200px] leading-relaxed">{t.footerDev3Desc}</p>
             </div>
           </div>
 
-          <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="mt-16 pt-8 border-t border-border dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-center md:text-left">
-              <p className="text-white/30 text-xs text-center md:text-left">
-                &copy; {new Date().getFullYear()} Makmur Masjid OS. Hak Cipta Terpelihara.
+              <p className="text-text-muted dark:text-white/30 text-xs text-center md:text-left">
+                &copy; {new Date().getFullYear()} Makmur Masjid OS. {t.footerCopyright}
               </p>
             </div>
           </div>

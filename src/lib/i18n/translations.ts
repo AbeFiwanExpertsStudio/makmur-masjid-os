@@ -42,6 +42,7 @@ const translations = {
     navWaktuSolat: "Prayer Times",
     navLostFound: "Lost & Found",
     navFacilityBooking: "Facility Booking",
+    navPaparanMasjid: "Mosque Display",
     navMosquePrograms: "Programs",
     navAdminPanel: "Admin Panel",
     navMyProfile: "My Profile",
@@ -85,9 +86,19 @@ const translations = {
     featureCrowdfundDesc: "Support mosque fundraising campaigns transparently.",
     featureLostFoundDesc: "Report or find lost items. Help others reunite with their belongings.",
     featureFacilityDesc: "Book mosque facilities for events, classes, and community gatherings.",
+    featureWaktuSolatDesc: "View accurate prayer times with auto-detected location and azan alerts.",
+    featurePaparanMasjidDesc: "Full-screen mosque display with prayer times, slideshow, and live announcements.",
     featureProgramsDesc: "Browse lectures, halaqah sessions, and Jumu'ah talks scheduled at the mosque.",
     featureDashboardDesc: "Crowd predictions & resource planning powered by machine learning.",
     featureAdminDesc: "Manage operations, scan kupons, and broadcast messages.",
+
+    // Footer / Developer credits
+    footerDevTitle: "System Developers",
+    footerDevSubtitle: "This system was built in collaboration by the following developers.",
+    footerDev1Desc: "Core system builder and backend architecture.",
+    footerDev2Desc: "Designed user interactions and mosque visual displays.",
+    footerDev3Desc: "Manages payment integration and database automation.",
+    footerCopyright: "All Rights Reserved.",
 
     // ── E-Kupon page ─────────────────────────────────────────
     ekuponTitle: "E-Coupon Iftar",
@@ -660,6 +671,7 @@ const translations = {
     navWaktuSolat: "Waktu Solat",
     navLostFound: "Hilang & Jumpa",
     navFacilityBooking: "Tempah Kemudahan",
+    navPaparanMasjid: "Paparan Masjid",
     navMosquePrograms: "Program",
     navAdminPanel: "Panel Admin",
     navMyProfile: "Profil Saya",
@@ -703,9 +715,19 @@ const translations = {
     featureCrowdfundDesc: "Sokong kempen tabung masjid secara telus.",
     featureLostFoundDesc: "Lapor atau cari barang hilang. Bantu orang lain dapatkan semula barang mereka.",
     featureFacilityDesc: "Tempah kemudahan masjid untuk acara, kelas, dan perjumpaan komuniti.",
+    featureWaktuSolatDesc: "Lihat waktu solat tepat dengan pengesanan lokasi automatik dan amaran azan.",
+    featurePaparanMasjidDesc: "Paparan skrin penuh masjid dengan waktu solat, tayangan slaid, dan pengumuman langsung.",
     featureProgramsDesc: "Semak jadual kuliah, halaqah, dan ceramah Jumaat di masjid.",
     featureDashboardDesc: "Ramalan orang ramai & perancangan sumber berkuasa pembelajaran mesin.",
     featureAdminDesc: "Urus operasi, imbas kupon, dan hantar siaran.",
+
+    // Footer / Developer credits
+    footerDevTitle: "Pembangun Sistem",
+    footerDevSubtitle: "Sistem ini dibangunkan dengan kerjasama oleh barisan pembangun berikut.",
+    footerDev1Desc: "Pembangun teras sistem dan arkitektur backend.",
+    footerDev2Desc: "Mereka bentuk interaksi pengguna dan paparan visual masjid.",
+    footerDev3Desc: "Mengurus integrasi pembayaran dan automasi pangkalan data.",
+    footerCopyright: "Hak Cipta Terpelihara.",
 
     // ── E-Kupon page ─────────────────────────────────────────
     ekuponTitle: "E-Kupon Iftar",
