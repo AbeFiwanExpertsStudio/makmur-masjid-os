@@ -150,30 +150,96 @@ export default function HomePage() {
       </section>
 
       {/* ═══ FEATURES SECTION ═══ */}
-      <section className="container mx-auto px-4 pb-16">
-        <div className="text-center mb-10">
-          <p className="text-xs font-bold uppercase tracking-widest text-gold mb-2">{t.whatWeOffer}</p>
-          <h2 className="text-3xl font-bold text-text">{t.everythingYourMosqueNeeds}</h2>
+      <section className="container mx-auto px-4 pb-20 pt-8">
+        <div className="text-center mb-12">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold mb-3">{t.whatWeOffer}</p>
+          <h2 className="text-3xl md:text-4xl font-black text-text tracking-tight">{t.everythingYourMosqueNeeds}</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {features.map((f) => {
             const Icon = f.icon;
             return (
-              <Link key={f.href} href={f.href} className="card p-6 group flex flex-col">
-                <div className="mb-4 w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 group-hover:bg-primary/15 dark:group-hover:bg-primary/20 transition-all">
-                  <Icon size={22} strokeWidth={2.5} />
+              <Link
+                key={f.href}
+                href={f.href}
+                className="group flex flex-col p-6 rounded-3xl bg-[#1e232e] border border-white/5 shadow-xl hover:shadow-2xl hover:bg-[#252a36] hover:-translate-y-1 hover:border-white/10 transition-all duration-300 relative overflow-hidden"
+              >
+                {/* Subtle top-left gradient glow on hover */}
+                <div className="absolute top-0 left-0 w-32 h-32 bg-primary/20 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+
+                <div className="relative z-10 w-12 h-12 rounded-xl bg-[#283141] flex items-center justify-center text-primary mb-6 ring-1 ring-white/5 group-hover:ring-primary/30 transition-all duration-300">
+                  <Icon size={20} className="opacity-90 group-hover:opacity-100" strokeWidth={2.5} />
                 </div>
-                <h3 className="font-bold text-text text-lg mb-1.5">{f.title}</h3>
-                <p className="text-sm text-text-secondary leading-relaxed flex-1">{f.desc}</p>
-                <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all">
-                  Open <ArrowRight size={12} />
+
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
+                  <p className="text-sm font-medium text-white/50 leading-relaxed mb-6">{f.desc}</p>
+                </div>
+
+                {/* Arrow indicator pushed to bottom */}
+                <div className="mt-auto relative z-10 flex items-center gap-2 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                  <span>Explore</span> <ArrowRight size={14} />
                 </div>
               </Link>
             );
           })}
         </div>
       </section>
+
+      {/* ═══ FOOTER / CREDITS ═══ */}
+      <footer className="w-full bg-[#11141a] pt-16 pb-12 border-t border-white/5 mt-auto">
+        <div className="container mx-auto px-4 max-w-5xl">
+
+          <div className="text-center mb-10">
+            <h3 className="text-xl font-bold text-white mb-2">Pembangun Sistem</h3>
+            <p className="text-sm text-white/40">Sistem ini dibangunkan dengan kerjasama oleh barisan pembangun berikut.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
+            {/* Developer 1 */}
+            <div className="flex flex-col items-center text-center group">
+              <div className="w-24 h-24 rounded-full bg-surface border border-white/10 mb-4 overflow-hidden relative shadow-lg group-hover:ring-2 ring-primary/50 transition-all">
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
+              </div>
+              <h4 className="text-base font-bold text-white mb-1">Developer 1</h4>
+              <p className="text-xs text-primary font-medium mb-2">Lead Engineer</p>
+              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Pembangun teras sistem dan arkitektur backend.</p>
+            </div>
+
+            {/* Developer 2 */}
+            <div className="flex flex-col items-center text-center group md:mt-4">
+              <div className="w-24 h-24 rounded-full bg-surface border border-white/10 mb-4 overflow-hidden relative shadow-lg group-hover:ring-2 ring-primary/50 transition-all">
+                <div className="absolute inset-0 bg-gradient-to-tr from-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
+              </div>
+              <h4 className="text-base font-bold text-white mb-1">Developer 2</h4>
+              <p className="text-xs text-gold font-medium mb-2">Frontend & UI/UX</p>
+              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Mereka bentuk interaksi pengguna dan paparan visual masjid.</p>
+            </div>
+
+            {/* Developer 3 */}
+            <div className="flex flex-col items-center text-center group">
+              <div className="w-24 h-24 rounded-full bg-surface border border-white/10 mb-4 overflow-hidden relative shadow-lg group-hover:ring-2 ring-primary/50 transition-all">
+                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-full h-full flex items-center justify-center text-white/20 text-3xl">👨‍💻</div>
+              </div>
+              <h4 className="text-base font-bold text-white mb-1">Developer 3</h4>
+              <p className="text-xs text-cyan-400 font-medium mb-2">Systems & Integration</p>
+              <p className="text-xs text-white/40 max-w-[200px] leading-relaxed">Mengurus integrasi pembayaran dan automasi pangkalan data.</p>
+            </div>
+          </div>
+
+          <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <p className="text-white/30 text-xs text-center md:text-left">
+                &copy; {new Date().getFullYear()} Makmur Masjid OS. Hak Cipta Terpelihara.
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
