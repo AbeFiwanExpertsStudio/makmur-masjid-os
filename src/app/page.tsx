@@ -57,11 +57,22 @@ export default function HomePage() {
   return (
     <div className="min-h-screen overflow-x-hidden w-full relative">
       {/* ═══ HERO SECTION ═══ */}
-      <section className="hero-gradient text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-surface/5 rounded-full -mt-48 -mr-48 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-surface/5 rounded-full -mb-32 -ml-32 blur-2xl" />
-        <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-gold rounded-full animate-live" />
-        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-gold/60 rounded-full animate-live" style={{ animationDelay: '0.5s' }} />
+      <section className="hero-gradient text-white relative overflow-hidden pb-16 md:pb-24">
+        {/* Islamic Geometric Pattern */}
+        <div
+          className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-[0.12]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.5' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='112' height='112'/%3E%3Cpolygon points='37,4 83,4 116,37 116,83 83,116 37,116 4,83 4,37'/%3E%3Cpolygon points='60,20 67,44 88,32 76,54 100,60 76,66 88,88 67,76 60,100 53,76 32,88 44,66 20,60 44,54 32,32 53,44'/%3E%3Cpolygon points='67,44 76,54 76,66 67,76 53,76 44,66 44,54 53,44'/%3E%3Cline x1='60' y1='0' x2='60' y2='20'/%3E%3Cline x1='120' y1='60' x2='100' y2='60'/%3E%3Cline x1='60' y1='120' x2='60' y2='100'/%3E%3Cline x1='0' y1='60' x2='20' y2='60'/%3E%3Cline x1='0' y1='0' x2='32' y2='32'/%3E%3Cline x1='120' y1='0' x2='88' y2='32'/%3E%3Cline x1='0' y1='120' x2='32' y2='88'/%3E%3Cline x1='120' y1='120' x2='88' y2='88'/%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: "120px 120px"
+          }}
+        />
+        {/* Fade to bottom */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background pointer-events-none" />
+
+        <div className="absolute top-0 right-0 w-96 h-96 bg-surface/5 rounded-full -mt-48 -mr-48 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-surface/5 rounded-full -mb-32 -ml-32 blur-2xl pointer-events-none" />
+        <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-gold rounded-full animate-live pointer-events-none" />
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-gold/60 rounded-full animate-live pointer-events-none" style={{ animationDelay: '0.5s' }} />
 
         <div className="container mx-auto px-4 py-20 md:py-28 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
@@ -122,23 +133,17 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Wave divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M0 60V20C240 0 480 40 720 30C960 20 1200 0 1440 20V60H0Z" fill="currentColor" className="text-background" />
-          </svg>
-        </div>
       </section>
 
       {/* ═══ STATS BAR ═══ */}
-      <section className="container mx-auto px-2 min-[400px]:px-4 -mt-2 mb-12 relative z-20">
-        <div className="bg-surface rounded-2xl shadow-lg border border-border p-3 min-[400px]:p-6 grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border">
+      <section className="container mx-auto px-2 min-[400px]:px-4 -mt-20 md:-mt-24 mb-16 relative z-20">
+        <div className="bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/40 dark:border-white/10 p-4 min-[400px]:p-6 grid grid-cols-2 md:grid-cols-4 gap-y-6 md:gap-y-0 divide-y md:divide-y-0 md:divide-x divide-border/50 transition-all">
           {statDisplay.map((s) => (
-            <div key={s.label} className="text-center py-3 md:py-0 px-1 min-[400px]:px-6 flex flex-col items-center justify-center">
-              <p className={`text-xl min-[400px]:text-2xl md:text-3xl font-bold text-primary transition-all leading-tight ${stats.isLoading ? "opacity-40" : ""}`}>
+            <div key={s.label} className="text-center py-2 md:py-0 px-2 min-[400px]:px-6 flex flex-col items-center justify-center">
+              <p className={`text-3xl md:text-3xl lg:text-4xl font-extrabold text-primary drop-shadow-sm transition-all leading-tight ${stats.isLoading ? "opacity-40" : ""}`}>
                 {s.value}
               </p>
-              <p className="text-[10px] min-[400px]:text-xs text-text-muted font-medium mt-1 leading-tight">{s.label}</p>
+              <p className="text-[10px] min-[400px]:text-[11px] text-text border border-white/10 dark:border-white/5 bg-white/50 dark:bg-white/5 backdrop-blur-sm rounded-full px-3 py-1 font-semibold mt-2 leading-tight uppercase tracking-wider">{s.label}</p>
             </div>
           ))}
         </div>
