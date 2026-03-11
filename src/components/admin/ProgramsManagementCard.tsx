@@ -169,7 +169,7 @@ function ProgramModal({ program, onClose, onSaved, t }: ModalProps) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">{t.mpFieldDate}</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="input w-full" />
+            <input type="date" value={date} min={new Date().toISOString().split("T")[0]} onChange={e => setDate(e.target.value)} required className="input w-full" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
